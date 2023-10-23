@@ -12,10 +12,6 @@
 - [Background](#background)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
 
 ---
 
@@ -46,7 +42,7 @@ Xklaim is a novel programming language that derives its core principles from the
 
 To utilize `B2XKlaim` effectively, follow these steps:
 
-1. **Run the application**: 
+1. Run the application: 
 
    ```bash
    npm run serve
