@@ -41,3 +41,12 @@ Xklaim is a novel programming language that derives its core principles from the
    git clone https://github.com/khalidbourr/B2XKlaim
    cd B2XKlaim
    npm install
+
+## Usage
+
+To utilize `B2XKlaim` effectively, follow these steps:
+
+1. **Run the application**: 
+
+   ```bash
+   npm run serve
