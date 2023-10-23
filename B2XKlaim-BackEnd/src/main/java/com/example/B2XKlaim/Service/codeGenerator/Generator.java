@@ -116,8 +116,6 @@ public class Generator {
         Method visitMethod = getVisitMethod(element.getClass());
         if (visitMethod != null) {
             visitedElements.add(element);
-            System.out.println(element);
-            System.out.println(visitedElements);
 
             try {
                 String result = (String) visitMethod.invoke(visitor, element);

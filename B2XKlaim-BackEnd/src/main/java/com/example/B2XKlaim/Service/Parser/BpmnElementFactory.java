@@ -70,9 +70,15 @@ public class BpmnElementFactory {
                 String senderParticipantId = getEnclosingParticipantId(eventSourceId);
                 String receiverParticipantId = getEnclosingParticipantId(eventTargetId);
 
+
+
+
                 // Further, if you need names:
                 String senderParticipantName = getParticipantNameById(senderParticipantId);
                 String receiverParticipantName = getParticipantNameById(receiverParticipantId);
+
+                System.out.print(senderParticipantId);
+                System.out.print(receiverParticipantId);
 
                 MessageFLow messageFlow = new MessageFLow(msgId, receiverParticipantId, receiverParticipantName,  senderParticipantId, senderParticipantName, eventTargetId, eventSourceId);
                 messageFlows.add(messageFlow);
@@ -586,7 +592,7 @@ public class BpmnElementFactory {
         NodeList participantNodes = document.getElementsByTagName("bpmn:participant");
         for (int i = 0; i < participantNodes.getLength(); i++) {
             Element participantElement = (Element) participantNodes.item(i);
-            if (participantId != null || participantId.equals(participantElement.getAttribute("id"))) {
+            if (participantId != null && participantId.equals(participantElement.getAttribute("id"))) {
                 return participantElement.getAttribute("name");
             }
         }
