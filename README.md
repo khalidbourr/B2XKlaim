@@ -1,6 +1,6 @@
 # B2XKlaim
 
-![B2XKlaim Logo](path_to_your_logo.png) <!-- If you have a logo, replace path_to_your_logo.png with the actual path -->
+![B2XKlaim Logo](path_to_your_logo.png) <!-- To add a logo here -->
 
 `B2XKlaim` is a powerful tool designed to transform Collaboration diagrams from BPMN into skeleton code for Xklaim, an innovative programming language rooted in the formal language KLAIM.
 
@@ -35,7 +35,7 @@ Xklaim is a novel programming language that derives its core principles from the
 1. Clone the repository:
    ```bash
    git clone https://github.com/khalidbourr/B2XKlaim
-   cd B2XKlaim
+   cd B2XKlaim/B2XKlaim-FrontEnd
    npm install
 
 ## Usage
