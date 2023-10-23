@@ -37,12 +37,24 @@ Xklaim is a novel programming language that derives its core principles from the
    git clone https://github.com/khalidbourr/B2XKlaim
    cd B2XKlaim/B2XKlaim-FrontEnd
    npm install
-
+   ```
 ## Usage
 
 To utilize `B2XKlaim` effectively, follow these steps:
 
-1. Run the application: 
+### 1. Start the Backend
+
+```bash
+   cd B2XKlaim/B2XKlaim-BackEnd
+   mvn clean install
+   mvn clean compile
+```
+Ensure the backend is up and running. Initiate the B2XKlaimApplication.
+
+### 2. Launch the Frontend
+
+Navigate to the frontend directory:
 
    ```bash
+   cd B2XKlaim/B2XKlaim-FrontEnd
    npm run serve
