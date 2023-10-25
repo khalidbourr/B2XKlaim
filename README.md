@@ -46,7 +46,7 @@ To utilize `B2XKlaim` effectively, follow these steps:
 
 ```bash
    cd B2XKlaim/B2XKlaim-BackEnd
-   mvn clean install
+   mvn clean install (mvn clean install -DskipTests)
    mvn clean compile
 ```
 Ensure the backend is up and running. Initiate the B2XKlaimApplication.
