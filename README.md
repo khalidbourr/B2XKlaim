@@ -1,9 +1,13 @@
 # B2XKlaim
 
-![B2XKlaim Logo](https://github.com/khalidbourr/B2XKlaim/blob/main/B2XKlaim.png) <!-- To add a logo here -->
+
+  <img src="https://github.com/PROSLab/B2XKlaim/blob/main/b2xklaim.jpg" width="500" height="auto">
+
+
 
 `B2XKlaim` is a powerful tool designed to transform Collaboration diagrams from BPMN into skeleton code for Xklaim, an innovative programming language rooted in the formal language KLAIM.
 
+![B2XKlaim Logo](https://github.com/PROSLab/B2XKlaim/blob/main/B2XKlaim.png) 
 ---
 
 ## Table of Contents
