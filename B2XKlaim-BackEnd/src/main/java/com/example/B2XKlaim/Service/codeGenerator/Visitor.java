@@ -46,7 +46,10 @@ public interface Visitor {
     public String visit(SIT sit) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(NEE nee) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(MEE nee) throws FileNotFoundException, UnsupportedEncodingException;
-    public String visit(SEE nee) throws FileNotFoundException, UnsupportedEncodingException;
+    public String visit(SEE see) throws FileNotFoundException, UnsupportedEncodingException;
+    public String visit(TSE tse) throws FileNotFoundException, UnsupportedEncodingException;
+    public String visit(TCE tce) throws FileNotFoundException, UnsupportedEncodingException;
+    public String visit(TEE tee) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(XOR xor) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(AND and) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(LP lp) throws FileNotFoundException, UnsupportedEncodingException;

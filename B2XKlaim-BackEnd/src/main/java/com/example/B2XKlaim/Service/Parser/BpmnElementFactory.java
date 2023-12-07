@@ -155,6 +155,27 @@ public class BpmnElementFactory {
                                 return sse;
                             }
                         } else if ("bpmn:timerEventDefinition".equals(childTagName)) {
+                            NodeList timeDurationNodes = childElement.getElementsByTagName("bpmn:timeDuration");
+                            String timeDuration = null;
+                            if (timeDurationNodes.getLength() > 0) {
+                                timeDuration = timeDurationNodes.item(0).getTextContent();
+                            }
+
+                            Long duration;
+                            if (timeDuration != null && !timeDuration.isEmpty()) {
+                                try {
+                                    duration = Long.parseLong(timeDuration);
+                                } catch (NumberFormatException e) {
+                                    throw new IllegalArgumentException("Invalid time duration format for " + id);
+                                }
+                            } else {
+                                throw new IllegalArgumentException("Duration is required for " + id);
+                            }
+
+                            TSE tse = new TSE(name, id, duration, outgoing,processId,processName);
+                            System.out.println(tse);
+                            return tse;
+
                         }
                     }
                 }
@@ -192,6 +213,28 @@ public class BpmnElementFactory {
                                 SIC sic = new SIC(name, id, incoming, outgoing, signalId,senderSignalParticipantName);
                                 return sic;
                             }
+                        }else if ("bpmn:timerEventDefinition".equals(childTagName)) {
+                            NodeList timeDurationNodes = childElement.getElementsByTagName("bpmn:timeDuration");
+                            String timeDuration = null;
+                            if (timeDurationNodes.getLength() > 0) {
+                                timeDuration = timeDurationNodes.item(0).getTextContent();
+                            }
+
+                            Long duration;
+                            if (timeDuration != null && !timeDuration.isEmpty()) {
+                                try {
+                                    duration = Long.parseLong(timeDuration);
+                                } catch (NumberFormatException e) {
+                                    throw new IllegalArgumentException("Invalid time duration format for " + id);
+                                }
+                            } else {
+                                throw new IllegalArgumentException("Duration is required for " + id);
+                            }
+
+                            TCE tce = new TCE(name, id, duration, outgoing);
+                            System.out.println(tce);
+                            return tce;
+
                         }
                     }
                 }

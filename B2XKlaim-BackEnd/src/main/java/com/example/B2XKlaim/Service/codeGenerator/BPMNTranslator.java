@@ -95,6 +95,21 @@ public class BPMNTranslator implements Visitor {
     }
 
     @Override
+    public String visit(TSE tse) throws FileNotFoundException, UnsupportedEncodingException {
+        return String.format("Thread.sleep(%d)\nout(%s)@self\n", tse.getDuration(), tse.getOutgoingEdge());
+    }
+
+    @Override
+    public String visit(TCE tce) throws FileNotFoundException, UnsupportedEncodingException {
+        return String.format("Thread.sleep(%d)\nout(%s)@self\n", tce.getDuration(), tce.getOutgoingEdge());
+    }
+
+    @Override
+    public String visit(TEE tee) throws FileNotFoundException, UnsupportedEncodingException {
+            return String.format("Stop()\n");
+        }
+
+    @Override
     public String visit(SEE see) {
         return String.format("out(%s)@self\nThread.sleep(Signal_Duration)\nin(%s)@self\nStop()\n", see.getSignalId(), see.getSignalId(), see.getOutgoingEdge());
     }

@@ -1,8 +1,19 @@
 <template>
+
+  <div id="nav-bar" class="topnav" style="display: flex; justify-content: space-between; align-items: center;">
+    <a href="index.html" class="active">
+      <img src="./assets/b2xklaim.jpg" alt="B2Xklaim Web Client" style="height:62px">
+    </a>
+    <a href="#" id="Download" @click="exportCode"><i class="fa fa-download"></i> Download</a>
+  </div>
+
+
+
+
   <div id="app">
-    <div id="canvas-container">
-      <div id="canvas" style="height: 600px; width: 60%; border: 5px solid #ccc;"></div>
-      <div id="properties" style="height: 600px; width: 20%; border: 5px solid #ccc;"></div>
+    <div id="canvas-container" style="margin-top: 80px;">
+      <div id="canvas" style="height: 500px; width: 80%; border: 5px solid #CEE1DF;"></div>
+      <div id="properties" style="height: 500px; width: 20%; border: 5px solid #CEE1DF;"></div>
     </div>
 
     <div class="center-button-container">
@@ -14,6 +25,10 @@
         {{ tab }}
       </button>
     </div>
+
+
+
+
 
     <div class="app-container">
 
@@ -131,6 +146,37 @@ export default {
       }
     },
 
+
+    exportCode() {
+      if (!this.collaboration && !this.processes.length) {
+        alert("No data available for download.");
+        return;
+      }
+
+      // Download collaboration file
+      if (this.collaboration) {
+        this.downloadFile("main.xklaim", this.collaboration);
+      }
+
+      // Download each process as a separate file
+      this.processes.forEach((process, index) => {
+        const filename = process.title ? `${process.title}.xklaim` : `process_${index}.xklaim`;
+        this.downloadFile(filename, process.content); // Replace 'process.content' with actual content
+      });
+    },
+
+    downloadFile(filename, content) {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    },
+
+
     copyToClipboard(refName) {
       this.$refs[refName].select();
       document.execCommand('copy');
@@ -175,7 +221,7 @@ export default {
   border: 1px solid #e1e1e1;
   padding-left: 30px;
   margin-bottom: 20px;
-  background-color: lightgoldenrodyellow;
+  background-color: #CEE1DF;
   min-width: 300px;
   border-radius: 6px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -227,6 +273,35 @@ h4 {
   right: 5px;
   top: 5px;
   cursor: pointer;
+}
+
+.topnav {
+  background-color: #CEE1DF;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  top: 0;
+
+  #Download {
+    margin-left: auto; /* Pushes the button towards the right */
+    margin-right: 10%; /* Adjust this to move closer or farther from the corner */
+    font-style: bold; /* Example style, you can choose normal, italic, oblique */
+    color: #0f262e; /* Example green color, change as per your design */
+    font-size: 16px; /* Example size, adjust as needed */
+    font-family: Arial, sans-serif; /* Example font family, change as desired */
+    /* Additional styling options */
+    padding: 10px 15px;
+    background-color: #75a2a8; /* Light grey background, change as per your design */
+    border: 1px solid #ddd; /* Light grey border */
+    border-radius: 4px; /* Rounded corners */
+    text-decoration: none; /* Removes underline from text */
+    cursor: pointer; /* Changes cursor to hand pointer */
+    transition: background-color 0.3s; /* Smooth transition for hover effect */
+  }
+
+  #Download:hover {
+    background-color: #e0e0e0; /* Slightly darker shade of grey on hover */
+  }
 }
 </style>
 

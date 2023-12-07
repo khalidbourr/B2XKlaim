@@ -147,6 +147,8 @@ public class Generator {
         List<BpmnElement> startEvents = bpmnElements.getElementsByElementType(BpmnElements.ElementType.NSE);
         startEvents.addAll(bpmnElements.getElementsByElementType(BpmnElements.ElementType.MSE));
         startEvents.addAll(bpmnElements.getElementsByElementType(BpmnElements.ElementType.SSE));
+        startEvents.addAll(bpmnElements.getElementsByElementType(BpmnElements.ElementType.TSE));
+
         return startEvents;
     }
 
