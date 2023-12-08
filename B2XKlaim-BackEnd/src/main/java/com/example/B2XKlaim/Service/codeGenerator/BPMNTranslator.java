@@ -228,7 +228,7 @@ public class BPMNTranslator implements Visitor {
     @Override
     public String visit(Collab collab) throws FileNotFoundException, UnsupportedEncodingException {
         StringBuilder collabCode = new StringBuilder();
-        collabCode.append(String.format("net %s physical \"localhost:9999\" {\n", collab.getId()));
+        collabCode.append(String.format("net %s physical \"localhost:9999\" {\n\n", collab.getId()));
 
         // Assuming collab has a list of PL elements
         for (PL participant : collab.getParticipants()) {

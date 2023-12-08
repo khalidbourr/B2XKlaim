@@ -22,6 +22,7 @@ package com.example.B2XKlaim.Service.codeGenerator;
 
 import com.example.B2XKlaim.Service.bpmnElements.BpmnElements;
 import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
+import com.example.B2XKlaim.Service.bpmnElements.activities.CLA;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
 
@@ -62,7 +63,6 @@ public class Generator {
     public Map<String, List<String>> translateBPMNProcess() throws FileNotFoundException, UnsupportedEncodingException, InvocationTargetException, IllegalAccessException {
         Map<String, List<String>> result = new HashMap<>();
 
-        // Use a map to store translations for each event subprocess based on its ProcessID
         Map<String, List<String>> eventSubprocessTranslations = new HashMap<>();
 
         List<BpmnElement> eventSubprocesses = getAllEventSubProcesses(processDiagram);
@@ -87,7 +87,6 @@ public class Generator {
             List<String> translatedElements = new ArrayList<>();
             Set<BpmnElement> visitedElements = new HashSet<>();
 
-            // Combine translations only if event subprocess's ProcessID matches start event's ProcessID
             List<String> combinedTranslations = result.getOrDefault(processName, new ArrayList<>());
             combinedTranslations.addAll(eventSubprocessTranslations.getOrDefault(processName, Collections.emptyList()));
             combinedTranslations.addAll(translateElement(startEvent, translatedElements, visitedElements));
@@ -105,9 +104,35 @@ public class Generator {
                 result = (String) visitMethod.invoke(visitor, subProcess);
             } catch (IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
-                throw e;  // Re-throwing the exception to be consistent with the method signature
+                throw e;
             }
         }
+        return result;
+    }
+
+
+    public Map<String, List<String>> translateCallActivity() throws InvocationTargetException, IllegalAccessException {
+        Map<String, List<String>> result = new HashMap<>();
+        List<BpmnElement> callActivities = getAllCallActivity(processDiagram);
+
+        for (BpmnElement callActivity : callActivities) {
+            CLA callAct = (CLA) callActivity;
+            if (callAct != null) {
+                String callActivityId = callAct.getCalledProcess();
+                String callActivityOutgoingFlow = callAct.getOutgoingEdge();
+
+                String codeString = "proc " + callActivityId + "(){\n\n" +
+                        "      /* write your code here */ \n\n" +
+                        "      out(" + callActivityOutgoingFlow + ")@self\n" +
+                        "}";
+
+                List<String> translations = new ArrayList<>();
+                translations.add(codeString);
+
+                result.put(callActivityId, translations);
+            }
+        }
+
         return result;
     }
 
@@ -152,7 +177,6 @@ public class Generator {
         return startEvents;
     }
 
-
     private static List<BpmnElement> getPools(BpmnElements bpmnElements) {
         return bpmnElements.getElementsByElementType(BpmnElements.ElementType.PL);
     }
@@ -180,9 +204,12 @@ public class Generator {
     private List<BpmnElement> getAllEventSubProcesses(BpmnElements bpmnElements) {
         List<BpmnElement> eventSubprocess = bpmnElements.getElementsByElementType(BpmnElements.ElementType.ESP);
         return eventSubprocess;
-
     }
 
+    private List<BpmnElement> getAllCallActivity(BpmnElements bpmnElements) {
+        List<BpmnElement> CallActivity = bpmnElements.getElementsByElementType(BpmnElements.ElementType.CLA);
+        return CallActivity;
+    }
 
 
 }

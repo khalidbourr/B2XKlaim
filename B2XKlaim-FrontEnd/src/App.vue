@@ -59,6 +59,7 @@
 <script>
 import BpmnModeler from "camunda-bpmn-js/lib/camunda-platform/Modeler";
 import "camunda-bpmn-js/dist/assets/camunda-platform-modeler.css";
+import JSZip from 'jszip';
 
 export default {
   name: "App",
@@ -68,19 +69,11 @@ export default {
       activeTab: 'collaboration',
       showButtons: false,
       collaboration: '',       // Added this data property to store collaboration code
-      processes: []            // Added this data property to store processes
+      processes: [],            // Added this data property to store processes
+      callActivities: []            // Added this data property to store callActivities
     };
   },
 
-  computed: {
-    filteredParticipants() {
-      if (this.activeTab === 'collaboration') {
-        return [];
-      }
-      return this.processes.filter(process => this.activeTab === process.name);
-    },
-    // ... other computed properties
-  },
   mounted() {
     this.bpmnModeler = new BpmnModeler({
       container: "#canvas",
@@ -138,8 +131,10 @@ export default {
 
         const data = await response.json();
 
-        this.collaboration = data.collaboration || ''; // Update the collaboration property
+        this.collaboration = data.collaboration || '';
         this.processes = data.processes || [];
+        this.callActivities = data.callActivities || [];
+
 
       } catch (err) {
         console.error("Failed to generate code:", err);
@@ -147,33 +142,41 @@ export default {
     },
 
 
-    exportCode() {
+    async exportCode() {
       if (!this.collaboration && !this.processes.length) {
         alert("No data available for download.");
         return;
       }
 
-      // Download collaboration file
+      const zip = new JSZip();
+
       if (this.collaboration) {
-        this.downloadFile("main.xklaim", this.collaboration);
+        zip.file("Main.xklaim", this.collaboration);
       }
 
-      // Download each process as a separate file
-      this.processes.forEach((process, index) => {
-        const filename = process.title ? `${process.title}.xklaim` : `process_${index}.xklaim`;
-        this.downloadFile(filename, process.content); // Replace 'process.content' with actual content
+      this.processes.forEach(process => {
+        const filename = `${process.name}.xklaim`;
+        zip.file(filename, process.code);
       });
-    },
 
-    downloadFile(filename, content) {
-      const blob = new Blob([content], { type: 'text/plain' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
+      Object.keys(this.callActivities).forEach(activityName => {
+        const activityCode = this.callActivities[activityName].join('\n');
+        const filename = `${activityName}.xklaim`;
+        zip.file(filename, activityCode);
+      });
+
+      try {
+        const content = await zip.generateAsync({ type: "blob" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(content);
+        link.download = "Xklaim.zip";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      } catch (err) {
+        console.error("Error generating zip file:", err);
+      }
     },
 
 

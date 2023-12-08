@@ -240,7 +240,7 @@ public class BPMNTranslatorTest {
         String klaimCode = translator.visit(collab);
 
         // Assert
-        String expectedKlaimCode = "net collab1 physical \"localhost:9999\" {\n" +
+        String expectedKlaimCode = "net collab1 physical \"localhost:9999\" {\n\n" +
                 "\tnode participant1 {\n" +
                 "\t\teval(new process1())@self\n" +
                 "\t}\n" +

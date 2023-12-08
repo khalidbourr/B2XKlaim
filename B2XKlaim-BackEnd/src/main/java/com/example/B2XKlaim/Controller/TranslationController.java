@@ -52,22 +52,34 @@ public class TranslationController {
 
             // Optimize each process code
             List<Map<String, String>> processesList = new ArrayList<>();
+
             for (Map.Entry<String, List<String>> entry : processesTranslations.entrySet()) {
                 List<String> rawProcessCode = entry.getValue();
                 List<String> optimizedProcessCode = optimizer.optimize(rawProcessCode);
+
+                StringBuilder processCodeBuilder = new StringBuilder();
+                processCodeBuilder.append("proc ").append(entry.getKey()).append("(){\n\n");
+
+                for (String line : optimizedProcessCode) {
+                    processCodeBuilder.append("      ").append(line).append("\n");
+                }
+                processCodeBuilder.append("}");
+
                 Map<String, String> processEntry = new HashMap<>();
                 processEntry.put("name", entry.getKey());
-                processEntry.put("code", String.join("\n", optimizedProcessCode));
+                processEntry.put("code", processCodeBuilder.toString());
+
                 processesList.add(processEntry);
             }
 
-            // Aggregate results into resultMap
+            Map<String, List<String>> callActivityTranslations = code.translateCallActivity();
+
             Map<String, Object> resultMap = new HashMap<>();
             resultMap.put("collaboration", String.join("\n", optimizedCollabo));
             resultMap.put("processes", processesList);
+            resultMap.put("callActivities", callActivityTranslations);
 
 
-            // Assuming you want to return the resultMap as the response body
             return new ResponseEntity<>(resultMap, HttpStatus.OK);
 
         } catch (Exception e) {
