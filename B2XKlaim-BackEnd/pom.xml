@@ -63,12 +63,6 @@
 			<version>RELEASE</version>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.testng</groupId>
-			<artifactId>testng</artifactId>
-			<version>RELEASE</version>
-			<scope>test</scope>
-		</dependency>
 
 
 		<!-- New Dependencies -->
@@ -76,6 +70,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 			<version>3.1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- Uncomment if you intend to use Spring Data JPA -->
