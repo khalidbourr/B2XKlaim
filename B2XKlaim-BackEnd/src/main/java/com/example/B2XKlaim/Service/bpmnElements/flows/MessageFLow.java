@@ -17,10 +17,10 @@ import java.io.UnsupportedEncodingException;
 @Builder
 public class MessageFLow extends BpmnElement implements Visitable {
     private String Id;
-    private String receiverId; // participant receiver Id
-    private String receiverName; // participant receiver name
-    private String senderId; //  participant sender Id
-    private String senderName; // participant sender name
+    private String receiverId;
+    private String receiverName;
+    private String senderId;
+    private String senderName;
     private String targetRef;
     private String sourceRef;
 

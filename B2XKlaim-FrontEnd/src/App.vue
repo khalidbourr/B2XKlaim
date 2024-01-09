@@ -60,6 +60,8 @@
 import BpmnModeler from "camunda-bpmn-js/lib/camunda-platform/Modeler";
 import "camunda-bpmn-js/dist/assets/camunda-platform-modeler.css";
 import JSZip from 'jszip';
+import CustomPaletteProvider from './CustomPaletteProvider.js';
+
 
 export default {
   name: "App",
@@ -68,9 +70,9 @@ export default {
       bpmnModeler: null,
       activeTab: 'collaboration',
       showButtons: false,
-      collaboration: '',       // Added this data property to store collaboration code
-      processes: [],            // Added this data property to store processes
-      callActivities: []            // Added this data property to store callActivities
+      collaboration: '',
+      processes: [],
+      callActivities: []
     };
   },
 
@@ -80,10 +82,16 @@ export default {
       propertiesPanel: {
         parent: "#properties",
       },
+      additionalModules: [
+        {
+          // these for keeping needed elements and removing the rest
+          __init__: ['paletteProvider'],
+          paletteProvider: ['type', CustomPaletteProvider]
+        },
+      ]
     });
 
 
-    // You can replace 'someDiagram' with your BPMN XML data
     const someDiagram = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
         "<bpmn:definitions xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" id=\"Definitions_1mpw3ap\" targetNamespace=\"http://bpmn.io/schema/bpmn\" exporter=\"bpmn-js (https://demo.bpmn.io)\" exporterVersion=\"14.0.0\">\n" +
         "  <bpmn:process id=\"Process_0d01xqv\" isExecutable=\"false\">\n" +
@@ -218,6 +226,13 @@ export default {
   font-family: Arial, sans-serif;
 }
 
+
+ ::v-deep .djs-palette {
+   height: 400px;
+   overflow-y: auto;
+ }
+
+
 .code-container {
   flex: 0 0 auto;
   position: relative;
@@ -277,6 +292,7 @@ h4 {
   top: 5px;
   cursor: pointer;
 }
+
 
 .topnav {
   background-color: #CEE1DF;

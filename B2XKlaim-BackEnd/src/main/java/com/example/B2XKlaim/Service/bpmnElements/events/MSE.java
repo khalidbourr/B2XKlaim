@@ -29,6 +29,4 @@ public class MSE extends BpmnElement implements Visitable {
         return v.visit(this);
     }
 
-    // Constructor
-
 }

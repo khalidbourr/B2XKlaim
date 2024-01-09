@@ -119,27 +119,31 @@ public class BPMNTranslator implements Visitor {
     public String visit(AND and) throws FileNotFoundException, UnsupportedEncodingException {
         StringBuilder s = new StringBuilder();
 
-        // List to collect all sequences after processing elements
         List<String> sequences = new ArrayList<>();
 
-        // Process each branch's elements
         for (List<String> branchElements : and.getFlowElementMap().values()) {
 
-            // Translate the elements
-            for (String elementId : branchElements) {
+            for (int i = 0; i < branchElements.size(); i++) {
+                String elementId = branchElements.get(i);
                 BpmnElement element = bpmnElements.getElementById(elementId);
-                s.append(element.accept(this));
+                if (element!=null) {
+                    s.append(element.accept(this));
 
-                // Store the sequence of this element for later processing
-                sequences.add(element.getOutgoingEdge());
+                    if (i < branchElements.size() - 1) {
+                        BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
+                        s.append(sequence.accept(this));
+                    }
+                    if (i == branchElements.size() - 1) {
+                        sequences.add(element.getOutgoingEdge());
+                    }
+                }
             }
         }
 
-        // Translate the sequences (edges)
         for (String sequenceId : sequences) {
             if (sequenceId != and.getOutgoingEdge()) {
                 BpmnElement sequence = bpmnElements.getElementById(sequenceId);
-                if (sequence != null) { // make sure the sequence exists
+                if (sequence != null) {
                     s.append(sequence.accept(this));
                 }}
             }
@@ -153,7 +157,6 @@ public class BPMNTranslator implements Visitor {
     public String visit(XOR xor) throws FileNotFoundException, UnsupportedEncodingException {
         StringBuilder s = new StringBuilder();
 
-        // Assuming there are only two branches for the XOR for simplicity
         if (xor.getConditionElementMap().size() != 2) {
             throw new IllegalArgumentException("XOR gateway must have two branches");
         }
@@ -184,7 +187,6 @@ public class BPMNTranslator implements Visitor {
         }
         s.append("}\n");
 
-        // After XOR Gateway
         s.append(String.format("out(%s)@self\n", xor.getOutgoingEdge()));
 
         return s.toString();
@@ -193,8 +195,19 @@ public class BPMNTranslator implements Visitor {
 
     @Override
     public String visit(LP lp) throws FileNotFoundException, UnsupportedEncodingException {
-        return null;
+        StringBuilder sb = new StringBuilder();
+        sb.append("while(").append(lp.getCondition()).append("){\n");
+        for (String elementId : lp.getFlowElementMap()) {
+            BpmnElement element = bpmnElements.getElementById(elementId);
+            sb.append(element.accept(this));
+            BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
+            sb.append(sequence.accept(this));
+        }
+        sb.append("}\n");
+        sb.append("out(").append(lp.getOutgoingEdge()).append(")@self\n");
+        return sb.toString();
     }
+
 
     @Override
     public String visit(ST st) {
@@ -221,7 +234,7 @@ public class BPMNTranslator implements Visitor {
                 "\t}\n";
 
         return String.format(nodeTemplate,
-                pl.getName(),  // Assuming the PL class has a method called getParticipantName()
+                pl.getName(),
                 pl.getProcessId());
     }
 
@@ -230,7 +243,6 @@ public class BPMNTranslator implements Visitor {
         StringBuilder collabCode = new StringBuilder();
         collabCode.append(String.format("net %s physical \"localhost:9999\" {\n\n", collab.getId()));
 
-        // Assuming collab has a list of PL elements
         for (PL participant : collab.getParticipants()) {
             collabCode.append(visit(participant));
         }

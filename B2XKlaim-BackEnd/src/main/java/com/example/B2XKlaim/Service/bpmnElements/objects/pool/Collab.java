@@ -17,7 +17,7 @@ import java.util.List;
 @Builder
 public class Collab extends BpmnElement implements Visitable {
     private String id;
-    private List<PL> participants; // To store the list of participants
+    private List<PL> participants;
 
     public Collab(String id, List<PL> participants) {
         this.id = id;

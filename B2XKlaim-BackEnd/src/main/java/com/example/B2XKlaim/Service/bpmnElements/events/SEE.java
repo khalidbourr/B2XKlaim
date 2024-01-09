@@ -26,6 +26,5 @@ public class SEE extends BpmnElement implements Visitable {
         return v.visit(this);
     }
 
-    // Constructor
 
 }

@@ -28,6 +28,4 @@ public class CLA extends BpmnElement implements Visitable {
     }
 
 
-    // Constructor
-
 }

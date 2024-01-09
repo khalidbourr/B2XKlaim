@@ -26,9 +26,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class B2XKlaimApplication {
-
 	public static void main(String[] args) {
 		SpringApplication.run(B2XKlaimApplication.class, args);
 	}
-
 }

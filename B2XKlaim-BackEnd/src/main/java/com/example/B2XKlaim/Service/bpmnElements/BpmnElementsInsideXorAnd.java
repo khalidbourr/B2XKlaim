@@ -37,7 +37,6 @@ public class BpmnElementsInsideXorAnd {
     private List<DO> dataList = new ArrayList<>();
     private Map<String, BpmnElement> elementsById = new HashMap<>();
 
-    // Constructor to initialize elementsById map
     public BpmnElementsInsideXorAnd() {
     }
 
@@ -58,23 +57,20 @@ public class BpmnElementsInsideXorAnd {
         }
     }
 
-    // Get element by Id
     public BpmnElement getElementById(String id) {
         populateElementsById();
         return elementsById.get(id);
     }
 
-    // Get the Target of the sequence
     public String getTargetById(String id) {
         for (SQ sq : sqList) {
             if (sq.getId().equals(id)) {
                 return sq.getTarget();
             }
         }
-        return null; // if no matching SQ object is found
+        return null;
     }
 
-    // From the outgoingEdge, it returns the next Element
     public BpmnElement getNextElementById(String id) {
         String targetId = getTargetById(id);
         if (targetId != null) {
@@ -84,6 +80,6 @@ public class BpmnElementsInsideXorAnd {
     }
 
 }
-    // constructors, getters and setters
+
 
 

@@ -26,6 +26,6 @@ public class MIPL extends BpmnElement implements Visitable {
     public String accept(Visitor v) throws FileNotFoundException, UnsupportedEncodingException {
         return null;
     }
-    // Constructor
+
 
 }

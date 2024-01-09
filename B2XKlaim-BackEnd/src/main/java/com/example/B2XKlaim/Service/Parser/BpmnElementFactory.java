@@ -26,6 +26,7 @@ import com.example.B2XKlaim.Service.bpmnElements.activities.ST;
 import com.example.B2XKlaim.Service.bpmnElements.events.*;
 import com.example.B2XKlaim.Service.bpmnElements.flows.*;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.AND;
+import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
@@ -58,7 +59,6 @@ public class BpmnElementFactory {
         String name = element.getAttribute("name");
         String incoming = null;
         String outgoing = null;
-        // Check the required attributes right after fetching them
         switch (tagName) {
 
             case "bpmn:messageFlow":
@@ -66,21 +66,15 @@ public class BpmnElementFactory {
                 String eventSourceId = element.getAttribute("sourceRef");
                 String eventTargetId = element.getAttribute("targetRef");
 
-                // Assuming you have methods to get the enclosing participant's or process's ID for an event
                 String senderParticipantId = getEnclosingParticipantId(eventSourceId);
                 String receiverParticipantId = getEnclosingParticipantId(eventTargetId);
 
 
-
-
-                // Further, if you need names:
                 String senderParticipantName = getParticipantNameById(senderParticipantId);
                 String receiverParticipantName = getParticipantNameById(receiverParticipantId);
 
-                System.out.print(senderParticipantId);
-                System.out.print(receiverParticipantId);
 
-                MessageFLow messageFlow = new MessageFLow(msgId, receiverParticipantId, receiverParticipantName,  senderParticipantId, senderParticipantName, eventTargetId, eventSourceId);
+                MessageFLow messageFlow = new MessageFLow(msgId, receiverParticipantId, receiverParticipantName, senderParticipantId, senderParticipantName, eventTargetId, eventSourceId);
                 messageFlows.add(messageFlow);
                 return messageFlow;
 
@@ -97,7 +91,7 @@ public class BpmnElementFactory {
                     Element processElement = (Element) processNodes.item(j);
                     if (processIdn.equals(processElement.getAttribute("id"))) {
                         processNamen = processElement.getAttribute("name");
-                        break;  // Break out of the loop once the process is found
+                        break;
                     }
                 }
 
@@ -108,7 +102,6 @@ public class BpmnElementFactory {
                 String collaborationId = element.getAttribute("id");
                 List<PL> participantsForThisCollaboration = new ArrayList<>();
 
-                // Assuming the collaboration element has children nodes representing participants
                 NodeList participantNodes = element.getElementsByTagName("bpmn:participant");
                 for (int i = 0; i < participantNodes.getLength(); i++) {
                     Element participantElement = (Element) participantNodes.item(i);
@@ -122,8 +115,8 @@ public class BpmnElementFactory {
             case "bpmn:startEvent":
                 outgoing = element.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
                 Element parentProcessElement = (Element) element.getParentNode();
-                 String processId = parentProcessElement.getAttribute("id");
-                 String processName = parentProcessElement.getAttribute("name");
+                String processId = parentProcessElement.getAttribute("id");
+                String processName = parentProcessElement.getAttribute("name");
                 if (outgoing == null || outgoing.isEmpty()) {
                     throw new IllegalArgumentException("Outgoing edge is required.");
                 }
@@ -139,19 +132,19 @@ public class BpmnElementFactory {
 
                         if ("bpmn:messageEventDefinition".equals(childTagName)) {
                             String messageId = childElement.getAttribute("messageRef");
-                            MSE mse = new MSE(name, id, outgoing, messageId, processId,processName);
+                            MSE mse = new MSE(name, id, outgoing, messageId, processId, processName);
                             return mse;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
                             String signalId = childElement.getAttribute("signalRef");
 
-                            String  senderEventId = findThrowingSignalEventBySignalId(signalId);
+                            String senderEventId = findThrowingSignalEventBySignalId(signalId);
                             if (senderEventId != null) {
 
                                 String senderSignalParticipantId = getEnclosingParticipantId(senderEventId);
 
                                 String senderSignalParticipantName = getParticipantNameById(senderSignalParticipantId);
 
-                                SSE sse = new SSE(name, id, outgoing, signalId,processId,processName, senderSignalParticipantName);
+                                SSE sse = new SSE(name, id, outgoing, signalId, processId, processName, senderSignalParticipantName);
                                 return sse;
                             }
                         } else if ("bpmn:timerEventDefinition".equals(childTagName)) {
@@ -172,14 +165,13 @@ public class BpmnElementFactory {
                                 throw new IllegalArgumentException("Duration is required for " + id);
                             }
 
-                            TSE tse = new TSE(name, id, duration, outgoing,processId,processName);
-                            System.out.println(tse);
+                            TSE tse = new TSE(name, id, duration, outgoing, processId, processName);
                             return tse;
 
                         }
                     }
                 }
-                NSE nse = new NSE(name, id, outgoing,processId,processName);
+                NSE nse = new NSE(name, id, outgoing, processId, processName);
                 return nse;
 
 
@@ -206,14 +198,14 @@ public class BpmnElementFactory {
                             return mic;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
                             String signalId = childElement.getAttribute("signalRef");
-                            String  senderEventId = findThrowingSignalEventBySignalId(signalId);
+                            String senderEventId = findThrowingSignalEventBySignalId(signalId);
                             if (senderEventId != null) {
                                 String senderSignalParticipantId = getEnclosingParticipantId(senderEventId);
                                 String senderSignalParticipantName = getParticipantNameById(senderSignalParticipantId);
-                                SIC sic = new SIC(name, id, incoming, outgoing, signalId,senderSignalParticipantName);
+                                SIC sic = new SIC(name, id, incoming, outgoing, signalId, senderSignalParticipantName);
                                 return sic;
                             }
-                        }else if ("bpmn:timerEventDefinition".equals(childTagName)) {
+                        } else if ("bpmn:timerEventDefinition".equals(childTagName)) {
                             NodeList timeDurationNodes = childElement.getElementsByTagName("bpmn:timeDuration");
                             String timeDuration = null;
                             if (timeDurationNodes.getLength() > 0) {
@@ -232,7 +224,6 @@ public class BpmnElementFactory {
                             }
 
                             TCE tce = new TCE(name, id, duration, outgoing);
-                            System.out.println(tce);
                             return tce;
 
                         }
@@ -263,7 +254,7 @@ public class BpmnElementFactory {
                             if (correspondingMessageFlow == null) {
                                 throw new IllegalArgumentException("Message flow is required.");
                             }
-                            MIT mit = new MIT(name, id, incoming, outgoing, messageId,correspondingMessageFlow);
+                            MIT mit = new MIT(name, id, incoming, outgoing, messageId, correspondingMessageFlow);
                             return mit;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
                             String signalId = childElement.getAttribute("signalRef");
@@ -374,63 +365,8 @@ public class BpmnElementFactory {
                 Integer counter = 0;
                 // Check if the AND split has an incoming flow
                 if (andIncomings.getLength() == 1) {
-                    Map<Integer, List<String>> flowElementMap = new HashMap<>();
-
-                    List<Element> outgoingFlows = new ArrayList<>();
-                    for (int j = 0; j < andOutgoings.getLength(); j++) {
-                        Element outgoingFlow = factory.getElementByFlowId(andOutgoings.item(j).getTextContent());
-                        outgoingFlows.add(outgoingFlow);
-                    }
-
-                    outgoingFlows.sort(Comparator.comparing(o -> o.getAttribute("targetRef")));
-
-                    Element andMerge = null;
-                    for (Element outgoingFlow : outgoingFlows) {
-                        String andNextElementId = outgoingFlow.getAttribute("targetRef");
-                        Element andNextElement = factory.getElementById(andNextElementId);
-
-                        List<String> elementList = new ArrayList<>();
-
-                        // Loop through the elements until we reach another gateway or end event
-                        while (andNextElement != null && !andNextElement.getTagName().equals("bpmn:parallelGateway")) {
-                            // Check if the next element is an end event
-                            if (andNextElement.getTagName().equals("bpmn:endEvent")) {
-                                elementList.add(andNextElement.getAttribute("id"));
-                                break;
-                            }
-
-                            // Add the ID of the next element to the list
-                            elementList.add(andNextElement.getAttribute("id"));
-
-                            // Get the outgoing flow of the next element
-                            NodeList nextElementOutgoings = andNextElement.getElementsByTagName("bpmn:outgoing");
-                            if (nextElementOutgoings.getLength() == 0) {
-                                break;
-                            }
-                            Element outgoingFlow2 = factory.getElementByFlowId(nextElementOutgoings.item(0).getTextContent());
-
-                            // Get the ID of the next element in the flow
-                            andNextElementId = outgoingFlow2.getAttribute("targetRef");
-                            // Get the actual element based on the ID
-                            andNextElement = factory.getElementById(andNextElementId);
-
-                            // Check if the next element is an AND merge gateway
-                            if (andNextElement.getTagName().equals("bpmn:parallelGateway") && andNextElement.getElementsByTagName("bpmn:incoming").getLength() > 1) {
-                                andMerge = andNextElement;
-                                break;
-                            }
-                        }
-
-                        // Store the list of elements associated with the outgoing flow in the flow element map
-                        flowElementMap.put(counter, elementList);
-                        counter=counter+1;
-                    }
-
-                    // Check if the AND split has an AND merge gateway
-                    if (andMerge != null) {
-                        String andMergeOutgoing = andMerge.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
-                        return new AND(andSplitId, flowElementMap, andMergeOutgoing);
-                    }
+                    AND and = processANDGateway(andOutgoings, andSplitId);
+                    return and;
                 }
 
                 return null;
@@ -441,82 +377,21 @@ public class BpmnElementFactory {
                 NodeList incomings = element.getElementsByTagName("bpmn:incoming");
                 NodeList outgoings = element.getElementsByTagName("bpmn:outgoing");
 
-                if (incomings.getLength() == 1) {
-                    // XOR element is a split
-                    Map<String, List<String>> conditionElementMap = new HashMap<>();
-                    String caOutgoing = null;
+                // This passage is to avoid the clash that may occur between loop and xor.
 
-                    List<Element> outgoingFlows = new ArrayList<>();
-                    for (int j = 0; j < outgoings.getLength(); j++) {
-                        Element outgoingFlow = factory.getElementByFlowId(outgoings.item(j).getTextContent());
-                        outgoingFlows.add(outgoingFlow);
-                    }
+                 String firstIncomingFlow = incomings.item(0).getTextContent();
+                 Element ElementFromFirstIncomingFlow= getElementByFlowId(firstIncomingFlow);
+                 Element sourceElement = getElementById(ElementFromFirstIncomingFlow.getAttribute("sourceRef"));
 
-                    outgoingFlows.sort(Comparator.comparing(o -> o.getAttribute("targetRef")));
-
-                    for (Element outgoingFlow : outgoingFlows) {
-                        String nextElementId = outgoingFlow.getAttribute("targetRef");
-                        Element nextElement = factory.getElementById(nextElementId);
-                        outgoing = nextElement.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
-                        List<String> elementList = new ArrayList<>();
-
-                        // loop through elements until we reach another gateway or end event
-                        Element mergeExclusiveGateway = null;
-                        while (nextElement != null && !nextElement.getTagName().equals("bpmn:exclusiveGateway")) {
-                            if (nextElement.getTagName().equals("bpmn:endEvent")) {
-                                break;
-                            }
-
-                            if (nextElement instanceof XOR) {
-                                XOR nextXOR = (XOR) nextElement;
-                                Map<String, List<String>> nextMap = nextXOR.getConditionElementMap();
-
-                                // get the first element for each condition in the next XOR element
-                                for (Map.Entry<String, List<String>> entry : nextMap.entrySet()) {
-                                    String firstElementId = entry.getValue().get(0);
-                                    Element firstElement = factory.getElementById(firstElementId);
-                                    elementList.add(firstElementId);
-                                    nextElement = firstElement;
-                                }
-                            } else {
-                                elementList.add(nextElementId);
-                                NodeList nextElementOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
-                                if (nextElementOutgoings.getLength() == 0) {
-                                    break;
-                                }
-
-                                Element outgoingFlow2 = factory.getElementByFlowId(nextElementOutgoings.item(0).getTextContent());
-                                nextElementId = outgoingFlow2.getAttribute("targetRef");
-                                nextElement = factory.getElementById(nextElementId);
-                            }
-
-                            if (nextElement.getTagName().equals("bpmn:exclusiveGateway") && nextElement.getElementsByTagName("bpmn:outgoing").getLength() == 1) {
-                                mergeExclusiveGateway = nextElement;
-                            }
-                        }
-
-                        if (mergeExclusiveGateway != null) {
-                            caOutgoing = mergeExclusiveGateway.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
-                        }
-
-                        Element conditionExpression = (Element) outgoingFlow.getElementsByTagName("bpmn:conditionExpression").item(0);
-                        if (conditionExpression.getTextContent() == null || conditionExpression.getTextContent().isEmpty()) {
-                            throw new IllegalArgumentException("Conditions are required.");
-                        }
-                        if (conditionExpression != null) {
-                            String condition = conditionExpression.getTextContent();
-                            List<String> existingElements = conditionElementMap.getOrDefault(condition, new ArrayList<>());
-                            existingElements.addAll(elementList);
-                            conditionElementMap.put(condition, existingElements);
-                        }
-
-                        if (outgoings.getLength() == 1) {
-                            caOutgoing = outgoing;
-                        }
-                    }
-
-                    return new XOR(xorid, conditionElementMap, caOutgoing);
+                if (isXORSplit(element) && !isXORMerge(sourceElement)) {
+                    XOR xor = processXORGateway(outgoings, xorid);
+                    return xor;
                 }
+                else  {
+                    LP xor = processLoop(outgoings, xorid);
+                    return xor;
+                }
+
 
             default:
                 return null;
@@ -526,7 +401,7 @@ public class BpmnElementFactory {
     }
 
 
-    private  Element getElementByFlowId(String flowId) {
+    private Element getElementByFlowId(String flowId) {
         // Get all the sequenceFlow elements in the document
         NodeList sequenceFlows = document.getElementsByTagName("bpmn:sequenceFlow");
 
@@ -542,6 +417,7 @@ public class BpmnElementFactory {
 
         return matchingFlow;
     }
+
     private Element getElementById(String id) {
         NodeList allElements = document.getElementsByTagName("*");
 
@@ -564,6 +440,30 @@ public class BpmnElementFactory {
 
         String targetElementId = sequenceFlow.getAttribute("targetRef");
         return getElementById(targetElementId);
+    }
+
+    private String getConditionExpression(Element flow) {
+        Node conditionNode = flow.getElementsByTagName("bpmn:conditionExpression").item(0);
+        return conditionNode != null ? conditionNode.getTextContent() : "";
+    }
+
+    private String collectElementsInsideLoop(Element startingFlow, List<String> elementsList, String xorMergeId) {
+        Element currentElement = getNextElement(startingFlow);
+        while (!currentElement.getAttribute("id").equals(xorMergeId)) {
+            elementsList.add(currentElement.getAttribute("id"));
+            currentElement = getNextElement(currentElement);
+        }
+        return startingFlow.getAttribute("id");
+    }
+
+    private Element getNextElement(Element currentElement) {
+        NodeList outgoings = currentElement.getElementsByTagName("bpmn:outgoing");
+        if (outgoings.getLength() > 0) {
+            String nextFlowId = outgoings.item(0).getTextContent();
+            Element nextFlow = getElementByFlowId(nextFlowId);
+            return getElementById(nextFlow.getAttribute("targetRef"));
+        }
+        return null;
     }
 
     private PL createParticipant(Element participantElement) {
@@ -631,6 +531,7 @@ public class BpmnElementFactory {
 
         return null;
     }
+
     private String getParticipantNameById(String participantId) {
         NodeList participantNodes = document.getElementsByTagName("bpmn:participant");
         for (int i = 0; i < participantNodes.getLength(); i++) {
@@ -667,8 +568,329 @@ public class BpmnElementFactory {
             }
         }
 
-        return null; // Return null if not found
+        return null;
     }
 
+
+    // Helper method to find the loop's outgoing flow with a condition
+    private Map<String, Element> findLoopOutgoingFlows(Element xorSplit) {
+        Map<String, Element> flows = new HashMap<>();
+
+        NodeList splitOutgoings = xorSplit.getElementsByTagName("bpmn:outgoing");
+        for (int j = 0; j < splitOutgoings.getLength(); j++) {
+            Element outgoingFlow = getElementByFlowId(splitOutgoings.item(j).getTextContent());
+            NodeList conditionExpressions = outgoingFlow.getElementsByTagName("bpmn:conditionExpression");
+
+            // Check for condition expression
+            if (conditionExpressions.getLength() > 0 && !conditionExpressions.item(0).getTextContent().isEmpty()) {
+                // Flow with condition
+                flows.put("withCondition", outgoingFlow);
+            } else {
+                // Flow without condition
+                flows.put("withoutCondition", outgoingFlow);
+            }
+        }
+
+        return flows;
+    }
+
+
+    private boolean isLoopGateway(Element gatewayElement) {
+        NodeList incomings = gatewayElement.getElementsByTagName("bpmn:incoming");
+        NodeList outgoings = gatewayElement.getElementsByTagName("bpmn:outgoing");
+
+        // Collect all target references of incoming flows
+        Set<String> incomingTargets = new HashSet<>();
+        for (int i = 0; i < incomings.getLength(); i++) {
+            String incomingFlowId = incomings.item(i).getTextContent();
+            Element incomingFlowElement = getElementByFlowId(incomingFlowId);
+            String targetRef = incomingFlowElement.getAttribute("targetRef");
+            incomingTargets.add(targetRef);
+        }
+
+        // Check if any source reference of outgoing flows is in incoming targets
+        for (int j = 0; j < outgoings.getLength(); j++) {
+            String outgoingFlowId = outgoings.item(j).getTextContent();
+            Element outgoingFlowElement = getElementByFlowId(outgoingFlowId);
+            String sourceRef = outgoingFlowElement.getAttribute("sourceRef");
+            if (incomingTargets.contains(sourceRef)) {
+                return true; // Loop detected
+            }
+        }
+        return false;
+    }
+
+
+    private XOR processXORGateway(NodeList outgoings, String xorId) {
+        Map<String, List<String>> conditionElementMap = new HashMap<>();
+        String outgoing = null;
+        String caOutgoing = null;
+
+        List<Element> outgoingFlows = new ArrayList<>();
+        for (int j = 0; j < outgoings.getLength(); j++) {
+            Element outgoingFlow = getElementByFlowId(outgoings.item(j).getTextContent());
+            outgoingFlows.add(outgoingFlow);
+        }
+
+        outgoingFlows.sort(Comparator.comparing(o -> o.getAttribute("targetRef")));
+
+        for (Element outgoingFlow : outgoingFlows) {
+            String nextElementId = outgoingFlow.getAttribute("targetRef");
+            Element nextElement = getElementById(nextElementId);
+            List<String> elementList = new ArrayList<>();
+
+            // loop through elements until we reach another gateway or end event
+            Element mergeExclusiveGateway = null;
+            while (nextElement != null) {
+                if (isXORMerge(nextElement)) {
+                    mergeExclusiveGateway = nextElement;
+                    break;
+                } else if (nextElement.getTagName().equals("bpmn:endEvent")) {
+                    break;
+                } else if (isXORSplit(nextElement)) {
+                    elementList.add(nextElement.getAttribute("id"));
+                    NodeList nestedOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
+                    XOR nestedXOR = processXORGateway(nestedOutgoings, nextElement.getAttribute("id"));
+                    Element mergeGateway = getElementById(nestedXOR.getOutgoingEdge());
+                    nextElementId = mergeGateway.getAttribute("targetRef");
+                    nextElement = getElementById(nextElementId);
+                } else if (isANDSplit(nextElement)) {
+                    elementList.add(nextElement.getAttribute("id"));
+                    NodeList nestedOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
+                    AND nestedAND = processANDGateway(nestedOutgoings, nextElement.getAttribute("id"));
+                    Element mergeGateway = getElementById(nestedAND.getOutgoingEdge());
+                    nextElementId = mergeGateway.getAttribute("targetRef");
+                    nextElement = getElementById(nextElementId);
+                }
+                else {
+                    elementList.add(nextElementId);
+                    NodeList nextElementOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
+                    if (nextElementOutgoings.getLength() == 0) {
+                        break;
+                    }
+
+                    Element outgoingFlow2 = getElementByFlowId(nextElementOutgoings.item(0).getTextContent());
+                    nextElementId = outgoingFlow2.getAttribute("targetRef");
+                    nextElement = getElementById(nextElementId);
+                }
+            }
+
+            if (mergeExclusiveGateway != null) {
+                caOutgoing = mergeExclusiveGateway.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
+            }
+
+            Element conditionExpression = (Element) outgoingFlow.getElementsByTagName("bpmn:conditionExpression").item(0);
+            if (conditionExpression.getTextContent() == null || conditionExpression.getTextContent().isEmpty()) {
+                throw new IllegalArgumentException("Conditions are required.");
+            }
+            if (conditionExpression != null) {
+                String condition = conditionExpression.getTextContent();
+                List<String> existingElements = conditionElementMap.getOrDefault(condition, new ArrayList<>());
+                existingElements.addAll(elementList);
+                conditionElementMap.put(condition, existingElements);
+            }
+
+            if (outgoings.getLength() == 1) {
+                caOutgoing = outgoing;
+            }
+        }
+
+        return new XOR(xorId, conditionElementMap, caOutgoing);
+    }
+
+    private boolean isXORGateway(Element element) {
+        // Logic to determine if the element is an XOR gateway
+        return element.getTagName().equals("bpmn:exclusiveGateway");
+    }
+
+    private String extractCondition(Element flowElement) {
+        // Extract the condition from a flow element
+        Element conditionElement = (Element) flowElement.getElementsByTagName("bpmn:conditionExpression").item(0);
+        return conditionElement != null ? conditionElement.getTextContent() : "";
+    }
+
+    private boolean isXORSplit(Element element) {
+        // Check if the element is an XOR gateway
+        if (!isXORGateway(element)) {
+            return false;
+        }
+
+        // A split XOR gateway typically has one incoming flow and multiple outgoing flows
+        NodeList incomings = element.getElementsByTagName("bpmn:incoming");
+        NodeList outgoings = element.getElementsByTagName("bpmn:outgoing");
+
+        return incomings.getLength() == 1 && outgoings.getLength() > 1;
+    }
+
+    private boolean isXORMerge(Element element) {
+        // Check if the element is an XOR gateway
+        if (!isXORGateway(element)) {
+            return false;
+        }
+
+        // A merge XOR gateway typically has multiple incoming flows and one outgoing flow
+        NodeList incomings = element.getElementsByTagName("bpmn:incoming");
+        NodeList outgoings = element.getElementsByTagName("bpmn:outgoing");
+
+        return incomings.getLength() > 1 && outgoings.getLength() <= 1;
+    }
+
+    private boolean isANDGateway(Element element) {
+        // Logic to determine if the element is an AND gateway
+        return element.getTagName().equals("bpmn:parallelGateway");
+    }
+
+    private boolean isANDSplit(Element element) {
+        // Check if the element is an AND gateway
+        if (!isANDGateway(element)) {
+            return false;
+        }
+
+        // An AND split gateway typically has one incoming flow and multiple outgoing flows
+        NodeList incomings = element.getElementsByTagName("bpmn:incoming");
+        NodeList outgoings = element.getElementsByTagName("bpmn:outgoing");
+
+        return incomings.getLength() == 1 && outgoings.getLength() > 1;
+    }
+
+    private boolean isANDMerge(Element element) {
+        // Check if the element is an AND gateway
+        if (!isANDGateway(element)) {
+            return false;
+        }
+
+        // An AND merge gateway typically has multiple incoming flows and one outgoing flow
+        NodeList incomings = element.getElementsByTagName("bpmn:incoming");
+        NodeList outgoings = element.getElementsByTagName("bpmn:outgoing");
+
+        return incomings.getLength() > 1 && outgoings.getLength() <= 1;
+    }
+
+    private AND processANDGateway(NodeList outgoings, String andId) {
+        Map<Integer, List<String>> flowElementMap = new HashMap<>();
+        String outgoing = null;
+        String caOutgoing = null;
+        Integer counter = 0;
+
+        List<Element> outgoingFlows = new ArrayList<>();
+        for (int j = 0; j < outgoings.getLength(); j++) {
+            Element outgoingFlow = getElementByFlowId(outgoings.item(j).getTextContent());
+            outgoingFlows.add(outgoingFlow);
+        }
+
+        outgoingFlows.sort(Comparator.comparing(o -> o.getAttribute("targetRef")));
+
+        for (Element outgoingFlow : outgoingFlows) {
+            String nextElementId = outgoingFlow.getAttribute("targetRef");
+            Element nextElement = getElementById(nextElementId);
+            List<String> elementList = new ArrayList<>();
+
+            // loop through elements until we reach another gateway or end event
+            Element mergeExclusiveGateway = null;
+            while (nextElement != null) {
+                if (isANDMerge(nextElement)) {
+                    mergeExclusiveGateway = nextElement;
+                    break;
+                } else if (nextElement.getTagName().equals("bpmn:endEvent")) {
+                    break;
+                } else if (isANDSplit(nextElement)) {
+                    elementList.add(nextElement.getAttribute("id"));
+                    NodeList nestedOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
+                    AND nestedAND = processANDGateway(nestedOutgoings, nextElement.getAttribute("id"));
+                    Element mergeGateway = getElementById(nestedAND.getOutgoingEdge());
+                    nextElementId = mergeGateway.getAttribute("targetRef");
+                    nextElement = getElementById(nextElementId);
+                } else if (isXORSplit(nextElement)) {
+                    elementList.add(nextElement.getAttribute("id"));
+                    NodeList nestedOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
+                    XOR nestedXOR = processXORGateway(nestedOutgoings, nextElement.getAttribute("id"));
+                    Element mergeGateway = getElementById(nestedXOR.getOutgoingEdge());
+                    nextElementId = mergeGateway.getAttribute("targetRef");
+                    nextElement = getElementById(nextElementId);
+                }else {
+                    elementList.add(nextElementId);
+                    NodeList nextElementOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
+                    if (nextElementOutgoings.getLength() == 0) {
+                        break;
+                    }
+
+                    Element outgoingFlow2 = getElementByFlowId(nextElementOutgoings.item(0).getTextContent());
+                    nextElementId = outgoingFlow2.getAttribute("targetRef");
+                    nextElement = getElementById(nextElementId);
+                }
+            }
+
+            if (mergeExclusiveGateway != null) {
+                caOutgoing = mergeExclusiveGateway.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
+            }
+
+            // Store the list of elements associated with the outgoing flow in the flow element map
+            flowElementMap.put(counter, elementList);
+            counter = counter + 1;
+
+            if (outgoings.getLength() == 1) {
+                caOutgoing = outgoing;
+            }
+        }
+
+        return new AND(andId, flowElementMap, caOutgoing);
+    }
+
+    private LP processLoop(NodeList outgoings, String loopID){
+        String loopCondition = null;
+        List<String> elementsInsideLoop = new ArrayList<>();
+        String loopExitEdge = null;
+
+        Element xorMerge = getElementById(loopID);
+        String outgoingMerge = xorMerge.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
+        Element xorSplit = getNextElementByFlowId(outgoingMerge);
+        Map<String, Element> loopOutgoingFlow = findLoopOutgoingFlows(xorSplit);
+
+        if (loopOutgoingFlow.containsKey("withCondition")) {
+            loopCondition = getConditionExpression(loopOutgoingFlow.get("withCondition"));
+
+            // Collect elements inside the loop, starting from the target of the loopOutgoingFlow
+            String targetRef = loopOutgoingFlow.get("withCondition").getAttribute("targetRef");
+            Element currentElement = getElementById(targetRef);
+
+            while (!currentElement.getAttribute("id").equals(loopID)) {
+                elementsInsideLoop.add(currentElement.getAttribute("id"));
+                currentElement = getNextElement(currentElement);
+            }
+
+            loopExitEdge = loopOutgoingFlow.containsKey("withoutCondition")
+                    ? loopOutgoingFlow.get("withoutCondition").getAttribute("id")
+                    : null;
+        }
+
+        if (loopCondition != null && !elementsInsideLoop.isEmpty() && loopExitEdge != null) {
+            // Update elementsInLoop set after confirming a valid loop structure
+            List<String> elementsInLoop = new ArrayList<>(elementsInsideLoop);
+            return new LP(loopID, loopCondition, elementsInLoop, loopExitEdge);
+        }
+        return null;
+    }
+
+    private boolean isPartOfLoop(Element gateway, Set<String> visited) {
+        String gatewayId = gateway.getAttribute("id");
+        if (visited.contains(gatewayId)) {
+            return true;
+        }
+
+        visited.add(gatewayId);
+
+        NodeList outgoings = gateway.getElementsByTagName("bpmn:outgoing");
+        for (int i = 0; i < outgoings.getLength(); i++) {
+            Node outgoing = outgoings.item(i);
+            if (outgoing != null) {
+                Element targetElement = getElementByFlowId(outgoing.getTextContent());
+                if (targetElement != null && isPartOfLoop(targetElement, visited)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
 }

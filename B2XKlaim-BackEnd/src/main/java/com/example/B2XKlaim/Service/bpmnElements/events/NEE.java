@@ -24,6 +24,4 @@ public class NEE extends BpmnElement implements Visitable {
     public String accept(Visitor v) throws FileNotFoundException, UnsupportedEncodingException {
         return v.visit(this);
     }
-    // Constructor
-
 }

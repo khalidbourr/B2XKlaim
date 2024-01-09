@@ -94,7 +94,6 @@ public class BpmnParser {
             }
         }
 
-        // 4. Return all parsed elements
         return bpmnElements;
     }
 
@@ -106,12 +105,9 @@ public class BpmnParser {
         this.document = builder.parse(filePath);
         this.document = removeBpmnDiagram(document); // Add this line
         Element root = this.document.getDocumentElement();
-
         Element process = (Element) document.getElementsByTagName("bpmn:process").item(0);
         BpmnElements bpmnElements = new BpmnElements();
-
         BpmnElementFactory bpmnElementFactory = new BpmnElementFactory(document);
-
         NodeList elementNodes = document.getElementsByTagName("*");
         for (int i = 0; i < elementNodes.getLength(); i++) {
             Element element = (Element) elementNodes.item(i);
