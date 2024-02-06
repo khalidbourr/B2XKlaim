@@ -51,37 +51,37 @@ public class BPMNTranslator implements Visitor {
 
     @Override
     public String visit(NSE nse) {
-        return String.format("out(%s)@self\n", nse.getOutgoingEdge());
+        return String.format("out('%s')@self\n", nse.getOutgoingEdge());
     }
 
     @Override
     public String visit(MSE mse) {
-        return String.format("in(%s)@self\nout(%s)@self\n", mse.getMessageId(), mse.getOutgoingEdge());
+        return String.format("in('%s')@self\nout('%s')@self\n", mse.getMessageId(), mse.getOutgoingEdge());
     }
 
     @Override
     public String visit(SSE sse) {
-        return String.format("read(%s)@%s\nout(%s)@self\n", sse.getSignalId(), sse.getSignalSenderName(), sse.getOutgoingEdge());
+        return String.format("read('%s')@%s\nout('%s')@self\n", sse.getSignalId(), sse.getSignalSenderName(), sse.getOutgoingEdge());
     }
 
     @Override
     public String visit(MIC mic) {
-        return String.format("in(%s)@self\nout(%s)@self\n", mic.getMessageId(), mic.getOutgoingEdge());
+        return String.format("in('%s')@self\nout('%s')@self\n", mic.getMessageId(), mic.getOutgoingEdge());
     }
 
     @Override
     public String visit(SIC sic) {
-        return String.format("read(%s)@%s\nout(%s)@self\n", sic.getSignalId(), sic.getSignalSenderName(), sic.getOutgoingEdge());
+        return String.format("read('%s')@%s\nout('%s')@self\n", sic.getSignalId(), sic.getSignalSenderName(), sic.getOutgoingEdge());
     }
 
     @Override
     public String visit(MIT mit) {
-        return String.format("out(%s)@%s\nout(%s)@self\n", mit.getMessageId(), mit.getMessageFlow().getReceiverName(),mit.getOutgoingEdge());
+        return String.format("out('%s')@%s\nout('%s')@self\n", mit.getMessageId(), mit.getMessageFlow().getReceiverName(),mit.getOutgoingEdge());
     }
 
     @Override
     public String visit(SIT sit) {
-        return String.format("out(%s)@self\nThread.sleep(Signal_Duration)\nin(%s)@self\nout(%s)@self\n", sit.getSignalId(), sit.getSignalId(), sit.getOutgoingEdge());
+        return String.format("out('%s')@self\nThread.sleep(Signal_Duration)\nin('%s')@self\nout('%s')@self\n", sit.getSignalId(), sit.getSignalId(), sit.getOutgoingEdge());
     }
 
     @Override
@@ -91,17 +91,17 @@ public class BPMNTranslator implements Visitor {
 
     @Override
     public String visit(MEE mee) {
-        return String.format("out(%s)@%s\nStop()\n", mee.getMessageId(), mee.getMessageFlow().getReceiverName());
+        return String.format("out('%s')@%s\nStop()\n", mee.getMessageId(), mee.getMessageFlow().getReceiverName());
     }
 
     @Override
     public String visit(TSE tse) throws FileNotFoundException, UnsupportedEncodingException {
-        return String.format("Thread.sleep(%d)\nout(%s)@self\n", tse.getDuration(), tse.getOutgoingEdge());
+        return String.format("Thread.sleep(%d)\nout('%s')@self\n", tse.getDuration(), tse.getOutgoingEdge());
     }
 
     @Override
     public String visit(TCE tce) throws FileNotFoundException, UnsupportedEncodingException {
-        return String.format("Thread.sleep(%d)\nout(%s)@self\n", tce.getDuration(), tce.getOutgoingEdge());
+        return String.format("Thread.sleep(%d)\nout('%s')@self\n", tce.getDuration(), tce.getOutgoingEdge());
     }
 
     @Override
@@ -111,7 +111,7 @@ public class BPMNTranslator implements Visitor {
 
     @Override
     public String visit(SEE see) {
-        return String.format("out(%s)@self\nThread.sleep(Signal_Duration)\nin(%s)@self\nStop()\n", see.getSignalId(), see.getSignalId(), see.getOutgoingEdge());
+        return String.format("out('%s')@self\nThread.sleep(Signal_Duration)\nin('%s')@self\nStop()\n", see.getSignalId(), see.getSignalId(), see.getOutgoingEdge());
     }
 
 
@@ -147,7 +147,7 @@ public class BPMNTranslator implements Visitor {
                     s.append(sequence.accept(this));
                 }}
             }
-        s.append(String.format("out(%s)@self\n", and.getOutgoingEdge()));
+        s.append(String.format("out('%s')@self\n", and.getOutgoingEdge()));
 
 
         return s.toString();
@@ -187,7 +187,7 @@ public class BPMNTranslator implements Visitor {
         }
         s.append("}\n");
 
-        s.append(String.format("out(%s)@self\n", xor.getOutgoingEdge()));
+        s.append(String.format("out('%s')@self\n", xor.getOutgoingEdge()));
 
         return s.toString();
     }
@@ -204,18 +204,18 @@ public class BPMNTranslator implements Visitor {
             sb.append(sequence.accept(this));
         }
         sb.append("}\n");
-        sb.append("out(").append(lp.getOutgoingEdge()).append(")@self\n");
+        sb.append("out('").append(lp.getOutgoingEdge()).append("')@self\n");
         return sb.toString();
     }
 
 
     @Override
     public String visit(ST st) {
-        return String.format("{ ... initialization code ... }\nout(%s)@self\n", st.getOutgoingEdge());
+        return String.format("{ ... initialization code ... }\nout('%s')@self\n", st.getOutgoingEdge());
     }
 
     public String visit(CLA cla) {
-        return String.format("eval(new %s(%s))@self\n",cla.getCalledProcess(), cla.getOutgoingEdge());
+        return String.format("eval(new %s('%s'))@self\n",cla.getCalledProcess(), cla.getOutgoingEdge());
     }
 
     @Override
@@ -224,7 +224,7 @@ public class BPMNTranslator implements Visitor {
     }
 
     public String visit(SQ sq) {
-        return String.format("in(%s)@self\n\n",sq.getId());
+        return String.format("in('%s')@self\n\n",sq.getId());
     }
 
     @Override

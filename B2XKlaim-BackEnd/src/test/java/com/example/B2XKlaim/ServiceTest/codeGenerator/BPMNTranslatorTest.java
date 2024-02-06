@@ -30,7 +30,7 @@ public class BPMNTranslatorTest {
 
         // Call the visit method on the NSE object and assert the result
         String result = translator.visit(nse);
-        assertEquals("out(outgoing_edge)@self\n", result);
+        assertEquals("out('outgoing_edge')@self\n", result);
     }
 
     @Test
@@ -45,7 +45,7 @@ public class BPMNTranslatorTest {
 
         // Call the visit method on the MSE object and assert the result
         String result = translator.visit(mse);
-        assertEquals("in(message_id)@self\nout(outgoing_edge)@self\n", result);
+        assertEquals("in('message_id')@self\nout('outgoing_edge')@self\n", result);
     }
 
     @Test
@@ -61,7 +61,7 @@ public class BPMNTranslatorTest {
 
         // Call the visit method on the SSE object and assert the result
         String result = translator.visit(sse);
-        assertEquals("read(signal_id)@signal_sender_name\nout(outgoing_edge)@self\n", result);
+        assertEquals("read('signal_id')@signal_sender_name\nout('outgoing_edge')@self\n", result);
     }
 
     @Test
@@ -76,7 +76,7 @@ public class BPMNTranslatorTest {
 
         // Call the visit method on the MIC object and assert the result
         String result = translator.visit(mic);
-        assertEquals("in(message_id)@self\nout(outgoing_edge)@self\n", result);
+        assertEquals("in('message_id')@self\nout('outgoing_edge')@self\n", result);
     }
 
     @Test
@@ -92,7 +92,7 @@ public class BPMNTranslatorTest {
 
         // Call the visit method on the SIC object and assert the result
         String result = translator.visit(sic);
-        assertEquals("read(signal_id)@signal_sender_name\nout(outgoing_edge)@self\n", result);
+        assertEquals("read('signal_id')@signal_sender_name\nout('outgoing_edge')@self\n", result);
     }
 
     @Test
@@ -107,7 +107,7 @@ public class BPMNTranslatorTest {
         BPMNTranslator translator = new BPMNTranslator();
         String result = translator.visit(mit);
 
-        String expected = "out(messageId)@receiverName\nout(outgoingEdge)@self\n";
+        String expected = "out('messageId')@receiverName\nout('outgoingEdge')@self\n";
 
         assertEquals(expected, result);
     }
@@ -126,7 +126,7 @@ public class BPMNTranslatorTest {
         String translatedString = translator.visit(sit);
 
         // Assert that the translated string is correct
-        assertEquals("out(signal1)@self\nThread.sleep(Signal_Duration)\nin(signal1)@self\nout(edge1)@self\n", translatedString);
+        assertEquals("out('signal1')@self\nThread.sleep(Signal_Duration)\nin('signal1')@self\nout('edge1')@self\n", translatedString);
     }
 
     @Test
@@ -151,7 +151,7 @@ public class BPMNTranslatorTest {
                 .build();
 
         String result = translator.visit(mee);
-        assertEquals("out(message_id)@receiver_name\nStop()\n", result);
+        assertEquals("out('message_id')@receiver_name\nStop()\n", result);
     }
 
     @Test
@@ -164,7 +164,7 @@ public class BPMNTranslatorTest {
         sse.setOutgoingEdge("outgoing_edge");
 
         String result = translator.visit(sse);
-        assertEquals("read(signal_id)@signal_sender_name\nout(outgoing_edge)@self\n", result);
+        assertEquals("read('signal_id')@signal_sender_name\nout('outgoing_edge')@self\n", result);
 
     }
 
@@ -175,7 +175,7 @@ public class BPMNTranslatorTest {
         ST st = new ST("Task1", "st1", "incoming", "outgoing");
         BPMNTranslator translator = new BPMNTranslator();
         String result = translator.visit(st);
-        String expected = "{ ... initialization code ... }\nout(outgoing)@self\n";
+        String expected = "{ ... initialization code ... }\nout('outgoing')@self\n";
         assertEquals(expected, result);
     }
 
@@ -184,7 +184,7 @@ public class BPMNTranslatorTest {
         CLA cla = new CLA("name", "id", "incomingEdge", "outgoingEdge", "calledProcess");
         BPMNTranslator translator = new BPMNTranslator();
         String result = translator.visit(cla);
-        assertEquals("eval(new calledProcess(outgoingEdge))@self\n", result);
+        assertEquals("eval(new calledProcess('outgoingEdge'))@self\n", result);
     }
 
     @Test
@@ -209,7 +209,7 @@ public class BPMNTranslatorTest {
         BPMNTranslator translator = new BPMNTranslator();
         SQ sq = new SQ("sq1", "source", "target");
         String result = translator.visit(sq);
-        assertEquals("in(sq1)@self\n\n", result);
+        assertEquals("in('sq1')@self\n\n", result);
     }
 
     @Test

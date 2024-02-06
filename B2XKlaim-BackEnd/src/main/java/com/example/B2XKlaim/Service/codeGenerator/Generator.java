@@ -121,9 +121,9 @@ public class Generator {
                 String callActivityId = callAct.getCalledProcess();
                 String callActivityOutgoingFlow = callAct.getOutgoingEdge();
 
-                String codeString = "proc " + callActivityId + "(){\n\n" +
+                String codeString = "proc " + callActivityId + "(String edge){\n\n" +
                         "      /* write your code here */ \n\n" +
-                        "      out(" + callActivityOutgoingFlow + ")@self\n" +
+                        "      out(edge)@self\n" +
                         "}";
 
                 List<String> translations = new ArrayList<>();
