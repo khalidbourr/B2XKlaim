@@ -89,8 +89,16 @@ public class Generator {
 
             List<String> combinedTranslations = result.getOrDefault(processName, new ArrayList<>());
             combinedTranslations.addAll(eventSubprocessTranslations.getOrDefault(processName, Collections.emptyList()));
-            combinedTranslations.addAll(translateElement(startEvent, translatedElements, visitedElements));
 
+
+            if (processName.startsWith("Activity")){
+                combinedTranslations.addAll(translateElement(startEvent, translatedElements, visitedElements));
+                String recursiveCall = String.format("eval(new %s())@self();\n", processName);
+                combinedTranslations.add(recursiveCall);            }
+            else {
+                combinedTranslations.addAll(translateElement(startEvent, translatedElements, visitedElements));
+
+            }
             result.put(processName, combinedTranslations);
         }
         return result;
