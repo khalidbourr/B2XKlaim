@@ -136,7 +136,7 @@ public class BPMNTranslatorTest {
         NEE nee = new NEE();
 
         String result = translator.visit(nee);
-        assertEquals("Stop()\n", result);
+        assertEquals("\n", result);
     }
 
     @Test
@@ -151,7 +151,7 @@ public class BPMNTranslatorTest {
                 .build();
 
         String result = translator.visit(mee);
-        assertEquals("out('message_id')@receiver_name\nStop()\n", result);
+        assertEquals("out('message_id')@receiver_name\n\n", result);
     }
 
     @Test
@@ -175,7 +175,7 @@ public class BPMNTranslatorTest {
         ST st = new ST("Task1", "st1", "incoming", "outgoing");
         BPMNTranslator translator = new BPMNTranslator();
         String result = translator.visit(st);
-        String expected = "{ ... initialization code ... }\nout('outgoing')@self\n";
+        String expected = "// { ... initialization code ... }\nout('outgoing')@self\n";
         assertEquals(expected, result);
     }
 

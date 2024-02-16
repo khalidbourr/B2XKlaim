@@ -142,7 +142,8 @@ public class BpmnElementFactory {
 
                                 String senderSignalParticipantId = getEnclosingParticipantId(senderEventId);
 
-                                String senderSignalParticipantName = getParticipantNameById(senderSignalParticipantId);
+                                String senderSignalParticipantName = Optional.ofNullable(getParticipantNameById(senderSignalParticipantId))
+                                        .orElse("self");
 
                                 SSE sse = new SSE(name, id, outgoing, signalId, processId, processName, senderSignalParticipantName);
                                 return sse;
@@ -201,7 +202,8 @@ public class BpmnElementFactory {
                             String senderEventId = findThrowingSignalEventBySignalId(signalId);
                             if (senderEventId != null) {
                                 String senderSignalParticipantId = getEnclosingParticipantId(senderEventId);
-                                String senderSignalParticipantName = getParticipantNameById(senderSignalParticipantId);
+                                String senderSignalParticipantName = Optional.ofNullable(getParticipantNameById(senderSignalParticipantId))
+                                        .orElse("self");
                                 SIC sic = new SIC(name, id, incoming, outgoing, signalId, senderSignalParticipantName);
                                 return sic;
                             }

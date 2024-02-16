@@ -86,12 +86,12 @@ public class BPMNTranslator implements Visitor {
 
     @Override
     public String visit(NEE nee) {
-        return String.format("Stop()\n");
+        return String.format("\n");
     }
 
     @Override
     public String visit(MEE mee) {
-        return String.format("out('%s')@%s\nStop()\n", mee.getMessageId(), mee.getMessageFlow().getReceiverName());
+        return String.format("out('%s')@%s\n\n", mee.getMessageId(), mee.getMessageFlow().getReceiverName());
     }
 
     @Override
@@ -106,12 +106,12 @@ public class BPMNTranslator implements Visitor {
 
     @Override
     public String visit(TEE tee) throws FileNotFoundException, UnsupportedEncodingException {
-            return String.format("Stop()\n");
+            return String.format("\n");
         }
 
     @Override
     public String visit(SEE see) {
-        return String.format("out('%s')@self\nThread.sleep(Signal_Duration)\nin('%s')@self\nStop()\n", see.getSignalId(), see.getSignalId(), see.getOutgoingEdge());
+        return String.format("out('%s')@self\nThread.sleep(Signal_Duration)\nin('%s')@self\n \n", see.getSignalId(), see.getSignalId(), see.getOutgoingEdge());
     }
 
 
@@ -211,7 +211,7 @@ public class BPMNTranslator implements Visitor {
 
     @Override
     public String visit(ST st) {
-        return String.format("{ ... initialization code ... }\nout('%s')@self\n", st.getOutgoingEdge());
+        return String.format("// { ... initialization code ... }\nout('%s')@self\n", st.getOutgoingEdge());
     }
 
     public String visit(CLA cla) {

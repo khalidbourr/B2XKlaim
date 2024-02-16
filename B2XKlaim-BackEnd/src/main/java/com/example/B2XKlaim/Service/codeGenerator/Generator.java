@@ -93,7 +93,7 @@ public class Generator {
 
             if (processName.startsWith("Activity")){
                 combinedTranslations.addAll(translateElement(startEvent, translatedElements, visitedElements));
-                String recursiveCall = String.format("eval(new %s())@self();\n", processName);
+                String recursiveCall = String.format("eval(new %s())@self\n", processName);
                 combinedTranslations.add(recursiveCall);            }
             else {
                 combinedTranslations.addAll(translateElement(startEvent, translatedElements, visitedElements));
