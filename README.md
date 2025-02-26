@@ -57,10 +57,10 @@ To utilize `B2XKlaim` effectively, follow these steps:
 ```
 Ensure the backend is up and running. Initiate the B2XKlaimApplication.
 
-### 2. Launch the Frontend
+### 2. Launch the tool
 
-Navigate to the frontend directory:
+Navigate to the root directory:
 
    ```bash
-   cd B2XKlaim/B2XKlaim-FrontEnd
-   npm run serve
+   cd B2XKlaim
+   npm start
