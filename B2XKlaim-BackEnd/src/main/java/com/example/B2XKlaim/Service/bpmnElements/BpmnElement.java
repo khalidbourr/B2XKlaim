@@ -32,9 +32,16 @@ public abstract class BpmnElement implements Visitable{
     private String outgoingEdge;
 
     private String processId;
+    private String processName;
+
+
 
     public String getProcessId() {
         return processId;
+    }
+
+    public String getProcessName() {
+        return processName;
     }
 
     private static Map<String, Class<? extends BpmnElement>> idToClassMap = new HashMap<>();
@@ -54,6 +61,11 @@ public abstract class BpmnElement implements Visitable{
     public void setProcessId(String processId) {
         this.processId = processId;
     }
+
+    public void setProcessName(String processName) {
+        this.processName = processName;
+    }
+
 
     public static void registerClass(String id, Class<? extends BpmnElement> clazz) {
         // Register the class with the given ID

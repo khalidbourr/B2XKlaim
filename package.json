@@ -1,0 +1,9 @@
+{
+  "name": "b2xklaim-root",
+  "scripts": {
+     "start": "concurrently \"cd B2XKlaim-BackEnd && mvn spring-boot:run -Dspring-boot.run.jvmArguments='--add-opens java.base/java.lang=ALL-UNNAMED'\" \"cd B2XKlaim-FrontEnd && npm run serve\""
+  },
+  "devDependencies": {
+     "concurrently": "^7.0.0"
+  }
+ }

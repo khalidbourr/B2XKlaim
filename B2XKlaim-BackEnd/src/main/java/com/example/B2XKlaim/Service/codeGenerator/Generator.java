@@ -79,19 +79,20 @@ public class Generator {
         for (BpmnElement startEvent : startEvents) {
             if (startEvent == null) continue;
 
-            String processName = startEvent.getProcessId();
-            if (processName == null) {
+            String processId = startEvent.getProcessId();
+            if (processId == null) {
                 throw new IllegalArgumentException("Process ID is missing for a start event.");
             }
 
             List<String> translatedElements = new ArrayList<>();
             Set<BpmnElement> visitedElements = new HashSet<>();
 
-            List<String> combinedTranslations = result.getOrDefault(processName, new ArrayList<>());
-            combinedTranslations.addAll(eventSubprocessTranslations.getOrDefault(processName, Collections.emptyList()));
+            List<String> combinedTranslations = result.getOrDefault(processId, new ArrayList<>());
+            combinedTranslations.addAll(eventSubprocessTranslations.getOrDefault(processId, Collections.emptyList()));
+            String processName = startEvent.getProcessName();
 
 
-            if (processName.startsWith("Activity")){
+            if (processId.startsWith("Activity")){
                 combinedTranslations.addAll(translateElement(startEvent, translatedElements, visitedElements));
                 String recursiveCall = String.format("eval(new %s())@self\n", processName);
                 combinedTranslations.add(recursiveCall);            }

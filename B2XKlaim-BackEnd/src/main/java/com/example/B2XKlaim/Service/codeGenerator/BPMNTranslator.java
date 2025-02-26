@@ -235,7 +235,7 @@ public class BPMNTranslator implements Visitor {
 
         return String.format(nodeTemplate,
                 pl.getName(),
-                pl.getProcessId());
+                pl.getProcessName());
     }
 
     @Override
