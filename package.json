@@ -1,9 +1,11 @@
 {
-  "name": "b2xklaim-root",
-  "scripts": {
-     "start": "concurrently \"cd B2XKlaim-BackEnd && mvn spring-boot:run -Dspring-boot.run.jvmArguments='--add-opens java.base/java.lang=ALL-UNNAMED'\" \"cd B2XKlaim-FrontEnd && npm run serve\""
-  },
-  "devDependencies": {
-     "concurrently": "^7.0.0"
-  }
+   "name": "b2xklaim-root",
+   "scripts": {
+     "start": "MAVEN_OPTS=\"--add-opens java.base/java.lang=ALL-UNNAMED\" concurrently \"cd B2XKlaim-BackEnd && mvn spring-boot:run\" \"cd B2XKlaim-FrontEnd && npm run serve\"",
+     "start:windows": "cross-env MAVEN_OPTS=\"--add-opens java.base/java.lang=ALL-UNNAMED\" concurrently \"cd B2XKlaim-BackEnd && mvn spring-boot:run\" \"cd B2XKlaim-FrontEnd && npm run serve\""
+   },
+   "devDependencies": {
+     "concurrently": "^7.0.0",
+     "cross-env": "^7.0.3"
+   }
  }
