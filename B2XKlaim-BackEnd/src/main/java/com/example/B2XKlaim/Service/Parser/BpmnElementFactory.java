@@ -204,6 +204,7 @@ public class BpmnElementFactory {
                                 String senderSignalParticipantId = getEnclosingParticipantId(senderEventId);
                                 String senderSignalParticipantName = Optional.ofNullable(getParticipantNameById(senderSignalParticipantId))
                                         .orElse("self");
+                                System.err.println(senderEventId);        
                                 SIC sic = new SIC(name, id, incoming, outgoing, signalId, senderSignalParticipantName);
                                 return sic;
                             }
@@ -566,20 +567,44 @@ public class BpmnElementFactory {
 
 
     private String findThrowingSignalEventBySignalId(String signalId) {
-        // Get all signalEventDefinition elements
+        if (signalId == null || document == null) {
+            return null;
+        }
+    
+        // Define BPMN tag names that represent throwing events
+        List<String> throwingEventTags = Arrays.asList(
+                "bpmn:intermediateThrowEvent",
+                "bpmn:endEvent"
+                // Add "bpmn:startEvent" ONLY if a start event can *throw* a signal in your context (uncommon for signalRef)
+        );
+    
         NodeList signalEventDefinitions = document.getElementsByTagName("bpmn:signalEventDefinition");
-
         for (int i = 0; i < signalEventDefinitions.getLength(); i++) {
-            Element signalEventDefElement = (Element) signalEventDefinitions.item(i);
-
-            // Check if the signalRef attribute matches the given signalId
-            if (signalId.equals(signalEventDefElement.getAttribute("signalRef"))) {
-                // If it matches, return the id of the parent event (startEvent or endEvent or any other event)
-                return ((Element) signalEventDefElement.getParentNode()).getAttribute("id");
+            Node node = signalEventDefinitions.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                Element signalEventDefElement = (Element) node;
+    
+                // Check if the signalRef matches
+                if (signalId.equals(signalEventDefElement.getAttribute("signalRef"))) {
+                    Node parentNode = signalEventDefElement.getParentNode();
+    
+                    // Check if the parent is an element and if its tag name is a throwing type
+                    if (parentNode != null && parentNode.getNodeType() == Node.ELEMENT_NODE) {
+                        Element parentElement = (Element) parentNode;
+                        String parentTagName = parentElement.getTagName(); // e.g., "bpmn:intermediateCatchEvent", "bpmn:endEvent"
+    
+                        if (throwingEventTags.contains(parentTagName)) {
+                            // Found a match inside a throwing event type! Return its ID.
+                            return parentElement.getAttribute("id");
+                        }
+                        // If parentTagName is not in throwingEventTags (e.g., it's a catch event), continue searching
+                    }
+                }
             }
         }
-
-        return null;
+    
+        System.err.println("findThrowingSignalEventBySignalId: Could not find a THROWING event for signalRef: " + signalId);
+        return null; // No throwing event found for this signal ID
     }
 
 
