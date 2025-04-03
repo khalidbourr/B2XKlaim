@@ -488,50 +488,59 @@ public class BpmnElementFactory {
     }
 
     private String getEnclosingParticipantId(String elementId) {
-        // First, find the process that contains the event or signal/message definition
-        NodeList processNodes = document.getElementsByTagName("bpmn:process");
-        String enclosingProcessId = null;
-
-        // List of BPMN tags we are interested in
-        List<String> bpmnTags = Arrays.asList(
-                "bpmn:startEvent", "bpmn:intermediateThrowEvent", "bpmn:endEvent",
-                "bpmn:signalEventDefinition", "bpmn:messageEventDefinition");
-
-        for (int i = 0; i < processNodes.getLength(); i++) {
-            Element processElement = (Element) processNodes.item(i);
-
-            // Loop through each BPMN tag
-            for (String bpmnTag : bpmnTags) {
-                NodeList bpmnNodes = processElement.getElementsByTagName(bpmnTag);
-                for (int j = 0; j < bpmnNodes.getLength(); j++) {
-                    Element bpmnElement = (Element) bpmnNodes.item(j);
-                    if (elementId.equals(bpmnElement.getAttribute("id"))) {
-                        enclosingProcessId = processElement.getAttribute("id");
-                        break;
-                    }
-                }
-                if (enclosingProcessId != null) {
-                    break;
-                }
-            }
-
-            if (enclosingProcessId != null) {
-                break;
-            }
+        if (elementId == null || document == null) {
+            return null;
         }
-
-        // Now, find the participant associated with this process
+    
+        XPath xpath = XPathFactory.newInstance().newXPath();
+        String enclosingProcessId = null;
+    
+        try {
+            // 1. Find the element with the specific ID anywhere in the document
+            // Uses XPath expression "//*[@id='elementIdValue']"
+            String expression = "//*[@id='" + elementId + "']";
+            Node elementNode = (Node) xpath.evaluate(expression, document, XPathConstants.NODE);
+    
+            if (elementNode == null) {
+                System.err.println("getEnclosingParticipantId: Could not find element with ID: " + elementId);
+                return null;
+            }
+    
+            // 2. Traverse upwards from the found node to find the parent <bpmn:process>
+            Node parent = elementNode.getParentNode();
+            while (parent != null) {
+                // Check if the node is an Element node and its tag name is bpmn:process
+                if (parent.getNodeType() == Node.ELEMENT_NODE && "bpmn:process".equals(parent.getNodeName())) {
+                     // 3. Get the ID of the process element
+                    enclosingProcessId = ((Element) parent).getAttribute("id");
+                    break; // Found the process
+                }
+                parent = parent.getParentNode(); // Move up
+            }
+    
+            if (enclosingProcessId == null) {
+                 System.err.println("getEnclosingParticipantId: Could not find enclosing <bpmn:process> for element ID: " + elementId);
+                 return null;
+            }
+    
+        } catch (XPathExpressionException e) {
+            System.err.println("getEnclosingParticipantId: XPath error finding element ID " + elementId + ": " + e.getMessage());
+            return null;
+        }
+    
+        // 4. Find the participant associated with this process ID (using original logic)
         if (enclosingProcessId != null) {
             NodeList participantNodes = document.getElementsByTagName("bpmn:participant");
             for (int i = 0; i < participantNodes.getLength(); i++) {
                 Element participantElement = (Element) participantNodes.item(i);
                 if (enclosingProcessId.equals(participantElement.getAttribute("processRef"))) {
-                    return participantElement.getAttribute("id");
+                    return participantElement.getAttribute("id"); // Return participant ID
                 }
             }
+             System.err.println("getEnclosingParticipantId: Found process ID '" + enclosingProcessId + "' but no participant references it.");
         }
-
-        return null;
+    
+        return null; // Participant not found for the process
     }
 
     private String getParticipantNameById(String participantId) {
