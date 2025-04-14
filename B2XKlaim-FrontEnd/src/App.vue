@@ -11,9 +11,19 @@
                 <h2 class="app-subtitle">an X-Klaim BPMN Translator</h2>
         </div>
       </div>
-      <a href="#" id="Download" @click="exportCode" class="download-btn">
-        <i class="fa fa-download"></i> Download
-      </a>
+      <div class="nav-buttons">
+        <a href="#" id="ImportBPMN" @click="importBPMN" class="nav-btn">
+          <i class="fa fa-upload"></i> Import BPMN
+        </a>
+        <a href="#" id="SaveBPMN" @click="saveBPMN" class="nav-btn">
+          <i class="fa fa-save"></i> Save BPMN
+        </a>
+        <a href="#" id="Download" @click="exportCode" class="download-btn">
+          <i class="fa fa-download"></i> Download
+        </a>
+      </div>
+      <!-- Hidden file input for import -->
+      <input type="file" id="bpmn-file-input" accept=".bpmn,.xml" style="display: none;" @change="handleFileSelect">
     </div>
 
     <div id="main-content">
@@ -108,6 +118,7 @@
 <script>
 import BpmnModeler from "camunda-bpmn-js/lib/camunda-platform/Modeler";
 import "camunda-bpmn-js/dist/assets/camunda-platform-modeler.css";
+// Import the saveAs function from file-saver library
 import JSZip from 'jszip';
 import CustomPaletteProvider from './CustomPaletteProvider.js';
 
@@ -120,7 +131,8 @@ export default {
       showButtons: false,
       collaboration: '',
       processes: [],
-      callActivities: [],
+      callActivities: {},
+      scriptTaskProcs: {},
       tabs: ['collaboration', 'processes'],
       projectConfig: {
         name: 'xklaim-bpmn-project',
@@ -168,6 +180,88 @@ export default {
     }
   },
   methods: {
+    // Import BPMN file function
+    importBPMN() {
+      // Trigger the hidden file input
+      document.getElementById('bpmn-file-input').click();
+    },
+    
+    // Handle the file selection
+    handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const xml = e.target.result;
+        
+        try {
+          this.bpmnModeler.importXML(xml)
+            .then(({ warnings }) => {
+              if (warnings.length) {
+                console.warn('Warnings while importing BPMN:', warnings);
+              }
+              this.bpmnModeler.get('canvas').zoom('fit-viewport');
+              console.log('BPMN diagram imported successfully');
+            })
+            .catch(err => {
+              console.error('Error importing BPMN diagram', err);
+              alert('Error importing BPMN diagram: ' + err.message);
+            });
+        } catch (err) {
+          console.error('Error handling BPMN import:', err);
+          alert('Error handling BPMN import: ' + err.message);
+        }
+      };
+      
+      reader.onerror = (e) => {
+        console.error('Error reading file:', e);
+        alert('Error reading file: ' + e.target.error);
+      };
+      
+      reader.readAsText(file);
+      
+      // Reset the file input so the same file can be imported again if needed
+      event.target.value = '';
+    },
+    
+    // Save BPMN diagram as XML
+    async saveBPMN() {
+      try {
+        // Get the XML from the BPMN modeler with proper formatting
+        const { xml } = await this.bpmnModeler.saveXML({ format: true });
+        
+        // Create a Blob from the XML string
+        // Setting type to application/xml ensures proper handling by browsers
+        const blob = new Blob([xml], { type: 'application/xml' });
+        
+        // Generate filename with timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `bpmn-diagram-${timestamp}.bpmn`;
+        
+        // Create a URL for the blob
+        const url = URL.createObjectURL(blob);
+        
+        // Create a temporary link element
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        
+        // Append to the document, click, and clean up
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the URL object
+        URL.revokeObjectURL(url);
+        
+        console.log('BPMN diagram exported successfully');
+      } catch (err) {
+        console.error('Error exporting BPMN diagram:', err);
+        alert('Error exporting BPMN diagram: ' + err.message);
+      }
+    },
+
     async generateCode() {
       try {
         this.showButtons = true;
@@ -194,7 +288,10 @@ export default {
 
         this.collaboration = data.collaboration || '';
         this.processes = data.processes || [];
-        this.callActivities = data.callActivities || [];
+        this.callActivities = data.callActivities || {}; 
+        this.scriptTaskProcs = data.scriptTaskProcs || {}; 
+
+        this.activeTab = 'collaboration'; 
 
       } catch (err) {
         console.error("Failed to generate code:", err);
@@ -202,76 +299,101 @@ export default {
       }
     },
 
+
     async exportCode() {
-      if (!this.collaboration && !this.processes.length) {
-        alert("No data available for download.");
+      // Check if there is any code generated
+      if (!this.collaboration && !this.processes.length && !Object.keys(this.callActivities).length && !Object.keys(this.scriptTaskProcs).length) {
+        alert("No code has been generated to download.");
         return;
       }
 
       const zip = new JSZip();
-      const projectName = this.projectConfig.name;
-      
-      // Create project structure with corrected paths
-      const srcMainXklaimPath = `${projectName}/src/main/java/xklaim/`;
-      
-      // Generate pom.xml
-      zip.file(`${projectName}/pom.xml`, this.generatePomXml());
-      
-      // Create README.md
-      zip.file(`${projectName}/README.md`, this.generateReadme());
-      
-      // Add collaboration file with proper package and imports
+      const projectName = this.projectConfig.name || 'xklaim-bpmn-project'; // Use default if empty
+
+      // --- Define Base Paths ---
+      // Base path within the zip for source files
+      const srcMainJavaXklaimPath = `${projectName}/src/main/java/xklaim/`;
+      // Base path for activity/task procedure files
+      const activitiesPath = `${srcMainJavaXklaimPath}activities/`;
+
+
+      // --- Generate Maven/Project Files ---
+      zip.file(`${projectName}/pom.xml`, this.generatePomXml()); // Assuming this method exists
+      zip.file(`${projectName}/README.md`, this.generateReadme()); // Assuming this method exists
+      zip.file(`${projectName}/.gitignore`, this.generateGitIgnore()); // Assuming this method exists
+
+
+      // --- Collaboration File ---
       if (this.collaboration) {
-        // Generate imports for all processes
-        const imports = this.processes.map(process => {
-          // Create a normalized name for the package
-          const normalizedName = process.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-          return `import xklaim.${normalizedName}.${process.name};`;
+        // Dynamically generate imports based on process names
+        const processImports = this.processes.map(process => {
+           const normalizedName = process.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+           // Assume processes are in subpackages named after them below 'xklaim'
+           return `import xklaim.${normalizedName}.${process.name};`;
         }).join('\n');
-        
-        const collaborationWithPackage = 
-          `package xklaim;\n\n` +
-          `${imports}\n\n` +
-          `${this.collaboration}`;
-        
-        zip.file(`${srcMainXklaimPath}Main.xklaim`, collaborationWithPackage);
+
+        const collaborationWithPackage =
+          `package xklaim;\n\n` + // Main package for collaboration entry point
+          `${processImports}\n\n` +
+          `${this.collaboration}`; // The generated net { ... } block
+
+        // Place Collaboration file directly under the base xklaim path
+        zip.file(`${srcMainJavaXklaimPath}Collaboration.xklaim`, collaborationWithPackage);
       }
-      
-      // Add process files in their own packages
+
+
+      // --- Process Files ---
       this.processes.forEach(process => {
-        // Get the actual process name
         const processName = process.name;
-        
-        // Create a normalized name for the package
         const normalizedName = processName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        
-        // Create package declaration for the process
-        const packageDeclaration = `package xklaim.${normalizedName};\n\n`;
-        
-        // Add imports for activities if any
-        const activityImports = Object.keys(this.callActivities).length > 0 
-          ? "import xklaim.activities.*;\n\n" 
-          : "\n";
-        
-        // Combine package, imports, and code
-        const processWithPackage = packageDeclaration + activityImports + process.code;
-        
-        // Create package for each participant
-        const processPackagePath = `${srcMainXklaimPath}${normalizedName}/`;
-        zip.file(`${processPackagePath}${processName}.xklaim`, processWithPackage);
+        const processPackage = `xklaim.${normalizedName}`; // e.g., xklaim.mission1
+        const packageDeclaration = `package ${processPackage};\n\n`;
+
+        // Add imports for activities/tasks if placeholders are generated
+        const activityImports = (Object.keys(this.callActivities).length > 0 || Object.keys(this.scriptTaskProcs).length > 0)
+            ? `import xklaim.activities.*;\n` // Import activities package
+            : '';
+
+        // Combine package, imports, and the full proc code
+        // process.code already contains the full "proc Name(...) { ... }"
+        const processWithPackage = packageDeclaration + activityImports + "\n" + process.code;
+
+        // Create package folder for each process
+        const processFilePath = `${srcMainJavaXklaimPath}${normalizedName}/${processName}.xklaim`;
+        console.log("Adding process file:", processFilePath);
+        zip.file(processFilePath, processWithPackage);
       });
-      
-      // Call activities in separate folder with proper package
+
+
+      // --- Call Activity Placeholders ---
+      const activitiesPackage = `xklaim.activities`; // Package name for placeholders
+      console.debug("Adding call activity placeholders:", this.callActivities);
       Object.keys(this.callActivities).forEach(activityName => {
-        const activityCode = this.callActivities[activityName].join('\n');
-        const activityWithPackage = `package xklaim.activities;\n\n${activityCode}`;
-        zip.file(`${srcMainXklaimPath}activities/${activityName}.xklaim`, activityWithPackage);
+         // Backend sends a List<String> for each, join them.
+         const activityCode = this.callActivities[activityName].join('\n');
+         const activityWithPackage = `package ${activitiesPackage};\n\n${activityCode}`;
+         const filePath = `${activitiesPath}${activityName}.xklaim`; // Use activitiesPath
+         console.log("Adding call activity file:", filePath);
+         zip.file(filePath, activityWithPackage);
       });
-      
-      // Add build files and configurations
-      zip.file(`${projectName}/.gitignore`, this.generateGitIgnore());
-      
+
+
+      // --- Script Task Placeholders (in activities folder) ---
+      console.debug("Adding script task placeholders:", this.scriptTaskProcs);
+      Object.keys(this.scriptTaskProcs).forEach(taskName => {
+         const taskCode = this.scriptTaskProcs[taskName].join('\n');
+         // *** Use the SAME 'activitiesPackage' ***
+         const taskWithPackage = `package ${activitiesPackage};\n\n${taskCode}`;
+         // *** Use the SAME 'activitiesPath' to put file in activities folder ***
+         const filePath = `${activitiesPath}${taskName}.xklaim`;
+         console.log("Adding script task file:", filePath);
+         zip.file(filePath, taskWithPackage);
+      });
+
+
+      // --- Generate the zip file and trigger download ---
       try {
+        console.log("Generating Zip file...");
         const content = await zip.generateAsync({ type: "blob" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
@@ -280,6 +402,7 @@ export default {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
+        console.log("Zip file download initiated.");
       } catch (err) {
         console.error("Error generating zip file:", err);
         alert("Error generating zip file. Please try again.");
@@ -552,8 +675,38 @@ h4 { font-size: 13px; }
     text-transform: lowercase;
     font-style: italic;
 }
-.download-btn {
+
+/* Navigation buttons container */
+.nav-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Styling for nav buttons */
+.nav-btn {
   background-color: var(--accent-color);
+  color: white;
+  padding: 6px 12px; /* Smaller button */
+  border-radius: 10px; /* Smaller radius */
+  text-decoration: none;
+  font-weight: bold;
+  transition: background-color 0.3s, transform 0.2s;
+  border: none;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px; /* Smaller font */
+}
+
+.nav-btn:hover {
+  background-color: var(--secondary-color);
+  transform: translateY(-1px); /* Smaller transform */
+}
+
+/* Download button (special styling) */
+.download-btn {
+  background-color: var(--primary-color);
   color: white;
   padding: 6px 12px; /* Smaller button */
   border-radius: 10px; /* Smaller radius */

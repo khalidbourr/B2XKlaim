@@ -16,70 +16,52 @@
 
 
 
-package com.example.B2XKlaim.Service.bpmnElements;
+ package com.example.B2XKlaim.Service.bpmnElements;
 
-import com.example.B2XKlaim.Service.codeGenerator.BPMNTranslator;
-import com.example.B2XKlaim.Service.codeGenerator.Visitable;
-import com.example.B2XKlaim.Service.codeGenerator.Visitor;
+ import com.example.B2XKlaim.Service.codeGenerator.Visitable;
+ import com.example.B2XKlaim.Service.codeGenerator.Visitor;
+ 
+ import lombok.AccessLevel; 
+ import lombok.AllArgsConstructor;
+ import lombok.Data; 
+ import lombok.NoArgsConstructor;
+ import lombok.experimental.SuperBuilder; 
+ 
+ import java.io.FileNotFoundException;
+ import java.io.UnsupportedEncodingException; 
+ import java.util.HashMap;
+ import java.util.Map;
+ 
+ @Data 
+ @SuperBuilder 
+ @NoArgsConstructor 
+ @AllArgsConstructor(access = AccessLevel.PROTECTED) 
+ public abstract class BpmnElement implements Visitable{
 
-import java.io.FileNotFoundException;
-import java.util.HashMap;
-import java.util.Map;
+    protected String id;         
+     protected String name;
+     protected String outgoingEdge; 
+     protected String processId;    
+     protected String processName; 
+ 
 
-public abstract class BpmnElement implements Visitable{
-    private String id;
-    private String name;
-    private String outgoingEdge;
-
-    private String processId;
-    private String processName;
-
-
-
-    public String getProcessId() {
-        return processId;
-    }
-
-    public String getProcessName() {
-        return processName;
-    }
-
-    private static Map<String, Class<? extends BpmnElement>> idToClassMap = new HashMap<>();
-
-    public String getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getOutgoingEdge() {
-        return outgoingEdge;
-    }
-
-    public void setProcessId(String processId) {
-        this.processId = processId;
-    }
-
-    public void setProcessName(String processName) {
-        this.processName = processName;
-    }
-
-
-    public static void registerClass(String id, Class<? extends BpmnElement> clazz) {
-        // Register the class with the given ID
-        idToClassMap.put(id, clazz);
-    }
-
-    public static Class<? extends BpmnElement> getClassFromId(String id) {
-        // Get the class corresponding to the given ID from the map
-        return idToClassMap.get(id);
-    }
-
-
-
-}
+ 
+     // Static map logic remains unchanged
+     private static Map<String, Class<? extends BpmnElement>> idToClassMap = new HashMap<>();
+ 
+     public static void registerClass(String id, Class<? extends BpmnElement> clazz) {
+         idToClassMap.put(id, clazz);
+     }
+ 
+     public static Class<? extends BpmnElement> getClassFromId(String id) {
+         return idToClassMap.get(id);
+     }
+ 
+     // Abstract accept method must be implemented by concrete subclasses
+     @Override
+     public abstract String accept(Visitor v) throws FileNotFoundException, UnsupportedEncodingException;
+ 
+ }
 
 
 

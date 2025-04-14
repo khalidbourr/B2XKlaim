@@ -66,17 +66,58 @@ public class BpmnElementFactory {
                 String eventSourceId = element.getAttribute("sourceRef");
                 String eventTargetId = element.getAttribute("targetRef");
 
+                System.err.println("--- Processing MessageFlow: " + msgId + " ---"); // DEBUG LOGGING
+                System.err.println("    Source Element ID: " + eventSourceId);        // DEBUG LOGGING
+                System.err.println("    Target Element ID: " + eventTargetId);        // DEBUG LOGGING
+
+                // Call helpers - Log results immediately
                 String senderParticipantId = getEnclosingParticipantId(eventSourceId);
+                System.err.println("    Lookup Sender Participant ID for " + eventSourceId + ": " + senderParticipantId); // DEBUG LOGGING
+
                 String receiverParticipantId = getEnclosingParticipantId(eventTargetId);
+                 System.err.println("    Lookup Receiver Participant ID for " + eventTargetId + ": " + receiverParticipantId); // DEBUG LOGGING
 
 
+                // Dependent calls - Log results immediately
                 String senderParticipantName = getParticipantNameById(senderParticipantId);
+                System.err.println("    Lookup Sender Name for " + senderParticipantId + ": " + senderParticipantName); // DEBUG LOGGING
+
                 String receiverParticipantName = getParticipantNameById(receiverParticipantId);
+                 System.err.println("    Lookup Receiver Name for " + receiverParticipantId + ": " + receiverParticipantName); // DEBUG LOGGING
 
 
-                MessageFLow messageFlow = new MessageFLow(msgId, receiverParticipantId, receiverParticipantName, senderParticipantId, senderParticipantName, eventTargetId, eventSourceId);
-                messageFlows.add(messageFlow);
-                return messageFlow;
+                // Create the MessageFLow object
+                // Ensure constructor matches the MessageFLow class definition
+                MessageFLow messageFlow = MessageFLow.builder()
+                        .id(msgId) // Use builder if available and preferable
+                        .receiverId(receiverParticipantId)
+                        .receiverName(receiverParticipantName)
+                        .senderId(senderParticipantId)
+                        .senderName(senderParticipantName)
+                        .targetRef(eventTargetId)
+                        .sourceRef(eventSourceId)
+                        .build();
+
+                 // Alternatively, use the constructor directly if builder isn't setup/preferred
+                 // MessageFLow messageFlow = new MessageFLow(msgId, receiverParticipantId, receiverParticipantName, senderParticipantId, senderParticipantName, eventTargetId, eventSourceId);
+
+
+                // Check if messageFlow object itself is null (shouldn't be)
+                if (messageFlow == null) {
+                     System.err.println("    ERROR: Failed to create MessageFLow object for " + msgId);
+                     return null; // Or handle error appropriately
+                }
+                // Ensure messageFlows list exists (should be initialized in factory constructor)
+                 if (this.messageFlows == null) {
+                     System.err.println("    ERROR: messageFlows list is null in factory instance!");
+                     this.messageFlows = new ArrayList<>();
+                 }
+
+                messageFlows.add(messageFlow); // Add to factory's instance list
+                 System.err.println("    Successfully created and added MessageFLow: " + messageFlow); // DEBUG LOGGING
+                 System.err.println("--- End Processing MessageFlow: " + msgId + " ---"); // DEBUG LOGGING
+                return messageFlow; // Return the created object
+
 
 
             case "bpmn:participant":

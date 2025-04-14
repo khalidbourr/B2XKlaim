@@ -22,34 +22,53 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Optimizer {
-    Generator generator;
+
+    // Regex to capture argument (group 1) from out(...)@... or in(...)@...
+    // Allows for quotes around argument, captures content within quotes.
+    private static final Pattern OUT_PATTERN = Pattern.compile("^\\s*out\\((['\"].*?['\"]|[^()]+)\\)@.*");
+    private static final Pattern IN_PATTERN = Pattern.compile("^\\s*in\\((['\"].*?['\"]|[^()]+)\\)@.*");
 
     public static List<String> optimize(List<String> code) {
+        if (code == null || code.size() < 2) {
+            return new ArrayList<>(code); // Return copy if no optimization possible
+        }
+
         List<String> optimizedCode = new ArrayList<>();
-        String codeString = String.join("", code); // Convert the list to a single string
+        int i = 0;
+        while (i < code.size()) {
+            String currentLine = code.get(i);
+            String nextLine = (i + 1 < code.size()) ? code.get(i+1) : null;
 
-        // Check if "out()" is followed by "in()" with the same argument
-        String[] lines = codeString.split("\n");
-        for (int i = 0; i < lines.length; i++) {
-            String current = lines[i];
-            String next = (i + 1 < lines.length) ? lines[i + 1] : "";
+            String outArg = null;
+            String inArg = null;
+            boolean matchFound = false;
 
-            if (current.startsWith("out(") && next.startsWith("in(")) {
-                String currentArg = current.substring(current.indexOf("(") + 1, current.indexOf(")"));
-                String nextArg = next.substring(next.indexOf("(") + 1, next.indexOf(")"));
+            if (nextLine != null) {
+                Matcher outMatcher = OUT_PATTERN.matcher(currentLine);
+                Matcher inMatcher = IN_PATTERN.matcher(nextLine);
 
-                if (currentArg.equals(nextArg)) {
-                    i++;
-                    continue; // Skip this and the next line
+                if (outMatcher.matches() && inMatcher.matches()) {
+                    outArg = outMatcher.group(1);
+                    inArg = inMatcher.group(1);
+
+                    // Check if arguments are non-null and equal
+                    if (outArg != null && outArg.equals(inArg)) {
+                        log.debug("Optimizer removing lines:\n  {}\n  {}", currentLine, nextLine);
+                        i += 2; // Skip both current and next line
+                        matchFound = true;
+                    }
                 }
             }
 
-            optimizedCode.add(current);
+            if (!matchFound) {
+                optimizedCode.add(currentLine); // Add current line if no match found
+                i++; // Move to the next line
+            }
         }
-
         return optimizedCode;
     }
 }
-

@@ -25,6 +25,6 @@ public class PL extends BpmnElement implements Visitable {
 
     @Override
     public String accept(Visitor v) throws FileNotFoundException, UnsupportedEncodingException {
-        return null;
+        return v.visit(this);
     }
 }
