@@ -197,14 +197,17 @@ public class TranslationController {
      */
     private List<Map<String, String>> extractProcessBlocks(String fullCode) {
         List<Map<String, String>> processes = new ArrayList<>();
-        // Regex: Find "proc", capture name (group 1), capture optional params (group 2),
-        // capture body using GREEDY quantifier (.*) between the first { and the last } (group 3)
-        // Pattern.DOTALL allows '.' to match newline characters.
-        Pattern pattern = Pattern.compile("proc\\s+([\\w\\d_]+)\\s*(\\([^)]*\\))?\\s*\\{(.*)\\}", Pattern.DOTALL); // <<< Changed .*? to .*
-        Matcher matcher = pattern.matcher(fullCode);
+        if (fullCode == null || fullCode.isEmpty()) {
+            return processes;
+        }
+
+        // Regex to find ONLY the start of the proc definition up to the opening brace '{'
+        // Captures Name (group 1) and optional Parameters (group 2)
+        Pattern procStartPattern = Pattern.compile("proc\\s+([\\w\\d_]+)\\s*(\\([^)]*\\))?\\s*\\{");
+        Matcher matcher = procStartPattern.matcher(fullCode);
 
         int searchStart = 0;
-        // Try to start searching after the net block to avoid matching "proc" in comments there
+        // Optimization: Try to start searching after the net block
         int netBlockEnd = fullCode.indexOf('}', fullCode.indexOf('{', fullCode.indexOf("net "))) + 1;
         if (netBlockEnd > 0) {
             searchStart = netBlockEnd;
@@ -213,30 +216,62 @@ public class TranslationController {
              log.debug("Net block end not found or net block missing, starting process search from beginning.");
         }
 
-
         while (matcher.find(searchStart)) {
-            String processName = matcher.group(1); // Group 1: Process Name (e.g., "mission1")
-            String fullProcBlock = matcher.group(0); // Group 0: The entire matched block "proc ... }"
+            String processName = matcher.group(1);
+            int procStartIndex = matcher.start();       // Index where "proc" starts
+            int openingBraceIndex = matcher.end() - 1;  // Index of the opening '{'
+            int bodyStartIndex = matcher.end();         // Index immediately after '{'
 
-            if (processName != null) {
-                log.debug("Regex found proc block for: {}", processName);
+            log.debug("Found potential proc start for '{}' at index {}", processName, procStartIndex);
+
+            int braceCount = 1; // Start count at 1 for the opening brace we just matched
+            int closingBraceIndex = -1;
+
+            // Start searching for the matching closing brace
+            for (int i = bodyStartIndex; i < fullCode.length(); i++) {
+                char currentChar = fullCode.charAt(i);
+                if (currentChar == '{') {
+                    braceCount++;
+                } else if (currentChar == '}') {
+                    braceCount--;
+                }
+
+                // Check if we found the matching closing brace
+                if (braceCount == 0) {
+                    closingBraceIndex = i;
+                    log.trace("Found matching closing brace for '{}' at index {}", processName, closingBraceIndex);
+                    break; // Exit the inner character loop
+                }
+            }
+
+            if (processName != null && closingBraceIndex != -1) {
+                // Extract the full block from the start of "proc" to the closing brace
+                String fullProcBlock = fullCode.substring(procStartIndex, closingBraceIndex + 1);
+
+                log.debug("Extracted proc block for: {}", processName);
                 Map<String, String> processEntry = new HashMap<>();
                 processEntry.put("name", processName);
                 processEntry.put("code", fullProcBlock.trim()); // Store the full, trimmed proc block
                 processes.add(processEntry);
-                searchStart = matcher.end(); // Continue search after the end of this match
-            } else {
-                 // This part of the regex should always capture group 1 if it matches "proc name"
-                 // If it gets here, the regex matched unexpectedly. Move search forward.
-                 searchStart = matcher.start() + 1;
-            }
-        }
 
-         if (processes.isEmpty()) {
-            log.warn("Could not extract any 'proc' blocks using regex from the generated code. Check translator output and regex pattern.");
-            log.warn("Code searched:\n---\n{}\n---", fullCode); // Log the string that was searched
-         } else {
-              log.debug("Extracted {} process blocks.", processes.size());
+                // Update searchStart to look for the *next* proc *after* this one ends
+                searchStart = closingBraceIndex + 1;
+
+            } else {
+                // Could not find matching closing brace - log error and stop searching here
+                // to avoid potential infinite loops if code is malformed.
+                log.error("Could not find matching closing brace for proc '{}' starting at index {}. Stopping extraction.", processName, procStartIndex);
+                log.warn("Code searched was:\n---\n{}\n---", fullCode.substring(searchStart)); // Log remaining code
+                break; // Exit the while loop
+            }
+        } // End while matcher.find
+
+         if (processes.isEmpty() && !fullCode.trim().startsWith("net")) {
+            // Added check: If code doesn't start with 'net' maybe it's just procs? Log if still empty.
+             log.warn("Could not extract any 'proc' blocks. Check translator output and parsing logic.");
+             log.warn("Code searched:\n---\n{}\n---", fullCode);
+         } else if (!processes.isEmpty()){
+             log.debug("Extracted {} process blocks.", processes.size());
          }
         return processes;
     }

@@ -423,8 +423,8 @@ export default {
     <properties>
       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
       <!-- Change the Java compilation level to 8 -->
-      <maven.compiler.source>1.8</maven.compiler.source>
-      <maven.compiler.target>1.8</maven.compiler.target>
+      <maven.compiler.source>21</maven.compiler.source>
+      <maven.compiler.target>21</maven.compiler.target>
     </properties>
 
     <dependencies>
@@ -436,7 +436,7 @@ export default {
       <dependency>
         <groupId>io.github.lorenzobettini.klaim</groupId>
         <artifactId>xklaim.runtime</artifactId>
-        <version>2.1.0</version>
+        <version>2.5.0</version>
       </dependency>
     </dependencies>
     
