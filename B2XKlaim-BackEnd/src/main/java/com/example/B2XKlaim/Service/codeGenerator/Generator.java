@@ -113,24 +113,32 @@ public class Generator {
     public Map<String, List<String>> translateCallActivity() throws InvocationTargetException, IllegalAccessException {
         Map<String, List<String>> result = new HashMap<>();
         List<BpmnElement> callActivities = getAllCallActivity(processDiagram);
+        Set<String> processedCalledElements = new HashSet<>(); // Keep track of processed IDs
 
         for (BpmnElement callActivity : callActivities) {
              if (!(callActivity instanceof CLA)) continue;
             CLA callAct = (CLA) callActivity;
-            String calledProcessId = callAct.getCalledProcess();
+            String calledProcessId = callAct.getCalledProcess(); // Process Name/ID to call
 
-            if (calledProcessId != null) {
-                 // Basic placeholder proc definition
+            // Only generate placeholder if this calledProcessId hasn't been processed yet
+            if (calledProcessId != null && !processedCalledElements.contains(calledProcessId)) {
                 String codeString = "proc " + calledProcessId + "(String edge){\n\n" +
-                        " /* Placeholder implementation for Call Activity */ \n" +
+                        " /* Placeholder implementation for Call Activity: " + calledProcessId + " */ \n" +
                         " /* Add logic representing the called process */ \n\n" +
                         " out(edge)@self\n" +
                         "}";
+                // computeIfAbsent is still fine, it will create the list once
                 result.computeIfAbsent(calledProcessId, k -> new ArrayList<>()).add(codeString);
+                processedCalledElements.add(calledProcessId); // Mark this ID as processed
+                log.debug("Generated placeholder for Call Activity target: {}", calledProcessId);
+            } else if (calledProcessId != null) {
+                 log.trace("Placeholder for Call Activity target '{}' already generated, skipping duplicate.", calledProcessId);
             }
         }
         return result;
     }
+
+    
 
     // --- Helper methods to get specific element types (Corrected for type safety) ---
 

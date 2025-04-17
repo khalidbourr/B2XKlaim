@@ -289,7 +289,7 @@
             String procParamsString = "";
             if (!currentParamMap.isEmpty()) {
                 procParamsString = currentParamMap.values().stream()
-                                .map(varName -> "Local " + varName)
+                                .map(varName -> "Locality " + varName)
                                 .sorted()
                                 .collect(Collectors.joining(", "));
             }

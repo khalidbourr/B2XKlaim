@@ -312,16 +312,16 @@ export default {
 
       // --- Define Base Paths ---
       // Base path within the zip for source files
-      const srcMainJavaXklaimPath = `${projectName}/src/main/java/xklaim/`;
+      const srcMainJavaXklaimPath = `src/main/java/xklaim/`;
       // Base path for activity/task procedure files
       const activitiesPath = `${srcMainJavaXklaimPath}activities/`;
 
 
-      // --- Generate Maven/Project Files ---
-      zip.file(`${projectName}/pom.xml`, this.generatePomXml()); // Assuming this method exists
-      zip.file(`${projectName}/README.md`, this.generateReadme()); // Assuming this method exists
-      zip.file(`${projectName}/.gitignore`, this.generateGitIgnore()); // Assuming this method exists
-
+      zip.file(`pom.xml`, this.generatePomXml());            
+      zip.file(`README.md`, this.generateReadme());         
+      zip.file(`.gitignore`, this.generateGitIgnore());     
+      zip.file(`.project`, this.generateProject());      
+      zip.file(`.classpath`, this.generateClassPath());     
 
       // --- Collaboration File ---
       if (this.collaboration) {
@@ -329,11 +329,11 @@ export default {
         const processImports = this.processes.map(process => {
            const normalizedName = process.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
            // Assume processes are in subpackages named after them below 'xklaim'
-           return `import xklaim.${normalizedName}.${process.name};`;
+           return `import xklaim.${normalizedName}.${process.name}`;
         }).join('\n');
 
         const collaborationWithPackage =
-          `package xklaim;\n\n` + // Main package for collaboration entry point
+          `package xklaim\n\n` + // Main package for collaboration entry point
           `${processImports}\n\n` +
           `${this.collaboration}`; // The generated net { ... } block
 
@@ -347,16 +347,20 @@ export default {
         const processName = process.name;
         const normalizedName = processName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         const processPackage = `xklaim.${normalizedName}`; // e.g., xklaim.mission1
-        const packageDeclaration = `package ${processPackage};\n\n`;
+        const packageDeclaration = `package ${processPackage}\n\n`;
 
-        // Add imports for activities/tasks if placeholders are generated
+        // --- Add klava.Locality import ---
+        const klavaImports = 'import klava.Locality\n'; // <<< Define Locality import
+
+        // Add import for activities/tasks if placeholders are generated
         const activityImports = (Object.keys(this.callActivities).length > 0 || Object.keys(this.scriptTaskProcs).length > 0)
-            ? `import xklaim.activities.*;\n` // Import activities package
+            ? `import xklaim.activities.*\n` // Import activities package
             : '';
 
         // Combine package, imports, and the full proc code
         // process.code already contains the full "proc Name(...) { ... }"
-        const processWithPackage = packageDeclaration + activityImports + "\n" + process.code;
+        // <<< Add klavaImports here >>>
+        const processWithPackage = packageDeclaration + klavaImports + activityImports + "\n" + process.code;
 
         // Create package folder for each process
         const processFilePath = `${srcMainJavaXklaimPath}${normalizedName}/${processName}.xklaim`;
@@ -371,7 +375,7 @@ export default {
       Object.keys(this.callActivities).forEach(activityName => {
          // Backend sends a List<String> for each, join them.
          const activityCode = this.callActivities[activityName].join('\n');
-         const activityWithPackage = `package ${activitiesPackage};\n\n${activityCode}`;
+         const activityWithPackage = `package ${activitiesPackage}\n\n${activityCode}`;
          const filePath = `${activitiesPath}${activityName}.xklaim`; // Use activitiesPath
          console.log("Adding call activity file:", filePath);
          zip.file(filePath, activityWithPackage);
@@ -422,21 +426,27 @@ export default {
     
     <properties>
       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-      <!-- Change the Java compilation level to 8 -->
       <maven.compiler.source>21</maven.compiler.source>
       <maven.compiler.target>21</maven.compiler.target>
     </properties>
 
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
     <dependencies>
-      <dependency>
-        <groupId>edu.brown.cs.burlap</groupId>
-        <artifactId>java_rosbridge</artifactId>
-        <version>2.0.1</version>
-      </dependency>
       <dependency>
         <groupId>io.github.lorenzobettini.klaim</groupId>
         <artifactId>xklaim.runtime</artifactId>
         <version>2.5.0</version>
+      </dependency>
+      <dependency>
+          <groupId>org.codeberg.kbourr</groupId>
+          <artifactId>common-ros-msgs</artifactId>
+          <version>v1.0.0</version> 
       </dependency>
     </dependencies>
     
@@ -490,7 +500,87 @@ export default {
     </build>
 </project>`;
     },
+
     
+    generateProject() {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>${this.projectConfig.groupId}</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.xtext.ui.shared.xtextBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<name>org.eclipse.jdt.core.javabuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<name>org.eclipse.m2e.core.maven2Builder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.jdt.core.javanature</nature>
+		<nature>org.eclipse.m2e.core.maven2Nature</nature>
+		<nature>org.eclipse.xtext.ui.shared.xtextNature</nature>
+	</natures>
+	<filteredResources>
+		<filter>
+			<id>0</id>
+			<name></name>
+			<type>30</type>
+			<matcher>
+				<id>org.eclipse.core.resources.regexFilterMatcher</id>
+				<arguments>node_modules|.git|__CREATED_BY_JAVA_LANGUAGE_SERVER__</arguments>
+			</matcher>
+		</filter>
+	</filteredResources>
+</projectDescription>`;
+    },
+
+
+    generateClassPath(){
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" output="target/classes" path="src/main/java">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="target/classes" path="src-gen">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-21">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry excluding="**" kind="src" output="target/classes" path="src/main/resources">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+			<attribute name="optional" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="output" path="target/classes"/>
+</classpath>`; },
+
+
     generateReadme() {
       return `# ${this.projectConfig.name}
 
