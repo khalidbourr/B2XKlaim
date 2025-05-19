@@ -25,7 +25,6 @@
  // Lombok Imports
  import lombok.extern.slf4j.Slf4j;
  
- // Your BPMN Element Classes (Ensure all used types are imported)
  import com.example.B2XKlaim.Service.bpmnElements.*;
  import com.example.B2XKlaim.Service.bpmnElements.activities.*;
  import com.example.B2XKlaim.Service.bpmnElements.events.*;
@@ -45,7 +44,6 @@
  
  /**
   * Translates BPMN elements into XKlaim code using the Visitor pattern.
-  * Includes logic to traverse process flows and handle inter-participant parameters.
   */
  @Slf4j // Use Slf4j for logging
  public class BPMNTranslator implements Visitor {
@@ -126,8 +124,6 @@
           Class<?> currentClass = elementType;
           while (currentClass != null && BpmnElement.class.isAssignableFrom(currentClass)) {
                try {
-                   // Look for visit method accepting the current class type in THIS class
-                   // Ensure the parameter type matches exactly (no primitive vs wrapper issues)
                    return this.getClass().getMethod("visit", currentClass);
                } catch (NoSuchMethodException e) {
                    currentClass = currentClass.getSuperclass();
@@ -148,7 +144,6 @@
      * Translates the body of a process starting from a given element,
      * traversing sequence flows recursively/iteratively. Delegates complex
      * control flow (gateways) to specific visit methods.
-     * Applies optimization to remove adjacent out(FlowID)/in(FlowID) pairs if enabled (currently risky).
      *
      * @param startElement The element to start traversal from (usually a Start Event).
      * @return The generated XKlaim code string for the process body path.
@@ -170,7 +165,6 @@
                     // 1. Visit the current element
                     elementResult = (String) visitMethod.invoke(this, currentElement);
                      if (elementResult != null) {
-                        // Append element result now (Optimizer might remove previous out later)
                         bodyCode.append(elementResult);
                      } else {
                         log.warn("Visit method for {} returned null.", currentElement.getId());
@@ -179,11 +173,6 @@
                     // 2. Check Element Type for Control Flow Handling
                     boolean continueTraversal = true;
                     if (currentElement instanceof AND || currentElement instanceof XOR || currentElement instanceof LP) {
-                        // Complex gateways (AND, XOR, LP) handle their own subsequent flow logic
-                        // within their respective visit methods (visit(AND), visit(XOR), visit(LP)).
-                        // The visit method for the gateway should generate the necessary code
-                        // for branching/merging/looping and potentially trigger translation of sub-paths.
-                        // Therefore, this linear traversal should stop here.
                         log.trace(">>> [Translator Traversal] Hit Gateway {}. visit method handles subsequent flow.", currentElement.getId());
                         continueTraversal = false;
                         currentElement = null; // Stop the while loop
@@ -206,12 +195,10 @@
                                     sqResult = (String) sqVisitMethod.invoke(this, sequenceFlowElement);
                                 } else { log.warn("No visit method for SQ {}", outgoingSequenceFlowId); }
 
-                                // --- Optional Optimization ---
-                                // WARNING: Enabling this optimization is risky and may break logic.
                                 boolean optimized = false;
 
                                 if (!optimized && sqResult != null) {
-                                    bodyCode.append(sqResult); // Append SQ code if not optimized away
+                                    bodyCode.append(sqResult);
                                 }
 
                                 // Find next element
@@ -227,7 +214,7 @@
                             log.trace("Element {} has no outgoing edge. Ending traversal.", currentElement.getId());
                             currentElement = null; // Stop
                         }
-                    } // End if(continueTraversal)
+                    }
 
                 } catch (Exception e) { // Catch errors during visit/reflection/traversal
                     log.error("Error during translation processing for element {}: {}",
@@ -299,7 +286,6 @@
 
             // *** ADDED: Find and translate Event Sub-Processes for this process ***
             log.debug("Looking for Event Sub-Processes in process {}", participant.getProcessId());
-            // Assumes helper method exists in BpmnElements
             List<ESP> eventSubProcesses = bpmnElements.getEventSubProcessesForProcess(participant.getProcessId());
             if (eventSubProcesses != null && !eventSubProcesses.isEmpty()) {
                  log.debug("Found {} ESPs for process {}. Generating eval calls.", eventSubProcesses.size(), participant.getProcessId());
@@ -335,7 +321,6 @@
  
      @Override
      public String visit(PL pl) throws FileNotFoundException, UnsupportedEncodingException {
-         // Check and potentially recover state (keep this part)
          if (currentParticipant == null || !Objects.equals(currentParticipant.getId(), pl.getId())) {
               log.error("Visiting PL '{}' but translator state is not set up correctly! Expected state for {}.", pl.getName(), pl.getId());
               setupProcessState(pl);
@@ -344,7 +329,6 @@
          String participantName = pl.getName();
          String processName = pl.getProcessName();
  
-         // Build the inner argument string (comma-separated names, or empty)
          String argsString = ""; // Default to empty args string INSIDE parentheses
          if (!currentParamMap.isEmpty()) {
              Set<String> neededRefsIds = requiredParticipantRefs.get(pl.getId());
@@ -360,7 +344,6 @@
                   }
               }
          }
-         // Now argsString is either "" or "robot2" or "robot1, robot2", etc.
  
          // Log using the inner arguments string
          log.info(">>> visit(PL): Formatting node. ID='{}', Name='{}', Process='{}', Args='{}'",
@@ -383,9 +366,7 @@
          log.info(">>> visit(PL) Returning: [\n{}]", result);
          return result;
      }
- 
-     // --- Event Visitor Methods (Updated for Parameter Passing) ---
- 
+  
      @Override
      public String visit(NSE nse) {
          log.trace("Visiting NSE: {}", nse.getId());
@@ -538,12 +519,9 @@
               return String.format("eval(new %s(/* ERROR: Missing outgoing edge */))@self\n", calledProcess);
          }
  
-          // Generate eval, passing the outgoing edge ID as the first argument (as a string literal)
-          // Add placeholder for other potential arguments
           return String.format("eval(new %s('%s'/* TODO: Pass other necessary args */))@self\n",
                                calledProcess,
                                outgoingEdge);
-          // NOTE: The "out(outgoingEdge)@self" is intentionally REMOVED here.
      }
  
      @Override
@@ -652,7 +630,109 @@
          return sb.toString();
      }
  
- 
+
+    /**
+     * Visitor implementation for Event-Based Gateway (EB).
+     * This implementation uses a polling approach with timeouts to handle multiple possible events.
+     */
+    @Override
+    public String visit(EB eb) throws FileNotFoundException, UnsupportedEncodingException {
+        StringBuilder s = new StringBuilder();
+    
+        // Start the polling loop structure
+        s.append("long pollTimeOut = 1000; // 1 second polling timeout\n");
+        s.append("long currentTime = System.currentTimeMillis();\n");
+        s.append("boolean eventOccurred = false;\n");
+        s.append("while (!eventOccurred) {\n");
+    
+        boolean firstCondition = true;
+    
+        for (Map.Entry<String, List<String>> entry : eb.getEventPathMap().entrySet()) {
+            List<String> path = entry.getValue();
+            if (path.isEmpty()) continue;
+    
+            String eventId = path.get(0);
+            BpmnElement event = bpmnElements.getElementById(eventId);
+    
+            if (event == null) continue;
+    
+            // Generate condition based on event type
+            String condition = null;
+    
+            if (event instanceof TCE) {
+                TCE timer = (TCE) event;
+                condition = String.format("System.currentTimeMillis() - currentTime > %d", timer.getDuration());
+            } else if (event instanceof MIC) {
+                MIC mic = (MIC) event;
+                condition = String.format("in('%s')@self within pollTimeOut", mic.getMessageId());
+            } else if (event instanceof SIC) {
+                SIC sic = (SIC) event;
+                String location = sic.getSignalSenderName();
+                if (currentParamMap != null && currentParamMap.containsKey(location)) {
+                    location = currentParamMap.get(location);
+                }
+                condition = String.format("read('%s')@%s within pollTimeOut", sic.getSignalId(), location);
+            } else {
+                // Default fallback for other event types
+                condition = String.format("in('%s')@self within pollTimeOut", eventId);
+            }
+    
+            if (condition == null) continue;
+    
+            // Add the condition check with proper indentation
+            if (firstCondition) {
+                s.append("        if (").append(condition).append(") {\n");
+                firstCondition = false;
+            } else {
+                s.append("        } else if (").append(condition).append(") {\n");
+            }
+    
+            // Process elements in this path
+            for (int i = 1; i < path.size(); i++) {
+                BpmnElement element = bpmnElements.getElementById(path.get(i));
+                if (element != null) {
+                    String elementCode = element.accept(this);
+                    // Make sure to indent properly here
+                    String[] lines = elementCode.split("\n");
+                    for (String line : lines) {
+                        if (!line.trim().isEmpty()) {
+                            s.append("            ").append(line).append("\n");
+                        }
+                    }
+    
+                    // Add sequence flow handling
+                    String outgoingEdge = element.getOutgoingEdge();
+                    if (outgoingEdge != null && !outgoingEdge.isEmpty()) {
+                        BpmnElement sequence = bpmnElements.getElementById(outgoingEdge);
+                        if (sequence != null) {
+                            String seqCode = sequence.accept(this);
+                            String[] seqLines = seqCode.split("\n");
+                            for (String line : seqLines) {
+                                if (!line.trim().isEmpty()) {
+                                    s.append("            ").append(line).append("\n");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+    
+            s.append("            eventOccurred = true;\n");
+        }
+    
+        // End the polling loop
+        s.append("        }\n");
+        s.append("    }\n");
+    
+        if (eb.getOutgoingEdge() != null) {
+            s.append("    out('").append(eb.getOutgoingEdge()).append("')@self\n");
+        }
+    
+        return s.toString();
+    }
+
+
+
      @Override
      public String visit(ST st) {
          log.trace("Visiting ST (as Eval): {} ({})", st.getName(), st.getId());
@@ -662,7 +742,6 @@
  
          if (processToEval == null || processToEval.isEmpty()) {
              log.warn("Script Task {} has no name. Cannot generate eval call.", st.getId());
-             // If no name, cannot eval - how should flow continue? Output edge directly?
              if (outgoingEdge != null && !outgoingEdge.isEmpty()) {
                  return String.format("// Script Task with ID {} has no name defined.\nout('%s')@self\n",
                                       st.getId(), outgoingEdge);
@@ -677,17 +756,14 @@
                return String.format("eval(new %s(/* ERROR: Missing outgoing edge */))@self\n",
                                processToEval);
          }
- 
-         // Generate eval, passing the outgoing edge ID as the first argument (as a string literal)
-         // Add placeholder for other potential arguments
+
          return String.format("eval(new %s('%s'/* TODO: Pass other necessary args */))@self\n",
                               processToEval,
                               outgoingEdge);
-         // NOTE: The "out(outgoingEdge)@self" is intentionally REMOVED here.
      }
  
  
-     // --- Other Unsupported/Placeholder Types ---
+     // --- Other Unsupported/Placeholder Types --- // To do next
      @Override
      public String visit(MIPL mipl) throws FileNotFoundException, UnsupportedEncodingException {
          log.warn("Visiting Multi-Instance Pool (MIPL) - Translation not implemented: {}", mipl.getId());

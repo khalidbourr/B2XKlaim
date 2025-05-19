@@ -13,7 +13,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class DO {
     private String name;
+    private String id;
     private Message message;
     // Constructor
-
+ 
 }

@@ -26,6 +26,7 @@ import com.example.B2XKlaim.Service.bpmnElements.activities.ST;
 import com.example.B2XKlaim.Service.bpmnElements.events.*;
 import com.example.B2XKlaim.Service.bpmnElements.flows.*;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.AND;
+import com.example.B2XKlaim.Service.bpmnElements.gateways.EB;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
@@ -401,6 +402,11 @@ public class BpmnElementFactory {
                 SQ sf = new SQ(sfId, sfSourceRef, sfTargetRef);
                 return sf;
 
+
+
+            case "bpmn:eventBasedGateway":
+                String ebId = element.getAttribute("id");
+                return processEventBasedGateway(element, ebId);
 
             case "bpmn:parallelGateway":
                 String andSplitId = element.getAttribute("id");
@@ -969,5 +975,178 @@ public class BpmnElementFactory {
 
         return false;
     }
+
+    /*
+    * Method to process an event-based gateway.
+    */
+    private EB processEventBasedGateway(Element element, String gatewayId) {
+        NodeList outgoings = element.getElementsByTagName("bpmn:outgoing");
+        Map<String, List<String>> eventPathMap = new HashMap<>();
+        String gatewayOutgoing = null;
+        Element mergeGateway = null;
+        
+        System.out.println("Processing Event-Based Gateway with ID: " + gatewayId);
+    
+        // Store all path endpoints to find common merge point later
+        List<Element> pathEndElements = new ArrayList<>();
+    
+        // For each outgoing edge
+        for (int i = 0; i < outgoings.getLength(); i++) {
+            String outgoingId = outgoings.item(i).getTextContent();
+            Element outgoingFlow = getElementByFlowId(outgoingId);
+            if (outgoingFlow == null) {
+                System.out.println("Warning: Could not find flow with ID: " + outgoingId);
+                continue;
+            }
+    
+            // Get the target event
+            String eventId = outgoingFlow.getAttribute("targetRef");
+            Element eventElement = getElementById(eventId);
+            if (eventElement == null) {
+                System.out.println("Warning: Could not find event with ID: " + eventId);
+                continue;
+            }
+    
+            // Collect the elements on this path
+            List<String> pathElements = new ArrayList<>();
+            pathElements.add(eventId); // Add the catch event itself
+            
+            System.out.println("Processing path from event: " + eventId + " (" + eventElement.getTagName() + ")");
+            
+            // Follow the path from this event until we reach a merge point or end event
+            Element currentElement = eventElement;
+            Element lastElement = null;
+            
+            while (currentElement != null) {
+                // Get outgoing flow from the current element
+                NodeList currentOutgoings = currentElement.getElementsByTagName("bpmn:outgoing");
+                if (currentOutgoings.getLength() == 0) {
+                    System.out.println("Path ends at element: " + currentElement.getAttribute("id"));
+                    pathEndElements.add(currentElement);
+                    break;
+                }
+                
+                Element currentOutgoingFlow = getElementByFlowId(currentOutgoings.item(0).getTextContent());
+                if (currentOutgoingFlow == null) {
+                    System.out.println("Could not find flow from element: " + currentElement.getAttribute("id"));
+                    break;
+                }
+                
+                String nextElementId = currentOutgoingFlow.getAttribute("targetRef");
+                Element nextElement = getElementById(nextElementId);
+                
+                // If we've reached an exclusive gateway, check if it's a merge point
+                if (nextElement != null && isXORMerge(nextElement)) {
+                    System.out.println("Found potential XOR merge at: " + nextElement.getAttribute("id"));
+                    
+                    // Store it as a path end element
+                    pathEndElements.add(nextElement);
+                    
+                    // If we haven't set a merge gateway yet, use this one
+                    if (mergeGateway == null) {
+                        mergeGateway = nextElement;
+                        
+                        // Get the outgoing edge of the merge gateway
+                        NodeList mergeOutgoings = mergeGateway.getElementsByTagName("bpmn:outgoing");
+                        if (mergeOutgoings.getLength() > 0) {
+                            gatewayOutgoing = mergeOutgoings.item(0).getTextContent();
+                            System.out.println("Set merge gateway outgoing edge: " + gatewayOutgoing);
+                        }
+                    }
+                    break;
+                }
+                
+                // Otherwise, add this element to the path and continue
+                if (nextElement != null) {
+                    pathElements.add(nextElementId);
+                    lastElement = currentElement;
+                    currentElement = nextElement;
+                } else {
+                    System.out.println("Could not find next element from: " + currentElement.getAttribute("id"));
+                    break;
+                }
+            }
+            
+            // Determine the event type for this path
+            String eventType = determineEventType(eventElement);
+            System.out.println("Event type for " + eventId + ": " + eventType);
+            
+            // Store the path with a unique key if there are multiple of the same type
+            String pathKey = eventType;
+            int counter = 1;
+            while (eventPathMap.containsKey(pathKey)) {
+                pathKey = eventType + "_" + counter++;
+            }
+            
+            eventPathMap.put(pathKey, pathElements);
+        }
+        
+        // Verify that all paths converge to the same XOR merge
+        if (pathEndElements.size() > 1) {
+            Map<String, Integer> endElementCounts = new HashMap<>();
+            String mostCommonId = null;
+            int maxCount = 0;
+            
+            for (Element endElement : pathEndElements) {
+                String id = endElement.getAttribute("id");
+                int count = endElementCounts.getOrDefault(id, 0) + 1;
+                endElementCounts.put(id, count);
+                
+                if (count > maxCount) {
+                    maxCount = count;
+                    mostCommonId = id;
+                }
+            }
+            
+            // If we found a common merge point and it's an XOR gateway
+            if (mostCommonId != null && maxCount > 1) {
+                Element commonMerge = getElementById(mostCommonId);
+                if (commonMerge != null && isXORMerge(commonMerge)) {
+                    mergeGateway = commonMerge;
+                    
+                    // Get the outgoing edge of the merge gateway
+                    NodeList mergeOutgoings = mergeGateway.getElementsByTagName("bpmn:outgoing");
+                    if (mergeOutgoings.getLength() > 0) {
+                        gatewayOutgoing = mergeOutgoings.item(0).getTextContent();
+                        System.out.println("Confirmed common XOR merge: " + mostCommonId + " with outgoing: " + gatewayOutgoing);
+                    }
+                }
+            }
+        }
+        
+        // If no merge gateway was found, log a warning
+        if (mergeGateway == null) {
+            System.out.println("Warning: No XOR merge found for Event-Based Gateway " + gatewayId);
+        }
+        
+        return new EB(gatewayId, eventPathMap, gatewayOutgoing);
+    }
+    
+    /**
+     * Helper method to determine the type of event.
+     */
+    private String determineEventType(Element eventElement) {
+        // Check for child elements that define the event type
+        NodeList childNodes = eventElement.getChildNodes();
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            Node childNode = childNodes.item(i);
+            if (childNode.getNodeType() == Node.ELEMENT_NODE) {
+                Element childElement = (Element) childNode;
+                String childTagName = childElement.getTagName();
+                
+                if ("bpmn:messageEventDefinition".equals(childTagName)) {
+                    return "message";
+                } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
+                    return "signal";
+                } else if ("bpmn:timerEventDefinition".equals(childTagName)) {
+                    return "timer";
+                }
+            }
+        }
+        
+        // Default case if no specific event type is found
+        return "default";
+    }
+
 
 }

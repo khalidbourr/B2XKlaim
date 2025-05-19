@@ -50,7 +50,7 @@ import com.example.B2XKlaim.Service.bpmnElements.flows.MessageFLow;
       */
      public enum ElementType {
          NSE, MSE, SSE, MIC, SIC, MIT, SIT, NEE, MEE, SEE, TSE, TCE, TEE,
-         XOR, AND, LP,
+         XOR, AND, LP, EB,
          CLA, ESP, ST,
          SQ,
          PL, MIPL, 
@@ -81,6 +81,8 @@ import com.example.B2XKlaim.Service.bpmnElements.flows.MessageFLow;
          this.requiredParticipantRefs = new HashMap<>();
      }
  
+
+     
      /**
       * Constructor used by Lombok's @Builder.
       * @param elementsById Map of elements parsed.
@@ -92,6 +94,16 @@ import com.example.B2XKlaim.Service.bpmnElements.flows.MessageFLow;
          this.requiredParticipantRefs = new HashMap<>();
      }
  
+    /**
+     * Constructor that accepts both elements and connections.
+     * @param elementsById Map of elements parsed.
+     * @param connections Map of participant references.
+     */
+    public BpmnElements(Map<String, BpmnElement> elementsById, Map<String, Set<String>> connections) {
+        this.elementsById = (elementsById != null) ? elementsById : new HashMap<>();
+        this.requiredParticipantRefs = (connections != null) ? connections : new HashMap<>();
+    }
+
      // --- Core Methods ---
  
      /**

@@ -24,6 +24,7 @@ import com.example.B2XKlaim.Service.bpmnElements.activities.ST;
 import com.example.B2XKlaim.Service.bpmnElements.events.*;
 import com.example.B2XKlaim.Service.bpmnElements.flows.SQ;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.AND;
+import com.example.B2XKlaim.Service.bpmnElements.gateways.EB;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
 import com.example.B2XKlaim.Service.bpmnElements.objects.DO;
@@ -52,6 +53,7 @@ public interface Visitor {
     public String visit(TEE tee) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(XOR xor) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(AND and) throws FileNotFoundException, UnsupportedEncodingException;
+    public String visit(EB eb) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(LP lp) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(CLA cla) throws FileNotFoundException, UnsupportedEncodingException;
     public String visit(ESP esp) throws FileNotFoundException, UnsupportedEncodingException;

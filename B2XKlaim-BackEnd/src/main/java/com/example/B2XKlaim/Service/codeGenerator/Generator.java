@@ -41,7 +41,7 @@ public class Generator {
 
     /**
      * Constructor for Generator.
-     * @param processDiagram The populated BpmnElements object (must have run analyzeInteractions).
+     * @param processDiagram The populated BpmnElements object
      */
     public Generator(BpmnElements processDiagram) {
         Objects.requireNonNull(processDiagram, "processDiagram cannot be null");
