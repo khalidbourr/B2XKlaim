@@ -640,9 +640,9 @@
         StringBuilder s = new StringBuilder();
     
         // Start the polling loop structure
-        s.append("long pollTimeOut = 1000; // 1 second polling timeout\n");
-        s.append("long currentTime = System.currentTimeMillis();\n");
-        s.append("boolean eventOccurred = false;\n");
+        s.append("var long pollTimeOut = 1000; // 1 second polling timeout\n");
+        s.append("var long currentTime = System.currentTimeMillis();\n");
+        s.append("var boolean eventOccurred = false;\n");
         s.append("while (!eventOccurred) {\n");
     
         boolean firstCondition = true;
