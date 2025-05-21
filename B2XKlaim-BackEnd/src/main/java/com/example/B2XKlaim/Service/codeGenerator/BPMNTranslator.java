@@ -19,26 +19,48 @@
  // Core Java Imports
  import java.io.FileNotFoundException;
  import java.io.UnsupportedEncodingException;
- import java.util.*;
- import java.util.stream.Collectors;
- 
- // Lombok Imports
- import lombok.extern.slf4j.Slf4j;
- 
- import com.example.B2XKlaim.Service.bpmnElements.*;
- import com.example.B2XKlaim.Service.bpmnElements.activities.*;
- import com.example.B2XKlaim.Service.bpmnElements.events.*;
- import com.example.B2XKlaim.Service.bpmnElements.flows.*;
- import com.example.B2XKlaim.Service.bpmnElements.gateways.*;
- import com.example.B2XKlaim.Service.bpmnElements.objects.pool.*;
- import com.example.B2XKlaim.Service.bpmnElements.objects.DO;
- 
-
-
- // Core Java Imports
-
- import java.lang.reflect.InvocationTargetException;
  import java.lang.reflect.Method;
+ import java.util.ArrayList;
+ import java.util.Comparator;
+ import java.util.HashMap;
+ import java.util.HashSet;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.stream.Collectors;
+
+ import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
+import com.example.B2XKlaim.Service.bpmnElements.BpmnElements;
+import com.example.B2XKlaim.Service.bpmnElements.activities.CLA;
+import com.example.B2XKlaim.Service.bpmnElements.activities.ESP;
+import com.example.B2XKlaim.Service.bpmnElements.activities.ST;
+import com.example.B2XKlaim.Service.bpmnElements.events.MEE;
+import com.example.B2XKlaim.Service.bpmnElements.events.MIC;
+import com.example.B2XKlaim.Service.bpmnElements.events.MIT;
+import com.example.B2XKlaim.Service.bpmnElements.events.MSE;
+import com.example.B2XKlaim.Service.bpmnElements.events.NEE;
+import com.example.B2XKlaim.Service.bpmnElements.events.NSE;
+import com.example.B2XKlaim.Service.bpmnElements.events.SEE;
+import com.example.B2XKlaim.Service.bpmnElements.events.SIC;
+import com.example.B2XKlaim.Service.bpmnElements.events.SIT;
+import com.example.B2XKlaim.Service.bpmnElements.events.SSE;
+import com.example.B2XKlaim.Service.bpmnElements.events.TCE;
+import com.example.B2XKlaim.Service.bpmnElements.events.TEE;
+import com.example.B2XKlaim.Service.bpmnElements.events.TSE;
+import com.example.B2XKlaim.Service.bpmnElements.flows.MessageFLow;
+import com.example.B2XKlaim.Service.bpmnElements.flows.SQ;
+import com.example.B2XKlaim.Service.bpmnElements.gateways.AND;
+import com.example.B2XKlaim.Service.bpmnElements.gateways.EB;
+import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
+import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
+import com.example.B2XKlaim.Service.bpmnElements.objects.DO;
+import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
+import com.example.B2XKlaim.Service.bpmnElements.objects.pool.MIPL;
+import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
+
+import lombok.extern.slf4j.Slf4j;
 
  
  
@@ -148,14 +170,17 @@
      * @param startElement The element to start traversal from (usually a Start Event).
      * @return The generated XKlaim code string for the process body path.
      */
-    public String translateProcessBody(BpmnElement startElement) throws FileNotFoundException, UnsupportedEncodingException {
+    public String translateProcessBody(BpmnElement startElement)
+    throws FileNotFoundException, UnsupportedEncodingException {
+
         StringBuilder bodyCode = new StringBuilder();
         Set<BpmnElement> visitedElements = new HashSet<>();
         BpmnElement currentElement = startElement;
 
         while (currentElement != null && !visitedElements.contains(currentElement)) {
             visitedElements.add(currentElement);
-            log.trace(">>> [Translator Traversal] Visiting Element: {} ({})", currentElement.getId(), currentElement.getClass().getSimpleName());
+            log.trace(">>> [Translator Traversal] Visiting Element: {} ({})", 
+                    currentElement.getId(), currentElement.getClass().getSimpleName());
 
             Method visitMethod = getVisitMethod(currentElement.getClass());
             String elementResult = null;
@@ -164,77 +189,74 @@
                 try {
                     // 1. Visit the current element
                     elementResult = (String) visitMethod.invoke(this, currentElement);
-                     if (elementResult != null) {
-                        bodyCode.append(elementResult);
-                     } else {
-                        log.warn("Visit method for {} returned null.", currentElement.getId());
-                     }
 
-                    // 2. Check Element Type for Control Flow Handling
-                    boolean continueTraversal = true;
-                    if (currentElement instanceof AND || currentElement instanceof XOR || currentElement instanceof LP) {
-                        log.trace(">>> [Translator Traversal] Hit Gateway {}. visit method handles subsequent flow.", currentElement.getId());
-                        continueTraversal = false;
-                        currentElement = null; // Stop the while loop
+                    if (elementResult != null) {
+                        bodyCode.append(elementResult);
+                    } else {
+                        log.warn("Visit method for {} returned null.", currentElement.getId());
                     }
 
-                    // 3. If it's not a complex gateway, continue linear traversal
-                    if (continueTraversal) {
-                        String outgoingSequenceFlowId = currentElement.getOutgoingEdge();
-                        log.trace(">>> [Translator Traversal] Outgoing Edge from {}: {}", currentElement.getId(), outgoingSequenceFlowId);
+                    // 2. Always attempt to follow outgoing edge unless explicitly handled by the visit method
+                    String outgoingSequenceFlowId = currentElement.getOutgoingEdge();
+                    log.trace(">>> [Translator Traversal] Outgoing Edge from {}: {}", 
+                            currentElement.getId(), outgoingSequenceFlowId);
 
-                        if (outgoingSequenceFlowId != null && !outgoingSequenceFlowId.isEmpty()) {
-                            BpmnElement sequenceFlowElement = this.bpmnElements.getElementById(outgoingSequenceFlowId);
-                            log.trace(">>> [Translator Traversal] Sequence Flow Element Found: {} ({})", (sequenceFlowElement!=null?sequenceFlowElement.getId():"null"), (sequenceFlowElement!=null?sequenceFlowElement.getClass().getSimpleName():"null"));
+                    if (outgoingSequenceFlowId != null && !outgoingSequenceFlowId.isEmpty()) {
+                        BpmnElement sequenceFlowElement = this.bpmnElements.getElementById(outgoingSequenceFlowId);
+                        log.trace(">>> [Translator Traversal] Sequence Flow Element Found: {} ({})", 
+                                (sequenceFlowElement != null ? sequenceFlowElement.getId() : "null"),
+                                (sequenceFlowElement != null ? sequenceFlowElement.getClass().getSimpleName() : "null"));
 
-                            if (sequenceFlowElement instanceof SQ) {
-                                // Visit SQ
-                                Method sqVisitMethod = getVisitMethod(SQ.class);
-                                String sqResult = null;
-                                if (sqVisitMethod != null) {
-                                    sqResult = (String) sqVisitMethod.invoke(this, sequenceFlowElement);
-                                } else { log.warn("No visit method for SQ {}", outgoingSequenceFlowId); }
-
-                                boolean optimized = false;
-
-                                if (!optimized && sqResult != null) {
-                                    bodyCode.append(sqResult);
-                                }
-
-                                // Find next element
-                                currentElement = this.bpmnElements.getElementAfterSequenceFlow(outgoingSequenceFlowId);
-                                log.trace(">>> [Translator Traversal] Next Element after Flow {}: {} ({})", outgoingSequenceFlowId, (currentElement!=null?currentElement.getId():"null"), (currentElement!=null?currentElement.getClass().getSimpleName():"null"));
-
+                        if (sequenceFlowElement instanceof SQ) {
+                            // Visit SQ (sequence flow)
+                            Method sqVisitMethod = getVisitMethod(SQ.class);
+                            String sqResult = null;
+                            if (sqVisitMethod != null) {
+                                sqResult = (String) sqVisitMethod.invoke(this, sequenceFlowElement);
                             } else {
-                                log.warn("Element {} outgoing edge {} is not an SQ element or not found.", currentElement.getId(), outgoingSequenceFlowId);
-                                currentElement = null; // Stop
+                                log.warn("No visit method for SQ {}", outgoingSequenceFlowId);
                             }
+
+                            if (sqResult != null) {
+                                bodyCode.append(sqResult);
+                            }
+
+                            // Move to the next element after the sequence flow
+                            currentElement = this.bpmnElements.getElementAfterSequenceFlow(outgoingSequenceFlowId);
                         } else {
-                            // No outgoing edge -> End of this path
-                            log.trace("Element {} has no outgoing edge. Ending traversal.", currentElement.getId());
+                            log.warn("Element {} outgoing edge {} is not an SQ element or not found.",
+                                    currentElement.getId(), outgoingSequenceFlowId);
                             currentElement = null; // Stop
                         }
+                    } else {
+                        // No outgoing edge -> End of this path
+                        log.trace("Element {} has no outgoing edge. Ending traversal.",
+                                currentElement.getId());
+                        currentElement = null; // Stop
                     }
 
-                } catch (Exception e) { // Catch errors during visit/reflection/traversal
+                } catch (Exception e) {
                     log.error("Error during translation processing for element {}: {}",
-                              (currentElement != null ? currentElement.getId() : "unknown"), e.getMessage(), e);
+                            (currentElement != null ? currentElement.getId() : "unknown"),
+                            e.getMessage(), e);
                     currentElement = null; // Stop traversal on error
                 }
-            } else { // No visit method found
-                log.warn("No visit method found for element {} (Class: {}). Skipping.", currentElement.getId(), currentElement.getClass().getSimpleName());
-                currentElement = null; // Stop traversal if element cannot be visited
+            } else {
+                log.warn("No visit method found for element {} (Class: {}). Skipping.",
+                        currentElement.getId(), currentElement.getClass().getSimpleName());
+                currentElement = null;
             }
-        } // End while loop
-
-        if (currentElement != null && visitedElements.contains(currentElement)) {
-             log.debug("Stopping traversal for element {} - already visited in this path (potential loop).", currentElement.getId());
         }
 
-        log.warn(">>> translateProcessBody returning: [\n{}]", bodyCode.toString()); // Log final result
+        if (currentElement != null && visitedElements.contains(currentElement)) {
+            log.debug("Stopping traversal for element {} - already visited in this path (potential loop).",
+                    currentElement.getId());
+        }
+
+        log.warn(">>> translateProcessBody returning: [\n{}]", bodyCode.toString());
         return bodyCode.toString();
-    }
- 
+        }
+        
  
      // --- Visitor Methods ---
  
@@ -288,11 +310,12 @@
             log.debug("Looking for Event Sub-Processes in process {}", participant.getProcessId());
             List<ESP> eventSubProcesses = bpmnElements.getEventSubProcessesForProcess(participant.getProcessId());
             if (eventSubProcesses != null && !eventSubProcesses.isEmpty()) {
-                 log.debug("Found {} ESPs for process {}. Generating eval calls.", eventSubProcesses.size(), participant.getProcessId());
-                  for (ESP esp : eventSubProcesses) {
-                       collabCode.append(esp.accept(this)); // Call visit(ESP) -> generates eval()
-                  }
-                  collabCode.append("\n"); // Add newline after ESP evals
+                log.debug("Found {} ESPs for process {}. Generating eval calls.", eventSubProcesses.size(), participant.getProcessId());
+                for (ESP esp : eventSubProcesses) {
+                    // Instead of including full ESP code, just add an eval call
+                    String espName = esp.getName() != null && !esp.getName().isEmpty() ? esp.getName() : esp.getId();
+                    collabCode.append(String.format("  eval(new %s())@self\n\n", espName));
+                }
             }
             // *** END ADDED ESP Handling ***
 
@@ -525,18 +548,44 @@
      }
  
      @Override
-     public String visit(ESP esp) {
-         log.trace("Visiting ESP (as Eval): {} ({})", esp.getName(), esp.getId());
-         String processToEval = esp.getName(); // Use ESP name for the proc
-         if (processToEval == null || processToEval.isEmpty()) {
-              log.warn("Event Sub-Process {} has no name. Cannot generate eval call.", esp.getId());
-              return "// Event Sub-Process with ID " + esp.getId() + " has no name.\n";
+     public String visit(ESP esp) throws FileNotFoundException, UnsupportedEncodingException {
+         StringBuilder sb = new StringBuilder();
+         
+         // Create a proc with the ESP ID or name
+         String espName = esp.getName() != null && !esp.getName().isEmpty() ? esp.getName() : esp.getId();
+         sb.append(String.format("proc %s() {\n", espName));
+         
+         // Find the start event among internal elements
+         BpmnElement startEvent = null;
+         for (BpmnElement element : esp.getInternalElements()) {
+             if (element instanceof com.example.B2XKlaim.Service.bpmnElements.events.NSE ||
+                 element instanceof com.example.B2XKlaim.Service.bpmnElements.events.MSE ||
+                 element instanceof com.example.B2XKlaim.Service.bpmnElements.events.SSE ||
+                 element instanceof com.example.B2XKlaim.Service.bpmnElements.events.TSE) {
+                 startEvent = element;
+                 break;
+             }
          }
-         // Generate eval for the named procedure.
-         return String.format("eval(new %s())@self\n", processToEval);
+         
+         if (startEvent != null) {
+             // Generate process body starting from the start event, following sequence flows
+             String processBody = translateProcessBody(startEvent);
+             
+             // Add indentation to each line
+             String[] lines = processBody.split("\\r?\\n");
+             for (String line : lines) {
+                 if (!line.trim().isEmpty()) {
+                     sb.append("  ").append(line).append("\n");
+                 }
+             }
+         } else {
+             log.warn("No start event found for Event Sub-Process {}", espName);
+         }
+         
+         sb.append("}\n");
+         return sb.toString();
      }
-
-
+     
      @Override
      public String visit(AND and) throws FileNotFoundException, UnsupportedEncodingException {
         StringBuilder s = new StringBuilder();

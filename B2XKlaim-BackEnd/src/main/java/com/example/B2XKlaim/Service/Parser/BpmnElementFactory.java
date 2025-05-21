@@ -19,28 +19,50 @@
 
 package com.example.B2XKlaim.Service.Parser;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
 import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
 import com.example.B2XKlaim.Service.bpmnElements.activities.CLA;
 import com.example.B2XKlaim.Service.bpmnElements.activities.ESP;
 import com.example.B2XKlaim.Service.bpmnElements.activities.ST;
-import com.example.B2XKlaim.Service.bpmnElements.events.*;
-import com.example.B2XKlaim.Service.bpmnElements.flows.*;
+import com.example.B2XKlaim.Service.bpmnElements.events.MEE;
+import com.example.B2XKlaim.Service.bpmnElements.events.MIC;
+import com.example.B2XKlaim.Service.bpmnElements.events.MIT;
+import com.example.B2XKlaim.Service.bpmnElements.events.MSE;
+import com.example.B2XKlaim.Service.bpmnElements.events.NEE;
+import com.example.B2XKlaim.Service.bpmnElements.events.NSE;
+import com.example.B2XKlaim.Service.bpmnElements.events.SEE;
+import com.example.B2XKlaim.Service.bpmnElements.events.SIC;
+import com.example.B2XKlaim.Service.bpmnElements.events.SIT;
+import com.example.B2XKlaim.Service.bpmnElements.events.SSE;
+import com.example.B2XKlaim.Service.bpmnElements.events.TCE;
+import com.example.B2XKlaim.Service.bpmnElements.events.TSE;
+import com.example.B2XKlaim.Service.bpmnElements.flows.MessageFLow;
+import com.example.B2XKlaim.Service.bpmnElements.flows.SQ;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.AND;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.EB;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
-import java.util.*;
 
 public class BpmnElementFactory {
     private static Document document;
@@ -178,18 +200,18 @@ public class BpmnElementFactory {
                             return mse;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
                             String signalId = childElement.getAttribute("signalRef");
-
                             String senderEventId = findThrowingSignalEventBySignalId(signalId);
+                            String senderSignalParticipantName = "self"; // Default value
+                            
                             if (senderEventId != null) {
-
                                 String senderSignalParticipantId = getEnclosingParticipantId(senderEventId);
-
-                                String senderSignalParticipantName = Optional.ofNullable(getParticipantNameById(senderSignalParticipantId))
-                                        .orElse("self");
-
-                                SSE sse = new SSE(name, id, outgoing, signalId, processId, processName, senderSignalParticipantName);
-                                return sse;
+                                senderSignalParticipantName = Optional.ofNullable(getParticipantNameById(senderSignalParticipantId))
+                                    .orElse("self");
                             }
+                            
+                            // Always create an SSE, even if no throwing event was found
+                            SSE sse = new SSE(name, id, outgoing, signalId, processId, processName, senderSignalParticipantName);
+                            return sse;
                         } else if ("bpmn:timerEventDefinition".equals(childTagName)) {
                             NodeList timeDurationNodes = childElement.getElementsByTagName("bpmn:timeDuration");
                             String timeDuration = null;
@@ -373,24 +395,49 @@ public class BpmnElementFactory {
                 return new ST(name, id, incoming, outgoing);
 
 
-            case "bpmn:subProcess":
+                case "bpmn:subProcess":
+                String processespId = null;    
+                String processespName = null; 
                 if (element.hasAttribute("triggeredByEvent")) {
                     String espId = element.getAttribute("id");
                     String espName = element.getAttribute("name");
-                    String processEventId = null;  // Initialize outside the if condition
-                    String processEventName = null;  // Initialize outside the if condition
 
-                    // navigate to the parent process node
+            
+                    // Get parent process
                     Node parent = element.getParentNode();
                     if (parent != null && parent.getNodeType() == Node.ELEMENT_NODE) {
                         Element parentElement = (Element) parent;
                         if ("bpmn:process".equals(parentElement.getNodeName())) {
-                            processEventId = parentElement.getAttribute("id");
-                            processEventName = parentElement.getAttribute("name");
+                            processespId = parentElement.getAttribute("id");
+                            processespName = parentElement.getAttribute("name");
                         }
                     }
-
-                    return new ESP(espName, espId, processEventId, processEventName);
+            
+                    // Create the ESP with correct process context
+                    ESP esp = ESP.builder()
+                            .id(espId)
+                            .name(espName)
+                            .processId(processespId)
+                            .processName(processespName)
+                            .build();
+            
+                    // Now parse and collect internal BPMN elements
+                    NodeList children = element.getChildNodes();
+                    for (int i = 0; i < children.getLength(); i++) {
+                        Node childNode = children.item(i);
+                        if (childNode.getNodeType() == Node.ELEMENT_NODE) {
+                            Element childElement = (Element) childNode;
+            
+                            // Convert childElement to BpmnElement
+                            BpmnElement internalElement = parseBpmnElement(childElement); // Implement this method
+            
+                            if (internalElement != null) {
+                                esp.addInternalElement(internalElement);
+                            }
+                        }
+                    }
+            
+                    return esp;
                 }
                 break;
 
@@ -1147,6 +1194,27 @@ public class BpmnElementFactory {
         // Default case if no specific event type is found
         return "default";
     }
-
+    /**
+     * Parse BPMN elements inside a sub-process
+     * This method recursively processes child elements of a sub-process
+     *
+     * @param childElement The XML element to parse
+     * @return A BpmnElement representation of the child element
+     */
+    private BpmnElement parseBpmnElement(Element childElement) {
+        // Reuse the existing createBpmnElement method for consistent parsing
+        BpmnElement element = createBpmnElement(childElement);
+        
+        // For debugging
+        if (element != null) {
+            System.err.println("Successfully parsed sub-process element: " + childElement.getTagName() + 
+                            " (ID: " + childElement.getAttribute("id") + ")");
+        } else {
+            System.err.println("Failed to parse sub-process element: " + childElement.getTagName() + 
+                            " (ID: " + childElement.getAttribute("id") + ")");
+        }
+        
+        return element;
+    }
 
 }

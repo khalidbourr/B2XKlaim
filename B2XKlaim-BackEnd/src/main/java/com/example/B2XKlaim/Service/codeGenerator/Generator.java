@@ -17,18 +17,27 @@
  package com.example.B2XKlaim.Service.codeGenerator;
 
 // Element Imports
-import com.example.B2XKlaim.Service.bpmnElements.*;
+import java.io.FileNotFoundException;
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
+import com.example.B2XKlaim.Service.bpmnElements.BpmnElements;
 import com.example.B2XKlaim.Service.bpmnElements.activities.CLA;
 import com.example.B2XKlaim.Service.bpmnElements.activities.ESP;
 import com.example.B2XKlaim.Service.bpmnElements.activities.ST;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 
-// Util Imports
 import lombok.extern.slf4j.Slf4j;
-import java.io.FileNotFoundException;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationTargetException;
-import java.util.*;
 
 /**
  * Orchestrates high-level translation tasks, using BPMNTranslator for element-specific logic.
@@ -104,6 +113,42 @@ public class Generator {
         }
         return result;
     }
+
+
+
+        /**
+         * Generates standalone process definitions for each Event Sub-Process.
+         * Called by the controller to provide ESPs for the frontend.
+         */
+        public Map<String, List<String>> translateEventSubProcesses() throws FileNotFoundException, UnsupportedEncodingException {
+            Map<String, List<String>> result = new HashMap<>();
+            List<BpmnElement> eventSubProcesses = getAllEventSubProcesses(processDiagram);
+            
+            for (BpmnElement eventSubProcess : eventSubProcesses) {
+                if (!(eventSubProcess instanceof ESP)) continue;
+                ESP esp = (ESP) eventSubProcess;
+                
+                // Use name if available, otherwise ID
+                String espName = esp.getName() != null && !esp.getName().isEmpty() ? 
+                                esp.getName() : esp.getId();
+                
+                // Generate the raw ESP process definition
+                String rawEspCode = visitor.visit(esp);
+                
+                // Apply optimizer to the ESP code
+                log.info("Applying optimizer to event sub-process '{}'...", espName);
+                List<String> espCodeLines = Arrays.asList(rawEspCode.split("\\r?\\n"));
+                List<String> optimizedEspLines = Optimizer.optimize(espCodeLines);
+                String optimizedEspCode = String.join("\n", optimizedEspLines);
+                
+                // Add the optimized code to the result map
+                result.computeIfAbsent(espName, k -> new ArrayList<>()).add(optimizedEspCode);
+                
+                log.debug("Generated optimized Event Sub-Process: {} ({})", espName, esp.getId());
+            }
+            
+            return result;
+        }
 
 
     /**

@@ -1,5 +1,22 @@
 package com.example.B2XKlaim.Controller;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher; // Import Optimizer
+import java.util.regex.Pattern;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.B2XKlaim.Service.Parser.BpmnParser;
 import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
 import com.example.B2XKlaim.Service.bpmnElements.BpmnElements;
@@ -7,15 +24,8 @@ import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
 import com.example.B2XKlaim.Service.codeGenerator.BPMNTranslator;
 import com.example.B2XKlaim.Service.codeGenerator.Generator;
-import com.example.B2XKlaim.Service.codeGenerator.Optimizer; // Import Optimizer
+import com.example.B2XKlaim.Service.codeGenerator.Optimizer;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 @CrossOrigin(origins = "*")
@@ -31,6 +41,7 @@ public class TranslationController {
         Set<String> participants = new HashSet<>();
         Map<String, List<String>> callActivityTranslations = new HashMap<>();
         Map<String, List<String>> scriptTaskPlaceholders = new HashMap<>();
+        Map<String, List<String>> eventSubProcesses = new HashMap<>();
 
         try {
             log.info("Received request to generate code.");
@@ -128,12 +139,11 @@ public class TranslationController {
                           String optimizedBodyString = String.join("\n", optimizedBodyLines);
                           // *** End Apply optimizer ***
 
-                          // Manually format the proc definition using OPTIMIZED body
                           String rawFullProcCode = String.format("proc %s() {\n%s\n}", processName, optimizedBodyString);
 
                           // *** Format the proc code ***
                            String indent = "  ";
-                           String formattedCode = formatProcessCode(rawFullProcCode, indent); // <<< Apply Formatter
+                           String formattedCode = formatProcessCode(rawFullProcCode, indent); 
 
                           Map<String, String> processEntry = new HashMap<>();
                           processEntry.put("name", processName);
@@ -146,14 +156,15 @@ public class TranslationController {
             // --- Common parts: Get Placeholders ---
             callActivityTranslations = codeGenerator.translateCallActivity();
             scriptTaskPlaceholders = codeGenerator.translateST();
-            log.debug("Generated {} call activity and {} script task placeholders.",
-                      callActivityTranslations.size(), scriptTaskPlaceholders.size());
+            eventSubProcesses = codeGenerator.translateEventSubProcesses();
+
 
             // --- Assemble Final Result ---
-            resultMap.put("collaboration", collaborationCode); // Contains formatted net block (if collab existed)
-            resultMap.put("processes", processesList);         // Contains formatted proc blocks
+            resultMap.put("collaboration", collaborationCode); 
+            resultMap.put("processes", processesList);        
             resultMap.put("callActivities", callActivityTranslations);
             resultMap.put("scriptTaskProcs", scriptTaskPlaceholders);
+            resultMap.put("eventSubProcesses", eventSubProcesses); 
             resultMap.put("participants", new ArrayList<>(participants));
 
             log.info("Code generation successful (Optimizer Enabled).");

@@ -44,7 +44,7 @@
       <!-- Generated Code Section -->
       <div v-if="showButtons" id="code-section">
         <div class="code-tabs">
-          <button v-for="tab in tabs" :key="tab" @click="activeTab = tab" 
+          <button v-for="tab in availableTabs" :key="tab" @click="activeTab = tab" 
             :class="{ 'tab-button--active': activeTab === tab }">
             {{ tab }}
           </button>
@@ -105,6 +105,24 @@
             </div>
           </div>
         </div>
+
+        <!-- Event Sub-Processes Code Textareas -->
+        <div v-if="activeTab === 'event-subprocesses' && hasEventSubprocesses" class="code-processes">
+          <div v-for="(codeList, espId) in eventSubProcesses" :key="espId" class="code-container process">
+            <div class="code-header">
+              <h4>Event Sub-Process: {{ espId }}</h4>
+              <div class="code-actions">
+                <span @click="copyToClipboard(espId)" class="copy-icon" title="Copy to clipboard">
+                  <i class="fa fa-copy"></i>
+                </span>
+              </div>
+            </div>
+            <div class="textarea-wrapper">
+              <textarea :ref="espId" class="textarea code-editor" 
+                :placeholder="'Event Sub-Process Code...'" v-model="eventSubProcesses[espId][0]"></textarea>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -133,7 +151,8 @@ export default {
       processes: [],
       callActivities: {},
       scriptTaskProcs: {},
-      tabs: ['collaboration', 'processes'],
+      eventSubProcesses: {}, 
+      allTabs: ['collaboration', 'processes', 'event-subprocesses'],
       projectConfig: {
         name: 'xklaim-bpmn-project',
         groupId: 'com.example',
@@ -141,6 +160,21 @@ export default {
         version: '1.0-SNAPSHOT'
       }
     };
+  },
+
+  computed: {
+    hasEventSubprocesses() {
+      return Object.keys(this.eventSubProcesses).length > 0;
+    },
+    availableTabs() {
+      // Filter tabs to only show event-subprocesses when they exist
+      return this.allTabs.filter(tab => {
+        if (tab === 'event-subprocesses') {
+          return this.hasEventSubprocesses;
+        }
+        return true;
+      });
+    }
   },
 
   mounted() {
@@ -290,15 +324,16 @@ export default {
         this.processes = data.processes || [];
         this.callActivities = data.callActivities || {}; 
         this.scriptTaskProcs = data.scriptTaskProcs || {}; 
+        this.eventSubProcesses = data.eventSubProcesses || {}; 
 
-        this.activeTab = 'collaboration'; 
+        // Select first available tab
+        this.activeTab = this.availableTabs[0]; 
 
       } catch (err) {
         console.error("Failed to generate code:", err);
         alert("Failed to generate code. Please check the console for details.");
       }
     },
-
 
     async exportCode() {
       // Check if there is any code generated
@@ -394,6 +429,16 @@ export default {
          zip.file(filePath, taskWithPackage);
       });
 
+      console.debug("Adding event sub-processes:", this.eventSubProcesses);
+      Object.keys(this.eventSubProcesses).forEach(espId => {
+        const espCode = this.eventSubProcesses[espId][0]; // Assuming there's just one code block per ESP
+        // Use the same activities package for ESPs 
+        const espWithPackage = `package ${activitiesPackage};\n\n${espCode}`;
+        // Put ESPs in the activities folder with other proc definitions
+        const filePath = `${activitiesPath}${espId}.xklaim`;
+        console.log("Adding event sub-process file:", filePath);
+        zip.file(filePath, espWithPackage);
+      });
 
       // --- Generate the zip file and trigger download ---
       try {
@@ -1068,4 +1113,5 @@ h4 { font-size: 13px; }
 :deep(.djs-container) {
   font-size: 12px !important;
 }
+
 </style>
