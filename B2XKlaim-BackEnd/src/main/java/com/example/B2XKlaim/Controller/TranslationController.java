@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher; // Import Optimizer
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.http.HttpStatus;
@@ -36,8 +36,8 @@ public class TranslationController {
     @PostMapping("/generate-code")
     public ResponseEntity<Map<String, Object>> generateCode(@RequestBody String bpmnXml) {
         Map<String, Object> resultMap = new HashMap<>();
-        String collaborationCode = ""; // Default to empty
-        List<Map<String, String>> processesList = new ArrayList<>(); // Final list for response
+        String collaborationCode = ""; 
+        List<Map<String, String>> processesList = new ArrayList<>(); 
         Set<String> participants = new HashSet<>();
         Map<String, List<String>> callActivityTranslations = new HashMap<>();
         Map<String, List<String>> scriptTaskPlaceholders = new HashMap<>();
@@ -65,9 +65,9 @@ public class TranslationController {
                 log.info("Collaboration found. Translating full collaboration...");
                 List<String> fullXklaimCodeLines = codeGenerator.translateBpmnCollaboration();
 
-                // *** Apply Optimizer (ENABLED AS REQUESTED) ***
+                // *** Apply Optimizer  ***
                 log.info("Applying optimizer to collaboration output...");
-                List<String> fullXklaimCodeLinesOptimized = Optimizer.optimize(fullXklaimCodeLines); // Static call
+                List<String> fullXklaimCodeLinesOptimized = Optimizer.optimize(fullXklaimCodeLines); 
                 List<String> codeToParse = fullXklaimCodeLinesOptimized; // Use OPTIMIZED code
                 // *** End Apply Optimizer ***
 
@@ -202,10 +202,6 @@ public class TranslationController {
      * Extracts the 'proc ... { ... }' blocks from the full generated code using Regex.
      */
 
-    /**
-     * Extracts the 'proc ... { ... }' blocks from the full generated code using Regex.
-     * Uses a greedy quantifier for the body to capture nested structures correctly.
-     */
     private List<Map<String, String>> extractProcessBlocks(String fullCode) {
         List<Map<String, String>> processes = new ArrayList<>();
         if (fullCode == null || fullCode.isEmpty()) {
