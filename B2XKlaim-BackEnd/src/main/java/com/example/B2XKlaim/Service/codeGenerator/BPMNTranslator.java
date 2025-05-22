@@ -16,7 +16,6 @@
 
  package com.example.B2XKlaim.Service.codeGenerator;
 
- // Core Java Imports
  import java.io.FileNotFoundException;
  import java.io.UnsupportedEncodingException;
  import java.lang.reflect.Method;
@@ -67,7 +66,7 @@ import lombok.extern.slf4j.Slf4j;
  /**
   * Translates BPMN elements into XKlaim code using the Visitor pattern.
   */
- @Slf4j // Use Slf4j for logging
+ @Slf4j // for logging
  public class BPMNTranslator implements Visitor {
  
      // --- Member Variables ---
@@ -138,10 +137,7 @@ import lombok.extern.slf4j.Slf4j;
           }
       }
  
-     /**
-      * Finds the appropriate "visit" method in THIS Translator instance.
-      * Traverses superclasses if no exact match is found.
-      */
+
      private Method getVisitMethod(Class<? extends BpmnElement> elementType) {
           Class<?> currentClass = elementType;
           while (currentClass != null && BpmnElement.class.isAssignableFrom(currentClass)) {
@@ -153,7 +149,6 @@ import lombok.extern.slf4j.Slf4j;
                }
           }
           log.trace("No specific visit method found in BPMNTranslator for {} or its superclasses.", elementType.getName());
-          // Attempt to find a more generic visit method if specific one fails
            try {
                  return this.getClass().getMethod("visit", BpmnElement.class); // Example fallback
              } catch (NoSuchMethodException e) {
@@ -306,7 +301,6 @@ import lombok.extern.slf4j.Slf4j;
                     participant.getProcessName(),
                     procParamsString));
 
-            // *** ADDED: Find and translate Event Sub-Processes for this process ***
             log.debug("Looking for Event Sub-Processes in process {}", participant.getProcessId());
             List<ESP> eventSubProcesses = bpmnElements.getEventSubProcessesForProcess(participant.getProcessId());
             if (eventSubProcesses != null && !eventSubProcesses.isEmpty()) {
@@ -317,7 +311,6 @@ import lombok.extern.slf4j.Slf4j;
                     collabCode.append(String.format("  eval(new %s())@self\n\n", espName));
                 }
             }
-            // *** END ADDED ESP Handling ***
 
             // Generate the main process body using the traversal helper method
             List<BpmnElement> startEvents = bpmnElements.findStartEventsForProcess(participant.getProcessId());
@@ -381,7 +374,7 @@ import lombok.extern.slf4j.Slf4j;
  
          // Updated nodeTemplate always includes parentheses for eval
          String nodeTemplate = "\tnode %s {\n" +
-                 "\t\teval(new %s(%s))@self\n" + // <<< Always has (...) around the argsString placeholder
+                 "\t\teval(new %s(%s))@self\n" +
                  "\t}\n";
          // Format using the inner arguments string
          String result = String.format(nodeTemplate, participantName, processName, argsString);
@@ -769,7 +762,6 @@ import lombok.extern.slf4j.Slf4j;
             s.append("            eventOccurred = true;\n");
         }
     
-        // End the polling loop
         s.append("        }\n");
         s.append("    }\n");
     
@@ -801,7 +793,6 @@ import lombok.extern.slf4j.Slf4j;
  
          if (outgoingEdge == null || outgoingEdge.isEmpty()) {
               log.error("Script Task {} ({}) has no outgoing edge defined. Cannot generate proper eval.", st.getId(), processToEval);
-              // Return only eval without out, but this breaks flow
                return String.format("eval(new %s(/* ERROR: Missing outgoing edge */))@self\n",
                                processToEval);
          }
@@ -812,7 +803,6 @@ import lombok.extern.slf4j.Slf4j;
      }
  
  
-     // --- Other Unsupported/Placeholder Types --- // To do next
      @Override
      public String visit(MIPL mipl) throws FileNotFoundException, UnsupportedEncodingException {
          log.warn("Visiting Multi-Instance Pool (MIPL) - Translation not implemented: {}", mipl.getId());
