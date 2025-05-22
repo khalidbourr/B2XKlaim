@@ -413,7 +413,6 @@ public class BpmnElementFactory {
                         }
                     }
             
-                    // Create the ESP with correct process context
                     ESP esp = ESP.builder()
                             .id(espId)
                             .name(espName)
@@ -421,7 +420,6 @@ public class BpmnElementFactory {
                             .processName(processespName)
                             .build();
             
-                    // Now parse and collect internal BPMN elements
                     NodeList children = element.getChildNodes();
                     for (int i = 0; i < children.getLength(); i++) {
                         Node childNode = children.item(i);
@@ -429,7 +427,7 @@ public class BpmnElementFactory {
                             Element childElement = (Element) childNode;
             
                             // Convert childElement to BpmnElement
-                            BpmnElement internalElement = parseBpmnElement(childElement); // Implement this method
+                            BpmnElement internalElement = parseBpmnElement(childElement); 
             
                             if (internalElement != null) {
                                 esp.addInternalElement(internalElement);
@@ -473,8 +471,6 @@ public class BpmnElementFactory {
                 String xorid = element.getAttribute("id");
                 NodeList incomings = element.getElementsByTagName("bpmn:incoming");
                 NodeList outgoings = element.getElementsByTagName("bpmn:outgoing");
-
-                // This passage is to avoid the clash that may occur between loop and xor.
 
                  String firstIncomingFlow = incomings.item(0).getTextContent();
                  Element ElementFromFirstIncomingFlow= getElementByFlowId(firstIncomingFlow);
@@ -592,7 +588,6 @@ public class BpmnElementFactory {
     
         try {
             // 1. Find the element with the specific ID anywhere in the document
-            // Uses XPath expression "//*[@id='elementIdValue']"
             String expression = "//*[@id='" + elementId + "']";
             Node elementNode = (Node) xpath.evaluate(expression, document, XPathConstants.NODE);
     
@@ -669,7 +664,6 @@ public class BpmnElementFactory {
         List<String> throwingEventTags = Arrays.asList(
                 "bpmn:intermediateThrowEvent",
                 "bpmn:endEvent"
-                // Add "bpmn:startEvent" ONLY if a start event can *throw* a signal in your context (uncommon for signalRef)
         );
     
         NodeList signalEventDefinitions = document.getElementsByTagName("bpmn:signalEventDefinition");
@@ -702,7 +696,7 @@ public class BpmnElementFactory {
     }
 
 
-    // Helper method to find the loop's outgoing flow with a condition
+    // this is a helper method find the loop's outgoing flow with a condition
     private Map<String, Element> findLoopOutgoingFlows(Element xorSplit) {
         Map<String, Element> flows = new HashMap<>();
 
