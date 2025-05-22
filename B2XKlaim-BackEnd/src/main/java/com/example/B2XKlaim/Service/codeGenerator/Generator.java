@@ -16,7 +16,6 @@
 
  package com.example.B2XKlaim.Service.codeGenerator;
 
-// Element Imports
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
@@ -135,7 +134,6 @@ public class Generator {
                 // Generate the raw ESP process definition
                 String rawEspCode = visitor.visit(esp);
                 
-                // Apply optimizer to the ESP code
                 log.info("Applying optimizer to event sub-process '{}'...", espName);
                 List<String> espCodeLines = Arrays.asList(rawEspCode.split("\\r?\\n"));
                 List<String> optimizedEspLines = Optimizer.optimize(espCodeLines);
@@ -174,7 +172,7 @@ public class Generator {
                         "}";
                 // computeIfAbsent is still fine, it will create the list once
                 result.computeIfAbsent(calledProcessId, k -> new ArrayList<>()).add(codeString);
-                processedCalledElements.add(calledProcessId); // Mark this ID as processed
+                processedCalledElements.add(calledProcessId); 
                 log.debug("Generated placeholder for Call Activity target: {}", calledProcessId);
             } else if (calledProcessId != null) {
                  log.trace("Placeholder for Call Activity target '{}' already generated, skipping duplicate.", calledProcessId);
@@ -182,12 +180,7 @@ public class Generator {
         }
         return result;
     }
-
     
-
-    // --- Helper methods to get specific element types (Corrected for type safety) ---
-
-    // Removed getAllStartEvents as it wasn't used directly by the simplified Generator
 
     private static List<BpmnElement> getCollaboration(BpmnElements bpmnElements) {
         List<Collab> collaborationElements = bpmnElements.getElementsByType(Collab.class);
