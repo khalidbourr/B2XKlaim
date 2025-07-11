@@ -439,7 +439,7 @@ export default {
       Object.keys(this.eventSubProcesses).forEach(espId => {
         const espCode = this.eventSubProcesses[espId][0]; // Assuming there's just one code block per ESP
         // Use the same activities package for ESPs 
-        const espWithPackage = `package ${activitiesPackage};\n\n${espCode}`;
+        const espWithPackage = `package ${activitiesPackage}\n\n${espCode}`;
         // Put ESPs in the activities folder with other proc definitions
         const filePath = `${activitiesPath}${espId}.xklaim`;
         console.log("Adding event sub-process file:", filePath);
@@ -503,7 +503,7 @@ export default {
         <groupId>com.github.ihmcrobotics</groupId>
         <artifactId>jros2</artifactId>
         <version>-4f191a9f87-1</version>
-      </dependency
+      </dependency>
     </dependencies>
     
     <build>
