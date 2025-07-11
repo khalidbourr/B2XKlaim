@@ -336,6 +336,12 @@ export default {
     },
 
     async exportCode() {
+        // === Generate unique project name with random ID ===
+        const timestamp = Math.random().toString(36).substr(2, 8);
+        const uniqueName = `${this.projectConfig.name}-${timestamp}`;
+        this.projectConfig.groupId = uniqueName;
+        this.projectConfig.name = uniqueName;
+        this.projectConfig.artifactId = uniqueName;
       // Check if there is any code generated
       if (!this.collaboration && !this.processes.length && !Object.keys(this.callActivities).length && !Object.keys(this.scriptTaskProcs).length) {
         alert("No code has been generated to download.");
@@ -343,7 +349,7 @@ export default {
       }
 
       const zip = new JSZip();
-      const projectName = this.projectConfig.name || 'xklaim-bpmn-project'; // Use default if empty
+      const projectName = this.projectConfig.name;
 
       // --- Define Base Paths ---
       // Base path within the zip for source files
@@ -422,7 +428,7 @@ export default {
       Object.keys(this.scriptTaskProcs).forEach(taskName => {
          const taskCode = this.scriptTaskProcs[taskName].join('\n');
          // *** Use the SAME 'activitiesPackage' ***
-         const taskWithPackage = `package ${activitiesPackage};\n\n${taskCode}`;
+         const taskWithPackage = `package ${activitiesPackage}\n\n${taskCode}`;
          // *** Use the SAME 'activitiesPath' to put file in activities folder ***
          const filePath = `${activitiesPath}${taskName}.xklaim`;
          console.log("Adding script task file:", filePath);
@@ -493,6 +499,11 @@ export default {
           <artifactId>common-ros-msgs</artifactId>
           <version>v1.0.0</version> 
       </dependency>
+      <dependency>
+        <groupId>com.github.ihmcrobotics</groupId>
+        <artifactId>jros2</artifactId>
+        <version>-4f191a9f87-1</version>
+      </dependency
     </dependencies>
     
     <build>
