@@ -48,19 +48,15 @@ Xklaim is a novel programming language that derives its core principles from the
 
 To utilize `B2XKlaim` effectively, follow these steps:
 
-### 1. Start the Backend
+### 1. Launch the tool
+**Recommended:** Use the web-based tool for easier access:
+    **Web Tool:** [Web Tool](https://kbourr.com/b2xklaim/)
 
-```bash
-   cd B2XKlaim/B2XKlaim-BackEnd
-   mvn clean install (mvn clean install -DskipTests)
-   mvn clean compile
-```
-Ensure the backend is up and running. Initiate the B2XKlaimApplication.
-
-### 2. Launch the tool
-
-Navigate to the root directory:
-
+**Local Installation:** If you prefer running locally:
    ```bash
    cd B2XKlaim
    npm start
+```
+### 2. How to Use B2XKlaim Tool
+
+Visit our complete tutorial: [How to Use the B2XKlaim Tool](https://kbourr.com/how-to-use-b2xkaim-tool/)
