@@ -6,6 +6,7 @@ import com.example.B2XKlaim.Service.codeGenerator.Visitor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.io.FileNotFoundException;
@@ -17,8 +18,10 @@ import java.util.Map;
 @Data
 @NoArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = false)
 public class AND extends BpmnElement implements Visitable {
     private String id;
+    @Builder.Default
     private Map<Integer, List<String>> flowElementMap = new HashMap<>();
     private String outgoingEdge;
 

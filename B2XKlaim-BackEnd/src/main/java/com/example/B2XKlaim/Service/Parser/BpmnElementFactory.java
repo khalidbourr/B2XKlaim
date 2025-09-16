@@ -804,16 +804,13 @@ public class BpmnElementFactory {
             }
 
             Element conditionExpression = (Element) outgoingFlow.getElementsByTagName("bpmn:conditionExpression").item(0);
-            if (conditionExpression.getTextContent() == null || conditionExpression.getTextContent().isEmpty()) {
-                throw new IllegalArgumentException("Conditions are required.");
-            }
+            String condition = null;
             if (conditionExpression != null) {
-                String condition = conditionExpression.getTextContent();
+                condition = conditionExpression.getTextContent();
+            }
                 List<String> existingElements = conditionElementMap.getOrDefault(condition, new ArrayList<>());
                 existingElements.addAll(elementList);
                 conditionElementMap.put(condition, existingElements);
-            }
-
             if (outgoings.getLength() == 1) {
                 caOutgoing = outgoing;
             }

@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.EqualsAndHashCode;
+
 
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
@@ -15,6 +17,7 @@ import java.io.UnsupportedEncodingException;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = false)
 public class SIT extends BpmnElement implements Visitable {
     private String name;
     private String id;

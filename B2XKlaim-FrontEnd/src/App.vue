@@ -7,8 +7,8 @@
           <img src="./assets/b2xklaim.jpg" alt="B2Xklaim Web Client" class="logo">
         </a>
         <div class="title-container">
-                <h1 class="app-main-title">B2XKlaim</h1>
-                <h2 class="app-subtitle">an X-Klaim BPMN Translator</h2>
+          <h1 class="app-main-title">B2XKlaim</h1>
+          <h2 class="app-subtitle">an X-Klaim BPMN Translator</h2>
         </div>
       </div>
       <div class="nav-buttons">
@@ -27,6 +27,21 @@
     </div>
 
     <div id="main-content">
+      <div class="process-tabs">
+        <div v-for="[processId, processData] in processesArray"
+             :key="processId"
+             :class="{ 'tab': true, 'active': activeProcess === processId }"
+             @click="switchToProcess(processId)">
+          {{ processData.name }}
+          <!-- Optional: Add close button for non-main processes -->
+          <span v-if="processId !== 'main'"
+                class="close-tab"
+                @click.stop="removeProcess(processId)">
+      ×
+    </span>
+        </div>
+        <button class="add-process-btn" @click="addNewProcess">+ Add Process</button>
+      </div>
       <!-- BPMN Editor Section -->
       <div id="canvas-container">
         <div class="panel-header">
@@ -44,8 +59,8 @@
       <!-- Generated Code Section -->
       <div v-if="showButtons" id="code-section">
         <div class="code-tabs">
-          <button v-for="tab in availableTabs" :key="tab" @click="activeTab = tab" 
-            :class="{ 'tab-button--active': activeTab === tab }">
+          <button v-for="tab in availableTabs" :key="tab" @click="activeTab = tab"
+                  :class="{ 'tab-button--active': activeTab === tab }">
             {{ tab }}
           </button>
         </div>
@@ -100,8 +115,8 @@
               </div>
             </div>
             <div class="textarea-wrapper">
-              <textarea :ref="process.name" class="textarea code-editor" 
-                :placeholder="process.name + ' Code...'" v-model="process.code"></textarea>
+              <textarea :ref="process.name" class="textarea code-editor"
+                        :placeholder="process.name + ' Code...'" v-model="process.code"></textarea>
             </div>
           </div>
         </div>
@@ -118,13 +133,16 @@
               </div>
             </div>
             <div class="textarea-wrapper">
-              <textarea :ref="espId" class="textarea code-editor" 
-                :placeholder="'Event Sub-Process Code...'" v-model="eventSubProcesses[espId][0]"></textarea>
+              <textarea :ref="espId" class="textarea code-editor"
+                        :placeholder="'Event Sub-Process Code...'" v-model="eventSubProcesses[espId][0]"></textarea>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+
+
 
     <!-- Footer -->
     <footer class="footer">
@@ -151,14 +169,18 @@ export default {
       processes: [],
       callActivities: {},
       scriptTaskProcs: {},
-      eventSubProcesses: {}, 
+      eventSubProcesses: {},
       allTabs: ['collaboration', 'processes', 'event-subprocesses'],
       projectConfig: {
         name: 'xklaim-bpmn-project',
         groupId: 'com.example',
         artifactId: 'xklaim-bpmn-project',
         version: '1.0-SNAPSHOT'
-      }
+      },
+      bpmnProcesses: new Map([
+        ['main', { xml: '', name: 'Main Process' }]
+      ]),
+      activeProcess: 'main'
     };
   },
 
@@ -174,6 +196,9 @@ export default {
         }
         return true;
       });
+    },
+    processesArray() {
+      return Array.from(this.bpmnProcesses.entries());
     }
   },
 
@@ -219,76 +244,76 @@ export default {
       // Trigger the hidden file input
       document.getElementById('bpmn-file-input').click();
     },
-    
+
     // Handle the file selection
     handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         const xml = e.target.result;
-        
+
         try {
           this.bpmnModeler.importXML(xml)
-            .then(({ warnings }) => {
-              if (warnings.length) {
-                console.warn('Warnings while importing BPMN:', warnings);
-              }
-              this.bpmnModeler.get('canvas').zoom('fit-viewport');
-              console.log('BPMN diagram imported successfully');
-            })
-            .catch(err => {
-              console.error('Error importing BPMN diagram', err);
-              alert('Error importing BPMN diagram: ' + err.message);
-            });
+              .then(({ warnings }) => {
+                if (warnings.length) {
+                  console.warn('Warnings while importing BPMN:', warnings);
+                }
+                this.bpmnModeler.get('canvas').zoom('fit-viewport');
+                console.log('BPMN diagram imported successfully');
+              })
+              .catch(err => {
+                console.error('Error importing BPMN diagram', err);
+                alert('Error importing BPMN diagram: ' + err.message);
+              });
         } catch (err) {
           console.error('Error handling BPMN import:', err);
           alert('Error handling BPMN import: ' + err.message);
         }
       };
-      
+
       reader.onerror = (e) => {
         console.error('Error reading file:', e);
         alert('Error reading file: ' + e.target.error);
       };
-      
+
       reader.readAsText(file);
-      
+
       // Reset the file input so the same file can be imported again if needed
       event.target.value = '';
     },
-    
+
     // Save BPMN diagram as XML
     async saveBPMN() {
       try {
         // Get the XML from the BPMN modeler with proper formatting
-        const { xml } = await this.bpmnModeler.saveXML({ format: true });
-        
+        const {xml} = await this.bpmnModeler.saveXML({format: true});
+
         // Create a Blob from the XML string
         // Setting type to application/xml ensures proper handling by browsers
-        const blob = new Blob([xml], { type: 'application/xml' });
-        
+        const blob = new Blob([xml], {type: 'application/xml'});
+
         // Generate filename with timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `bpmn-diagram-${timestamp}.bpmn`;
-        
+
         // Create a URL for the blob
         const url = URL.createObjectURL(blob);
-        
+
         // Create a temporary link element
         const link = document.createElement('a');
         link.href = url;
         link.download = filename;
-        
+
         // Append to the document, click, and clean up
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         // Clean up the URL object
         URL.revokeObjectURL(url);
-        
+
         console.log('BPMN diagram exported successfully');
       } catch (err) {
         console.error('Error exporting BPMN diagram:', err);
@@ -296,20 +321,165 @@ export default {
       }
     },
 
+    async addNewProcess() {
+      const processName = prompt('Enter process name:');
+      if (!processName || !processName.trim()) {
+        return; // User cancelled or entered empty name
+      }
+
+      const trimmedName = processName.trim();
+
+      // Check if process already exists
+      if (this.bpmnProcesses.has(trimmedName)) {
+        alert(`Process "${trimmedName}" already exists!`);
+        return;
+      }
+
+      try {
+        // Create new empty BPMN process
+        const newProcessXML = this.createEmptyBPMNProcess(trimmedName);
+
+        // Store it
+        this.bpmnProcesses.set(trimmedName, {
+          xml: newProcessXML,
+          name: trimmedName
+        });
+
+        // Switch to the new process
+        await this.switchToProcess(trimmedName);
+
+        // Force Vue to update the DOM
+        this.$forceUpdate();
+
+        console.log(`New process "${trimmedName}" created successfully`);
+      } catch (error) {
+        console.error('Error creating new process:', error);
+        alert(`Error creating process "${trimmedName}": ${error.message}`);
+
+        // Clean up if process was partially created
+        if (this.bpmnProcesses.has(trimmedName)) {
+          this.bpmnProcesses.delete(trimmedName);
+        }
+      }
+    },
+
+    async removeProcess(processId) {
+      if (processId === 'main') {
+        alert('Cannot remove the main process!');
+        return;
+      }
+
+      if (confirm(`Are you sure you want to remove the process "${this.bpmnProcesses.get(processId).name}"?`)) {
+        // Remove from the map
+        this.bpmnProcesses.delete(processId);
+
+        // If we're currently viewing the deleted process, switch to main
+        if (this.activeProcess === processId) {
+          await this.switchToProcess('main');
+        }
+
+        // Force update to refresh the tabs
+        this.$forceUpdate();
+      }
+    },
+
+    async switchToProcess(processName) {
+      try {
+        // Save current process first
+        if (this.bpmnModeler) {
+          const currentXML = await this.bpmnModeler.saveXML({ format: true });
+          this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
+        }
+
+        // Load new process
+        const processData = this.bpmnProcesses.get(processName);
+        if (processData) {
+          const result = await this.bpmnModeler.importXML(processData.xml);
+
+          // Handle warnings if any
+          if (result.warnings && result.warnings.length > 0) {
+            console.warn('Warnings while switching process:', result.warnings);
+          }
+
+          // Update active process and fit viewport
+          this.activeProcess = processName;
+          this.bpmnModeler.get('canvas').zoom('fit-viewport');
+
+          console.log(`Successfully switched to process: ${processName}`);
+        } else {
+          throw new Error(`Process data not found for: ${processName}`);
+        }
+      } catch (error) {
+        console.error('Error switching process:', error);
+        alert(`Error switching to process "${processName}": ${error.message}`);
+      }
+    },
+
+    createEmptyBPMNProcess(processName) {
+      // Generate unique IDs to avoid conflicts
+      const processId = `Process_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const startEventId = `StartEvent_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const flowId = `Flow_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const diagramId = `BPMNDiagram_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const planeId = `BPMNPlane_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const startShapeId = `_BPMNShape_StartEvent_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_${processName.replace(/[^a-zA-Z0-9]/g, '_')}"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="bpmn-js (https://demo.bpmn.io)"
+                  exporterVersion="14.0.0">
+  <bpmn:process id="${processId}" name="${processName}" isExecutable="false">
+    <bpmn:startEvent id="${startEventId}" name="start">
+      <bpmn:outgoing>${flowId}</bpmn:outgoing>
+    </bpmn:startEvent>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="${diagramId}">
+    <bpmndi:BPMNPlane id="${planeId}" bpmnElement="${processId}">
+      <bpmndi:BPMNShape id="${startShapeId}" bpmnElement="${startEventId}">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="157" y="145" width="25" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+    },
+
+
+
     async generateCode() {
       try {
         this.showButtons = true;
-        const result = await this.bpmnModeler.saveXML({ format: true });
-        const xml = result.xml;
 
-        console.log(xml);
+        // Save current active process first
+        if (this.bpmnModeler) {
+          const currentXML = await this.bpmnModeler.saveXML({ format: true });
+          this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
+        }
+
+        // Collect all processes
+        const allProcesses = {};
+        for (let [processId, processData] of this.bpmnProcesses.entries()) {
+          allProcesses[processId] = processData.xml;
+        }
+
+        console.log("Sending all processes:", Object.keys(allProcesses));
 
         const response = await fetch("http://localhost:8081/generate-code", {
           method: "POST",
           headers: {
-            "Content-Type": "text/xml"
+            "Content-Type": "application/json"
           },
-          body: xml
+          body: JSON.stringify({ processes: allProcesses })
         });
 
         if (!response.ok) {
@@ -322,12 +492,12 @@ export default {
 
         this.collaboration = data.collaboration || '';
         this.processes = data.processes || [];
-        this.callActivities = data.callActivities || {}; 
-        this.scriptTaskProcs = data.scriptTaskProcs || {}; 
-        this.eventSubProcesses = data.eventSubProcesses || {}; 
+        this.callActivities = data.callActivities || {};
+        this.scriptTaskProcs = data.scriptTaskProcs || {};
+        this.eventSubProcesses = data.eventSubProcesses || {};
 
         // Select first available tab
-        this.activeTab = this.availableTabs[0]; 
+        this.activeTab = this.availableTabs[0];
 
       } catch (err) {
         console.error("Failed to generate code:", err);
@@ -336,13 +506,12 @@ export default {
     },
 
     async exportCode() {
-        // === Generate unique project name with random ID ===
-        const timestamp = Math.random().toString(36).substr(2, 8);
-        const uniqueName = `${this.projectConfig.name}-${timestamp}`;
-        this.projectConfig.groupId = uniqueName;
-        this.projectConfig.name = uniqueName;
-        this.projectConfig.artifactId = uniqueName;
-      // Check if there is any code generated
+      const timestamp = Math.random().toString(36).substr(2, 8);
+      const uniqueName = `${this.projectConfig.name}-${timestamp}`;
+      this.projectConfig.groupId = uniqueName;
+      this.projectConfig.name = uniqueName;
+      this.projectConfig.artifactId = uniqueName;
+
       if (!this.collaboration && !this.processes.length && !Object.keys(this.callActivities).length && !Object.keys(this.scriptTaskProcs).length) {
         alert("No code has been generated to download.");
         return;
@@ -350,106 +519,217 @@ export default {
 
       const zip = new JSZip();
       const projectName = this.projectConfig.name;
-
-      // --- Define Base Paths ---
-      // Base path within the zip for source files
       const srcMainJavaXklaimPath = `src/main/java/xklaim/`;
-      // Base path for activity/task procedure files
-      const activitiesPath = `${srcMainJavaXklaimPath}activities/`;
 
+      zip.file(`pom.xml`, this.generatePomXml());
+      zip.file(`README.md`, this.generateReadme());
+      zip.file(`.gitignore`, this.generateGitIgnore());
+      zip.file(`.project`, this.generateProject());
+      zip.file(`.classpath`, this.generateClassPath());
 
-      zip.file(`pom.xml`, this.generatePomXml());            
-      zip.file(`README.md`, this.generateReadme());         
-      zip.file(`.gitignore`, this.generateGitIgnore());     
-      zip.file(`.project`, this.generateProject());      
-      zip.file(`.classpath`, this.generateClassPath());     
+      // Track which elements need to be imported where
+      const elementLocations = new Map(); // element name -> package path
+      const processImports = new Map(); // process name -> Set of imports needed
+      
+      // --- First pass: Determine locations of all elements ---
+      
+      // Process main activities (script tasks and ESPs that belong to main processes)
+      this.processes.forEach(process => {
+        processImports.set(process.name, new Set());
+        elementLocations.set(process.name, `xklaim.processes.${process.name}`);
+      });
+      
+      // Track call activities
+      Object.keys(this.callActivities).forEach(activityName => {
+        elementLocations.set(activityName, `xklaim.activities.${activityName}`);
+      });
+      
+      // Track script tasks - first determine their parent
+      const scriptTaskParents = new Map();
+      Object.keys(this.scriptTaskProcs).forEach(taskName => {
+        let parentProcess = null;
+        let belongsToCallActivity = false;
+        
+        // Check if it belongs to a call activity
+        Object.keys(this.callActivities).forEach(activityName => {
+          const activityCode = this.callActivities[activityName].join('\n');
+          if (activityCode.includes(`${taskName}(`)) {
+            parentProcess = activityName;
+            belongsToCallActivity = true;
+          }
+        });
+        
+        // If not in call activity, check main processes
+        if (!parentProcess) {
+          this.processes.forEach(process => {
+            if (process.code.includes(`${taskName}(`)) {
+              parentProcess = process.name;
+            }
+          });
+        }
+        
+        scriptTaskParents.set(taskName, { parent: parentProcess || 'main', isCallActivity: belongsToCallActivity });
+        elementLocations.set(taskName, `xklaim.tasks.${taskName}`);
+      });
+      
+      // Track event sub-processes
+      const espParents = new Map();
+      Object.keys(this.eventSubProcesses).forEach(espId => {
+        let parentProcess = null;
+        let belongsToCallActivity = false;
+        
+        // Check if it belongs to a call activity
+        Object.keys(this.callActivities).forEach(activityName => {
+          const activityCode = this.callActivities[activityName].join('\n');
+          if (activityCode.includes(espId)) {
+            parentProcess = activityName;
+            belongsToCallActivity = true;
+          }
+        });
+        
+        // If not in call activity, check main processes
+        if (!parentProcess) {
+          this.processes.forEach(process => {
+            if (process.code.includes(espId)) {
+              parentProcess = process.name;
+            }
+          });
+        }
+        
+        espParents.set(espId, { parent: parentProcess || 'main', isCallActivity: belongsToCallActivity });
+        elementLocations.set(espId, `xklaim.tasks.${espId}`);
+      });
+
+      // --- Second pass: Analyze dependencies and build import lists ---
+      
+      // For each process, find what it references
+      this.processes.forEach(process => {
+        const imports = processImports.get(process.name);
+        
+        // Check for call activities
+        Object.keys(this.callActivities).forEach(activityName => {
+          if (process.code.includes(`${activityName}(`)) {
+            imports.add(`import ${elementLocations.get(activityName)}`);
+          }
+        });
+        
+        // Check for script tasks
+        Object.keys(this.scriptTaskProcs).forEach(taskName => {
+          if (process.code.includes(`${taskName}(`)) {
+            imports.add(`import ${elementLocations.get(taskName)}`);
+          }
+        });
+        
+        // Check for event sub-processes
+        Object.keys(this.eventSubProcesses).forEach(espId => {
+          if (process.code.includes(espId)) {
+            imports.add(`import ${elementLocations.get(espId)}`);
+          }
+        });
+      });
+      
+      // For each call activity, find what it references
+      const callActivityImports = new Map();
+      Object.keys(this.callActivities).forEach(activityName => {
+        const imports = new Set();
+        const activityCode = this.callActivities[activityName].join('\n');
+        
+        // Check for script tasks
+        Object.keys(this.scriptTaskProcs).forEach(taskName => {
+          if (activityCode.includes(`${taskName}(`)) {
+            imports.add(`import ${elementLocations.get(taskName)}`);
+          }
+        });
+        
+        // Check for event sub-processes
+        Object.keys(this.eventSubProcesses).forEach(espId => {
+          if (activityCode.includes(espId)) {
+            imports.add(`import ${elementLocations.get(espId)}`);
+          }
+        });
+        
+        // Check for other call activities
+        Object.keys(this.callActivities).forEach(otherActivity => {
+          if (otherActivity !== activityName && activityCode.includes(`${otherActivity}(`)) {
+            imports.add(`import ${elementLocations.get(otherActivity)}`);
+          }
+        });
+        
+        callActivityImports.set(activityName, imports);
+      });
 
       // --- Collaboration File ---
       if (this.collaboration) {
-        // Dynamically generate imports based on process names
-        const processImports = this.processes.map(process => {
-           const normalizedName = process.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-           // Assume processes are in subpackages named after them below 'xklaim'
-           return `import xklaim.${normalizedName}.${process.name}`;
-        }).join('\n');
-
-        const collaborationWithPackage =
-          `package xklaim\n\n` + // Main package for collaboration entry point
-          `${processImports}\n\n` +
-          `${this.collaboration}`; // The generated net { ... } block
-
-        // Place Collaboration file directly under the base xklaim path
+        const collabImports = new Set();
+        
+        // Import all processes
+        this.processes.forEach(process => {
+          collabImports.add(`import ${elementLocations.get(process.name)}`);
+        });
+        
+        const collaborationWithPackage = `package xklaim\n\n${Array.from(collabImports).join('\n')}\n\n${this.collaboration}`;
         zip.file(`${srcMainJavaXklaimPath}Collaboration.xklaim`, collaborationWithPackage);
       }
-
 
       // --- Process Files ---
       this.processes.forEach(process => {
         const processName = process.name;
-        const normalizedName = processName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        const processPackage = `xklaim.${normalizedName}`; // e.g., xklaim.mission1
-        const packageDeclaration = `package ${processPackage}\n\n`;
-
-        // --- Add klava.Locality import ---
-        const klavaImports = 'import klava.Locality\n'; // <<< Define Locality import
-
-        // Add import for activities/tasks if placeholders are generated
-        const activityImports = (Object.keys(this.callActivities).length > 0 || Object.keys(this.scriptTaskProcs).length > 0)
-            ? `import xklaim.activities.*\n` // Import activities package
-            : '';
-
-        // Combine package, imports, and the full proc code
-        // process.code already contains the full "proc Name(...) { ... }"
-        // <<< Add klavaImports here >>>
-        const processWithPackage = packageDeclaration + klavaImports + activityImports + "\n" + process.code;
-
-        // Create package folder for each process
-        const processFilePath = `${srcMainJavaXklaimPath}${normalizedName}/${processName}.xklaim`;
-        console.log("Adding process file:", processFilePath);
+        const packageDeclaration = `package xklaim.processes\n\n`;
+        
+        const baseImports = ['import klava.Locality'];
+        const specificImports = Array.from(processImports.get(processName) || []);
+        
+        const allImports = [...baseImports, ...specificImports].join('\n');
+        const processWithPackage = packageDeclaration + allImports + "\n\n" + process.code;
+        const processFilePath = `${srcMainJavaXklaimPath}processes/${processName}.xklaim`;
         zip.file(processFilePath, processWithPackage);
       });
 
-
-      // --- Call Activity Placeholders ---
-      const activitiesPackage = `xklaim.activities`; // Package name for placeholders
-      console.debug("Adding call activity placeholders:", this.callActivities);
+      // --- Call Activity Files ---
       Object.keys(this.callActivities).forEach(activityName => {
-         // Backend sends a List<String> for each, join them.
-         const activityCode = this.callActivities[activityName].join('\n');
-         const activityWithPackage = `package ${activitiesPackage}\n\n${activityCode}`;
-         const filePath = `${activitiesPath}${activityName}.xklaim`; // Use activitiesPath
-         console.log("Adding call activity file:", filePath);
-         zip.file(filePath, activityWithPackage);
+        const activityCode = this.callActivities[activityName].join('\n');
+        const packageDeclaration = `package xklaim.activities\n\n`;
+        
+        const baseImports = ['import klava.Locality'];
+        const specificImports = Array.from(callActivityImports.get(activityName) || []);
+        
+        const allImports = [...baseImports, ...specificImports].join('\n');
+        const activityWithPackage = packageDeclaration + allImports + "\n\n" + activityCode;
+        const activityFilePath = `${srcMainJavaXklaimPath}activities/${activityName}.xklaim`;
+        zip.file(activityFilePath, activityWithPackage);
       });
 
-
-      // --- Script Task Placeholders (in activities folder) ---
-      console.debug("Adding script task placeholders:", this.scriptTaskProcs);
+      // --- Script Task Files ---
       Object.keys(this.scriptTaskProcs).forEach(taskName => {
-         const taskCode = this.scriptTaskProcs[taskName].join('\n');
-         // *** Use the SAME 'activitiesPackage' ***
-         const taskWithPackage = `package ${activitiesPackage}\n\n${taskCode}`;
-         // *** Use the SAME 'activitiesPath' to put file in activities folder ***
-         const filePath = `${activitiesPath}${taskName}.xklaim`;
-         console.log("Adding script task file:", filePath);
-         zip.file(filePath, taskWithPackage);
+        const taskData = this.scriptTaskProcs[taskName];
+        const taskCode = Array.isArray(taskData) ? taskData.join('\n') : 
+                         (typeof taskData === 'object' ? (taskData.code || '') : taskData);
+        
+        const packageDeclaration = `package xklaim.tasks\n\n`;
+        const imports = `import klava.Locality\n`;
+        
+        const taskWithPackage = packageDeclaration + imports + "\n" + taskCode;
+        const taskFilePath = `${srcMainJavaXklaimPath}tasks/${taskName}.xklaim`;
+        zip.file(taskFilePath, taskWithPackage);
       });
 
-      console.debug("Adding event sub-processes:", this.eventSubProcesses);
+      // --- Event Sub-Process Files ---
       Object.keys(this.eventSubProcesses).forEach(espId => {
-        const espCode = this.eventSubProcesses[espId][0]; // Assuming there's just one code block per ESP
-        // Use the same activities package for ESPs 
-        const espWithPackage = `package ${activitiesPackage}\n\n${espCode}`;
-        // Put ESPs in the activities folder with other proc definitions
-        const filePath = `${activitiesPath}${espId}.xklaim`;
-        console.log("Adding event sub-process file:", filePath);
-        zip.file(filePath, espWithPackage);
+        const espData = this.eventSubProcesses[espId];
+        const espCode = Array.isArray(espData) ? espData.join('\n') : 
+                        (typeof espData === 'object' ? (espData.code || '') : espData);
+        
+        const packageDeclaration = `package xklaim.tasks\n\n`;
+        const imports = `import klava.Locality\n`;
+        
+        const espWithPackage = packageDeclaration + imports + "\n" + espCode;
+        const espFilePath = `${srcMainJavaXklaimPath}tasks/${espId}.xklaim`;
+        zip.file(espFilePath, espWithPackage);
       });
 
-      // --- Generate the zip file and trigger download ---
+      // --- Generate zip ---
       try {
-        console.log("Generating Zip file...");
-        const content = await zip.generateAsync({ type: "blob" });
+        const content = await zip.generateAsync({type: "blob"});
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
         link.download = `${projectName}.zip`;
@@ -457,13 +737,12 @@ export default {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
-        console.log("Zip file download initiated.");
       } catch (err) {
         console.error("Error generating zip file:", err);
         alert("Error generating zip file. Please try again.");
       }
     },
-    
+
     generatePomXml() {
       return `<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" 
@@ -500,9 +779,9 @@ export default {
           <version>v1.0.0</version> 
       </dependency>
       <dependency>
-        <groupId>com.github.ihmcrobotics</groupId>
+        <groupId>us.ihmc</groupId>
         <artifactId>jros2</artifactId>
-        <version>-4f191a9f87-1</version>
+        <version>1.0.1</version>
       </dependency>
     </dependencies>
     
@@ -557,7 +836,7 @@ export default {
 </project>`;
     },
 
-    
+
     generateProject() {
       return `<?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
@@ -602,7 +881,7 @@ export default {
     },
 
 
-    generateClassPath(){
+    generateClassPath() {
       return `<?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" output="target/classes" path="src/main/java">
@@ -634,7 +913,8 @@ export default {
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="output" path="target/classes"/>
-</classpath>`; },
+</classpath>`;
+    },
 
 
     generateReadme() {
@@ -645,9 +925,21 @@ This XKlaim project was automatically generated using the B2XKlaim tool.
 ## Project Structure
 
 - \`src/main/java/xklaim/\`: Contains the XKlaim source files
-  - \`Main.xklaim\`: Collaboration coordination code
-  - Participant-specific code in packages
+  - \`Collaboration.xklaim\`: Main collaboration coordination code (if collaboration exists)
+  - \`processes/\`: Contains all participant process implementations
+  - \`activities/\`: Contains all call activity implementations
+  - \`tasks/\`: Contains all script tasks and event sub-processes
 - \`src-gen/\`: Generated Java code (populated when building)
+
+## Package Organization
+
+The project follows a clean package structure:
+- \`xklaim\`: Root package containing the collaboration
+- \`xklaim.processes\`: All main process implementations
+- \`xklaim.activities\`: All call activities
+- \`xklaim.tasks\`: All script tasks and event sub-processes
+
+This structure ensures proper separation of concerns and makes imports straightforward.
 
 ## Building the Project
 
@@ -668,7 +960,7 @@ java -jar target/${this.projectConfig.artifactId}-${this.projectConfig.version}-
 This code was generated from a BPMN model using B2XKlaim.
 `;
     },
-    
+
     generateGitIgnore() {
       return `# Maven
 target/
@@ -761,10 +1053,22 @@ h1, h2, h3, h4 {
   color: var(--secondary-color);
 }
 
-h1 { font-size: 20px; } /* Reduced heading sizes */
-h2 { font-size: 16px; }
-h3 { font-size: 14px; }
-h4 { font-size: 13px; }
+h1 {
+  font-size: 20px;
+}
+
+/* Reduced heading sizes */
+h2 {
+  font-size: 16px;
+}
+
+h3 {
+  font-size: 14px;
+}
+
+h4 {
+  font-size: 13px;
+}
 
 .section-title {
   margin-bottom: 8px; /* Reduced margin */
@@ -797,29 +1101,29 @@ h4 { font-size: 13px; }
 }
 
 .title-container {
-    display: flex;
-    flex-direction: column;
-    align-items: start;
-    position: sticky;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: sticky;
 }
 
 .app-main-title {
-    font-size: 1.0rem;
-    font-weight: 1000;
-    color: #388285;
-    margin: 50;
-    line-height: 0.5;
-    letter-spacing: -1px;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+  font-size: 1.0rem;
+  font-weight: 1000;
+  color: #388285;
+  margin: 50;
+  line-height: 0.5;
+  letter-spacing: -1px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .app-subtitle {
-    font-size: 0.8rem;
-    font-weight: 300;
-    color: #265557;
-    margin: 5px 0 0;
-    text-transform: lowercase;
-    font-style: italic;
+  font-size: 0.8rem;
+  font-weight: 300;
+  color: #265557;
+  margin: 5px 0 0;
+  text-transform: lowercase;
+  font-style: italic;
 }
 
 /* Navigation buttons container */
@@ -1085,22 +1389,104 @@ h4 { font-size: 13px; }
   font-size: 12px; /* Smaller font */
 }
 
+
+.close-tab {
+  margin-left: 8px;
+  color: #999;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.3s;
+}
+
+.close-tab:hover {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: red;
+}
+
+
+/* Process Tabs Styling */
+.process-tabs {
+  display: flex;
+  align-items: center;
+  background-color: var(--background-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0;
+  margin-bottom: 0;
+  gap: 2px;
+}
+
+.tab {
+  background-color: var(--panel-color);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-color);
+  border-radius: 4px 4px 0 0;
+  transition: background-color 0.3s;
+}
+
+.tab:hover {
+  background-color: var(--code-bg-color);
+}
+
+.tab.active {
+  background-color: var(--header-bg-color);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.add-process-btn {
+  background-color: transparent;
+  border: 1px dashed var(--border-color);
+  color: var(--accent-color);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 8px;
+  transition: all 0.3s;
+}
+
+.add-process-btn:hover {
+  background-color: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+/* Remove top border radius from canvas container when tabs are present */
+#canvas-container {
+  border-radius: 0 6px 6px 6px;
+}
+
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .editor-panels {
     flex-direction: column;
     height: auto;
   }
-  
+
   .canvas-panel {
     height: 450px; /* Maintain larger height on mobile */
   }
-  
+
   .properties-panel {
     height: 300px;
     max-width: none;
   }
-  
+
   .form-grid {
     grid-template-columns: 1fr;
   }

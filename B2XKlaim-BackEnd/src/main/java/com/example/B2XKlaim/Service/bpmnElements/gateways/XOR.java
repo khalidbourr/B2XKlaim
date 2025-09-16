@@ -5,6 +5,7 @@ import com.example.B2XKlaim.Service.codeGenerator.Visitor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.io.FileNotFoundException;
@@ -15,8 +16,10 @@ import java.util.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = false)
 public class XOR extends BpmnElement implements Visitable {
     private String id;
+    @Builder.Default
     private Map<String, List<String>> conditionElementMap = new HashMap<>();
     private String outgoingEdge;
 

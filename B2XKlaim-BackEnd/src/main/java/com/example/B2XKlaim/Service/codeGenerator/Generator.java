@@ -46,6 +46,7 @@ public class Generator {
 
     private final BpmnElements processDiagram;
     private final BPMNTranslator visitor;
+    private final Map<String, BpmnElements> allProcesses;
 
     /**
      * Constructor for Generator.
@@ -54,6 +55,14 @@ public class Generator {
     public Generator(BpmnElements processDiagram) {
         Objects.requireNonNull(processDiagram, "processDiagram cannot be null");
         this.processDiagram = processDiagram;
+        this.visitor = new BPMNTranslator(processDiagram);
+        this.allProcesses = null; // Add this line
+    }
+
+    public Generator(Map<String, BpmnElements> allProcesses) {
+        Objects.requireNonNull(allProcesses, "allProcesses cannot be null"); // Add this
+        this.allProcesses = allProcesses;
+        this.processDiagram = allProcesses.get("main");
         this.visitor = new BPMNTranslator(processDiagram);
     }
 
@@ -89,6 +98,8 @@ public class Generator {
      */
     public Map<String, List<String>> translateST() throws InvocationTargetException, IllegalAccessException {
         Map<String, List<String>> result = new HashMap<>();
+        
+        // Process script tasks from main diagram
         List<BpmnElement> scriptTasks = getAllScriptTasks(processDiagram);
         Set<String> processedTaskNames = new HashSet<>();
 
@@ -104,12 +115,41 @@ public class Generator {
                         " /* Add logic representing the script task */ \n\n" +
                         " out(edge)@self\n" +
                         "}";
-                result.computeIfAbsent(taskName, k -> new ArrayList<>()).add(codeString);
+                //result.computeIfAbsent(taskName, k -> new ArrayList<>()).add(codeString);
+                result.put(taskName, Collections.singletonList(codeString));
                 processedTaskNames.add(taskName);
             } else if (taskName == null || taskName.isEmpty()) {
                  log.warn("Script Task with ID {} has no name. Cannot generate placeholder proc.", st.getId());
             }
         }
+        
+        // Process script tasks from other processes (call activities)
+        if (allProcesses != null) {
+            for (Map.Entry<String, BpmnElements> entry : allProcesses.entrySet()) {
+                if (!entry.getKey().equals("main")) {
+                    BpmnElements process = entry.getValue();
+                    List<BpmnElement> processScriptTasks = getAllScriptTasks(process);
+                    
+                    for (BpmnElement scriptTask : processScriptTasks) {
+                        if (!(scriptTask instanceof ST)) continue;
+                        ST st = (ST) scriptTask;
+                        String taskName = st.getName();
+                        
+                        if (taskName != null && !taskName.isEmpty() && !processedTaskNames.contains(taskName)) {
+                            String codeString = "proc " + taskName + "(String edge){\n\n" +
+                                    " /* Placeholder implementation for Script Task '" + taskName + "' */ \n" +
+                                    " /* From process: " + entry.getKey() + " */ \n" +
+                                    " /* Add logic representing the script task */ \n\n" +
+                                    " out(edge)@self\n" +
+                                    "}";
+                            result.put(taskName, Collections.singletonList(codeString));
+                            processedTaskNames.add(taskName);
+                        }
+                    }
+                }
+            }
+        }
+        
         return result;
     }
 
@@ -121,6 +161,9 @@ public class Generator {
          */
         public Map<String, List<String>> translateEventSubProcesses() throws FileNotFoundException, UnsupportedEncodingException {
             Map<String, List<String>> result = new HashMap<>();
+            Set<String> processedESPNames = new HashSet<>();
+            
+            // Process ESPs from main diagram
             List<BpmnElement> eventSubProcesses = getAllEventSubProcesses(processDiagram);
             
             for (BpmnElement eventSubProcess : eventSubProcesses) {
@@ -131,6 +174,9 @@ public class Generator {
                 String espName = esp.getName() != null && !esp.getName().isEmpty() ? 
                                 esp.getName() : esp.getId();
                 
+                if (processedESPNames.contains(espName)) continue;
+                processedESPNames.add(espName);
+                
                 // Generate the raw ESP process definition
                 String rawEspCode = visitor.visit(esp);
                 
@@ -140,9 +186,44 @@ public class Generator {
                 String optimizedEspCode = String.join("\n", optimizedEspLines);
                 
                 // Add the optimized code to the result map
-                result.computeIfAbsent(espName, k -> new ArrayList<>()).add(optimizedEspCode);
+                //result.computeIfAbsent(espName, k -> new ArrayList<>()).add(optimizedEspCode);
+                result.put(espName, Collections.singletonList(optimizedEspCode));
                 
                 log.debug("Generated optimized Event Sub-Process: {} ({})", espName, esp.getId());
+            }
+            
+            // Process ESPs from other processes (call activities)
+            if (allProcesses != null) {
+                for (Map.Entry<String, BpmnElements> entry : allProcesses.entrySet()) {
+                    if (!entry.getKey().equals("main")) {
+                        BpmnElements process = entry.getValue();
+                        List<BpmnElement> processESPs = getAllEventSubProcesses(process);
+                        
+                        for (BpmnElement eventSubProcess : processESPs) {
+                            if (!(eventSubProcess instanceof ESP)) continue;
+                            ESP esp = (ESP) eventSubProcess;
+                            
+                            String espName = esp.getName() != null && !esp.getName().isEmpty() ? 
+                                            esp.getName() : esp.getId();
+                            
+                            if (processedESPNames.contains(espName)) continue;
+                            processedESPNames.add(espName);
+                            
+                            // Create a visitor for this specific process
+                            BPMNTranslator processVisitor = new BPMNTranslator(process);
+                            String rawEspCode = processVisitor.visit(esp);
+                            
+                            log.info("Applying optimizer to event sub-process '{}' from process '{}'...", espName, entry.getKey());
+                            List<String> espCodeLines = Arrays.asList(rawEspCode.split("\\r?\\n"));
+                            List<String> optimizedEspLines = Optimizer.optimize(espCodeLines);
+                            String optimizedEspCode = String.join("\n", optimizedEspLines);
+                            
+                            result.put(espName, Collections.singletonList(optimizedEspCode));
+                            
+                            log.debug("Generated optimized Event Sub-Process: {} ({}) from process: {}", espName, esp.getId(), entry.getKey());
+                        }
+                    }
+                }
             }
             
             return result;
@@ -153,31 +234,63 @@ public class Generator {
      * Generates placeholder code for BPMN Call Activities.
      * Called by the controller to provide stubs for the frontend.
      */
-    public Map<String, List<String>> translateCallActivity() throws InvocationTargetException, IllegalAccessException {
+    public Map<String, List<String>> translateCallActivity() throws FileNotFoundException, UnsupportedEncodingException, InvocationTargetException, IllegalAccessException {
         Map<String, List<String>> result = new HashMap<>();
-        List<BpmnElement> callActivities = getAllCallActivity(processDiagram);
-        Set<String> processedCalledElements = new HashSet<>(); // Keep track of processed IDs
+        Map<String, List<String>> subActivities = new HashMap<>();
+        Set<String> processedCallActivities = new HashSet<>();
 
-        for (BpmnElement callActivity : callActivities) {
-             if (!(callActivity instanceof CLA)) continue;
-            CLA callAct = (CLA) callActivity;
-            String calledProcessId = callAct.getCalledProcess(); // Process Name/ID to call
+        for (BpmnElement callActivity : getAllCallActivity(processDiagram)) {
+            if (!(callActivity instanceof CLA)) continue;
+            CLA cla = (CLA) callActivity;
+            String calledProcessId = cla.getCalledProcess();
+            if (processedCallActivities.contains(calledProcessId)) continue;
+            processedCallActivities.add(calledProcessId);
 
-            // Only generate placeholder if this calledProcessId hasn't been processed yet
-            if (calledProcessId != null && !processedCalledElements.contains(calledProcessId)) {
-                String codeString = "proc " + calledProcessId + "(String edge){\n\n" +
-                        " /* Placeholder implementation for Call Activity: " + calledProcessId + " */ \n" +
-                        " /* Add logic representing the called process */ \n\n" +
-                        " out(edge)@self\n" +
+            if (allProcesses != null && allProcesses.containsKey(calledProcessId)) {
+                // AUTO-TRANSLATE the referenced process
+                BpmnElements calledProcess = allProcesses.get(calledProcessId);
+                BPMNTranslator translator = new BPMNTranslator(calledProcess);
+
+                List<BpmnElement> startEvents = calledProcess.getAllStartEvents();
+                StringBuilder processBody = new StringBuilder();
+                for (BpmnElement startEvent : startEvents) {
+                    String body = translator.translateProcessBody(startEvent);
+                    processBody.append(body);
+                }
+
+                // Apply optimizer to the generated body
+                List<String> bodyLines = Arrays.asList(processBody.toString().split("\\r?\\n"));
+                List<String> optimizedBodyLines = Optimizer.optimize(bodyLines);
+                String optimizedBody = String.join("\n", optimizedBodyLines);
+
+                String codeString = "import klava.Locality\n\n" +
+                        "proc " + calledProcessId + "(String edge) {\n\n" +
+                        optimizedBody + "\n\n" +
+                        "  out(edge)@self\n" +
                         "}";
-                // computeIfAbsent is still fine, it will create the list once
-                result.computeIfAbsent(calledProcessId, k -> new ArrayList<>()).add(codeString);
-                processedCalledElements.add(calledProcessId); 
-                log.debug("Generated placeholder for Call Activity target: {}", calledProcessId);
-            } else if (calledProcessId != null) {
-                 log.trace("Placeholder for Call Activity target '{}' already generated, skipping duplicate.", calledProcessId);
+
+                //result.computeIfAbsent(calledProcessId, k -> new ArrayList<>()).add(codeString);
+                if (!result.containsKey(calledProcessId)) {
+                    result.put(calledProcessId, Collections.singletonList(codeString));
+                }
+
+                // Note: Script tasks and ESPs from called processes are already handled
+                // by translateST() and translateEventSubProcesses() when they process
+                // all processes. We don't need to collect them here to avoid duplicates.
+
+            } else {
+                String placeholder = "import klava.Locality\n\n" +
+                        "proc " + calledProcessId + "(String edge) {\n\n" +
+                        "  /* TODO: Process '" + calledProcessId + "' not found */\n\n" +
+                        "  out(edge)@self\n" +
+                        "}";
+                if (!result.containsKey(calledProcessId)) {
+                    result.put(calledProcessId, Collections.singletonList(placeholder));
+                }
             }
         }
+
+        // Only return call activities, not their sub-elements
         return result;
     }
     

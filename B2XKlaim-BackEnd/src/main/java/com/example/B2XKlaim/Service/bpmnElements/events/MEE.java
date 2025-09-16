@@ -7,6 +7,7 @@ import com.example.B2XKlaim.Service.codeGenerator.Visitor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.io.FileNotFoundException;
@@ -16,6 +17,7 @@ import java.io.UnsupportedEncodingException;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = false)
 public class MEE extends BpmnElement implements Visitable {
     private String name;
     private String id;

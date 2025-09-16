@@ -8,6 +8,7 @@ import com.example.B2XKlaim.Service.codeGenerator.Visitor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.io.FileNotFoundException;
@@ -18,9 +19,11 @@ import java.util.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = false)
 public class LP extends BpmnElement implements Visitable {
     private String id;
     private String condition; // Loop condition
+    @Builder.Default
     private List<String> flowElementMap = new ArrayList<>(); // Elements inside the loop
     private String outgoingEdge; // Edge for loop exit
 

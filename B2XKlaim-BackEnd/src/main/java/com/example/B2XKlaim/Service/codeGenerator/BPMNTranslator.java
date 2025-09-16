@@ -103,7 +103,15 @@ import lombok.extern.slf4j.Slf4j;
          }
          return participantName.replaceAll("[^a-zA-Z0-9_]", "").toLowerCase() + "_loc";
      }
- 
+
+     public String translateProcessBody(List<BpmnElement> startEvents) throws FileNotFoundException, UnsupportedEncodingException {
+         StringBuilder bodyCode = new StringBuilder();
+         for (BpmnElement startEvent : startEvents) {
+             bodyCode.append(translateProcessBody(startEvent));
+         }
+         return bodyCode.toString();
+     }
+
      private void resetProcessState() {
          this.currentParticipantId = null;
          this.currentParticipant = null;
@@ -458,7 +466,7 @@ import lombok.extern.slf4j.Slf4j;
      @Override
      public String visit(SIT sit) {
          log.trace("Visiting SIT: {} (Sig: {})", sit.getId(), sit.getSignalId());
-         return String.format("out('%s')@self\nThread.sleep(Signal_Duration)\nin('%s')@self\nout('%s')@self\n",
+         return String.format("out('%s')@self\nval SIGNAL_DURATION = 1000 // Adjust the signal duration as needed\nThread.sleep(SIGNAL_DURATION)\nin('%s')@self\nout('%s')@self\n",
                  sit.getSignalId(), sit.getSignalId(), sit.getOutgoingEdge());
      }
  
@@ -488,7 +496,7 @@ import lombok.extern.slf4j.Slf4j;
       @Override
       public String visit(SEE see) {
           log.trace("Visiting SEE: {} (Sig: {})", see.getId(), see.getSignalId());
-          return String.format("out('%s')@self\nThread.sleep(Signal_Duration)\nin('%s')@self\n\n",
+          return String.format("out('%s')@self\nval SIGNAL_DURATION = 1000 // Adjust the signal duration as needed\nThread.sleep(SIGNAL_DURATION)\nin('%s')@self\n\n",
                   see.getSignalId(), see.getSignalId());
       }
  
@@ -627,8 +635,29 @@ import lombok.extern.slf4j.Slf4j;
 
         Iterator<Map.Entry<String, List<String>>> iterator = xor.getConditionElementMap().entrySet().iterator();
 
+
+
         Map.Entry<String, List<String>> trueBranch = iterator.next();
         Map.Entry<String, List<String>> falseBranch = iterator.next();
+
+
+        // Ensure one branch has condition, other is default
+        if ((trueBranch.getKey() == null || trueBranch.getKey().trim().isEmpty()) &&
+                (falseBranch.getKey() == null || falseBranch.getKey().trim().isEmpty())) {
+            throw new IllegalArgumentException("XOR gateway must have exactly one conditional branch");
+        }
+
+        if ((trueBranch.getKey() != null && !trueBranch.getKey().trim().isEmpty()) &&
+                (falseBranch.getKey() != null && !falseBranch.getKey().trim().isEmpty())) {
+            throw new IllegalArgumentException("XOR gateway must have exactly one default branch");
+        }
+
+// Swap if needed so trueBranch has the condition
+        if (trueBranch.getKey() == null || trueBranch.getKey().trim().isEmpty()) {
+            Map.Entry<String, List<String>> temp = trueBranch;
+            trueBranch = falseBranch;
+            falseBranch = temp;
+        }
 
         // Condition for the true branch
         s.append(String.format("if(%s){\n  ", trueBranch.getKey()));
@@ -636,18 +665,18 @@ import lombok.extern.slf4j.Slf4j;
         // Translating elements for the true branch
         for (String elementId : trueBranch.getValue()) {
             BpmnElement element = bpmnElements.getElementById(elementId);
-            s.append(element.accept(this));
+            s.append("  ").append(element.accept(this));
             BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
-            s.append(sequence.accept(this));
+            s.append("  ").append(sequence.accept(this));
         }
         s.append("} else {\n  ");
 
         // Translating elements for the false branch
         for (String elementId : falseBranch.getValue()) {
             BpmnElement element = bpmnElements.getElementById(elementId);
-            s.append(element.accept(this));
+            s.append("  ").append(element.accept(this));
             BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
-            s.append(sequence.accept(this));
+            s.append("  ").append(sequence.accept(this));
         }
         s.append("}\n");
 

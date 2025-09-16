@@ -70,6 +70,7 @@ import com.example.B2XKlaim.Service.bpmnElements.flows.MessageFLow;
       * Populated by analyzeInteractions(). Marked transient for builder/serialization if needed.
       */
      @Getter // Lombok getter
+     @Builder.Default
      private transient Map<String, Set<String>> requiredParticipantRefs = new HashMap<>();
  
   

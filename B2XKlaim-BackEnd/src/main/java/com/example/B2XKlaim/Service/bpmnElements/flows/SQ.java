@@ -3,10 +3,7 @@ package com.example.B2XKlaim.Service.bpmnElements.flows;
 import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
 import com.example.B2XKlaim.Service.codeGenerator.Visitable;
 import com.example.B2XKlaim.Service.codeGenerator.Visitor;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
@@ -15,6 +12,7 @@ import java.io.UnsupportedEncodingException;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = false)
 public class SQ extends BpmnElement implements Visitable {
     private String id;
     private String source;

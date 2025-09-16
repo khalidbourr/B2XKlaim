@@ -11,6 +11,7 @@ import java.io.UnsupportedEncodingException;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = false)
 public class NSE extends BpmnElement implements Visitable {
     private String name;
     private String id;
