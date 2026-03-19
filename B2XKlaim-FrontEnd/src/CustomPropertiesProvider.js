@@ -28,8 +28,19 @@ CustomPropertiesProvider.$inject = ['propertiesPanel'];
 
 CustomPropertiesProvider.prototype.getGroups = function() {
   return function(groups) {
-    return groups.filter(function(group) {
-      return ALLOWED_GROUPS.has(group.id);
-    });
+    return groups
+      .filter(function(group) {
+        return ALLOWED_GROUPS.has(group.id);
+      })
+      .map(function(group) {
+        // Strip Camunda-specific entries from Called element group,
+        // keep only the calledElement text field
+        if (group.id === 'CamundaPlatform__CallActivity' && group.entries) {
+          group.entries = group.entries.filter(function(entry) {
+            return entry.id === 'calledElement';
+          });
+        }
+        return group;
+      });
   };
 };

@@ -23,7 +23,7 @@
         </a>
       </div>
       <!-- Hidden file input for import -->
-      <input type="file" id="bpmn-file-input" accept=".bpmn,.xml" style="display: none;" @change="handleFileSelect">
+      <input type="file" id="bpmn-file-input" accept=".bpmn,.xml,.b2x" style="display: none;" @change="handleFileSelect">
     </div>
 
     <div id="main-content">
@@ -339,24 +339,33 @@ export default {
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const xml = e.target.result;
+      reader.onload = async (e) => {
+        const content = e.target.result;
 
         try {
-          this.bpmnModeler.importXML(xml)
-              .then(({ warnings }) => {
-                if (warnings.length) {
-                  console.warn('Warnings while importing BPMN:', warnings);
-                }
-                this.bpmnModeler.get('canvas').zoom('fit-viewport');
-              })
-              .catch(err => {
-                console.error('Error importing BPMN diagram', err);
-                alert('Error importing BPMN diagram: ' + err.message);
-              });
+          // Try loading as a B2XKlaim project file (.b2x)
+          const projectData = JSON.parse(content);
+          if (projectData.b2xklaimVersion && projectData.processes) {
+            await this.loadProject(projectData);
+            return;
+          }
+        } catch (_) {
+          // Not JSON — treat as single BPMN XML file
+        }
+
+        // Load as a single BPMN XML into the main tab
+        try {
+          this.bpmnProcesses = new Map([['main', { xml: content, name: 'Main Process' }]]);
+          this.activeProcess = 'main';
+          const { warnings } = await this.bpmnModeler.importXML(content);
+          if (warnings.length) {
+            console.warn('Warnings while importing BPMN:', warnings);
+          }
+          this.bpmnModeler.get('canvas').zoom('fit-viewport');
+          this.$forceUpdate();
         } catch (err) {
-          console.error('Error handling BPMN import:', err);
-          alert('Error handling BPMN import: ' + err.message);
+          console.error('Error importing BPMN diagram:', err);
+          alert('Error importing BPMN diagram: ' + err.message);
         }
       };
 
@@ -366,30 +375,59 @@ export default {
       };
 
       reader.readAsText(file);
-
-      // Reset the file input so the same file can be imported again if needed
+      // Reset so the same file can be imported again
       event.target.value = '';
+    },
+
+    // Load a B2XKlaim project file with all process tabs
+    async loadProject(projectData) {
+      this.bpmnProcesses = new Map();
+      for (const [key, data] of Object.entries(projectData.processes)) {
+        this.bpmnProcesses.set(key, { xml: data.xml, name: data.name });
+      }
+
+      const activeKey = projectData.activeProcess || 'main';
+      const processData = this.bpmnProcesses.get(activeKey);
+      if (processData) {
+        await this.bpmnModeler.importXML(processData.xml);
+        this.activeProcess = activeKey;
+        this.bpmnModeler.get('canvas').zoom('fit-viewport');
+      }
+      this.$forceUpdate();
     },
 
     async saveBPMN() {
       try {
-        const {xml} = await this.bpmnModeler.saveXML({format: true});
-        const blob = new Blob([xml], {type: 'application/xml'});
+        // Save the currently active process XML first
+        if (this.bpmnModeler) {
+          const currentXML = await this.bpmnModeler.saveXML({ format: true });
+          this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
+        }
+
+        // Build project file containing all process tabs
+        const projectData = {
+          b2xklaimVersion: 1,
+          activeProcess: this.activeProcess,
+          processes: {}
+        };
+        for (const [key, data] of this.bpmnProcesses.entries()) {
+          projectData.processes[key] = { xml: data.xml, name: data.name };
+        }
+
+        const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `bpmn-diagram-${timestamp}.bpmn`;
+        const filename = `b2xklaim-project-${timestamp}.b2x`;
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = filename;
-
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-
         URL.revokeObjectURL(url);
       } catch (err) {
-        console.error('Error exporting BPMN diagram:', err);
-        alert('Error exporting BPMN diagram: ' + err.message);
+        console.error('Error saving project:', err);
+        alert('Error saving project: ' + err.message);
       }
     },
 
@@ -505,15 +543,213 @@ export default {
 
 
 
+    // Validate all process tabs before sending to backend
+    validateDiagrams() {
+      const errors = [];
+      const ns = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
+      const parser = new DOMParser();
+
+      // Helper to get a readable label for an element
+      const label = (el) => el.getAttribute('name') || el.getAttribute('id') || 'unnamed';
+
+      // Helper to check if an element has a child event definition of a given type
+      const hasEventDef = (el, defType) => el.getElementsByTagNameNS(ns, defType).length > 0;
+
+      for (const [tabKey, processData] of this.bpmnProcesses.entries()) {
+        const tabName = processData.name || tabKey;
+        if (!processData.xml) {
+          errors.push(`Tab "${tabName}" has no BPMN content`);
+          continue;
+        }
+
+        const doc = parser.parseFromString(processData.xml, 'text/xml');
+
+        // --- Participants ---
+        const participants = doc.getElementsByTagNameNS(ns, 'participant');
+        for (let i = 0; i < participants.length; i++) {
+          if (!participants[i].getAttribute('name')) {
+            errors.push(`A participant in "${tabName}" has no name`);
+          }
+        }
+
+        // --- Processes ---
+        const processes = doc.getElementsByTagNameNS(ns, 'process');
+        for (let i = 0; i < processes.length; i++) {
+          if (!processes[i].getAttribute('name')) {
+            errors.push(`Process "${processes[i].getAttribute('id')}" in "${tabName}" has no name`);
+          }
+        }
+
+        // --- Call Activities ---
+        const callActivities = doc.getElementsByTagNameNS(ns, 'callActivity');
+        for (let i = 0; i < callActivities.length; i++) {
+          const el = callActivities[i];
+          if (!el.getAttribute('name')) {
+            errors.push(`Call Activity "${label(el)}" in "${tabName}" has no name`);
+          }
+          if (!el.getAttribute('calledElement')) {
+            errors.push(`Call Activity "${label(el)}" in "${tabName}" has no called element — use the drill-down button to link a process`);
+          }
+        }
+
+        // --- Script Tasks ---
+        const scriptTasks = doc.getElementsByTagNameNS(ns, 'scriptTask');
+        for (let i = 0; i < scriptTasks.length; i++) {
+          if (!scriptTasks[i].getAttribute('name')) {
+            errors.push(`A Script Task in "${tabName}" has no name`);
+          }
+        }
+
+        // --- Start Events ---
+        const startEvents = doc.getElementsByTagNameNS(ns, 'startEvent');
+        for (let i = 0; i < startEvents.length; i++) {
+          const el = startEvents[i];
+          if (!el.getAttribute('name')) {
+            errors.push(`Start Event "${el.getAttribute('id')}" in "${tabName}" has no name`);
+          }
+          // Message start events must have a messageRef
+          if (hasEventDef(el, 'messageEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'messageEventDefinition')[0];
+            if (!def.getAttribute('messageRef')) {
+              errors.push(`Message Start Event "${label(el)}" in "${tabName}" has no message reference`);
+            }
+          }
+          // Signal start events must have a signalRef
+          if (hasEventDef(el, 'signalEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'signalEventDefinition')[0];
+            if (!def.getAttribute('signalRef')) {
+              errors.push(`Signal Start Event "${label(el)}" in "${tabName}" has no signal reference`);
+            }
+          }
+          // Timer start events must have a timer definition
+          if (hasEventDef(el, 'timerEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'timerEventDefinition')[0];
+            const hasDuration = def.getElementsByTagNameNS(ns, 'timeDuration').length > 0;
+            const hasDate = def.getElementsByTagNameNS(ns, 'timeDate').length > 0;
+            const hasCycle = def.getElementsByTagNameNS(ns, 'timeCycle').length > 0;
+            if (!hasDuration && !hasDate && !hasCycle) {
+              errors.push(`Timer Start Event "${label(el)}" in "${tabName}" has no timer definition (duration, date, or cycle)`);
+            }
+          }
+        }
+
+        // --- End Events ---
+        const endEvents = doc.getElementsByTagNameNS(ns, 'endEvent');
+        for (let i = 0; i < endEvents.length; i++) {
+          const el = endEvents[i];
+          if (!el.getAttribute('name')) {
+            errors.push(`End Event "${el.getAttribute('id')}" in "${tabName}" has no name`);
+          }
+          if (hasEventDef(el, 'messageEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'messageEventDefinition')[0];
+            if (!def.getAttribute('messageRef')) {
+              errors.push(`Message End Event "${label(el)}" in "${tabName}" has no message reference`);
+            }
+          }
+          if (hasEventDef(el, 'signalEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'signalEventDefinition')[0];
+            if (!def.getAttribute('signalRef')) {
+              errors.push(`Signal End Event "${label(el)}" in "${tabName}" has no signal reference`);
+            }
+          }
+        }
+
+        // --- Intermediate Catch Events ---
+        const catchEvents = doc.getElementsByTagNameNS(ns, 'intermediateCatchEvent');
+        for (let i = 0; i < catchEvents.length; i++) {
+          const el = catchEvents[i];
+          if (!el.getAttribute('name')) {
+            errors.push(`Intermediate Catch Event "${el.getAttribute('id')}" in "${tabName}" has no name`);
+          }
+          if (hasEventDef(el, 'messageEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'messageEventDefinition')[0];
+            if (!def.getAttribute('messageRef')) {
+              errors.push(`Message Intermediate Catch Event "${label(el)}" in "${tabName}" has no message reference`);
+            }
+          }
+          if (hasEventDef(el, 'signalEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'signalEventDefinition')[0];
+            if (!def.getAttribute('signalRef')) {
+              errors.push(`Signal Intermediate Catch Event "${label(el)}" in "${tabName}" has no signal reference`);
+            }
+          }
+          if (hasEventDef(el, 'timerEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'timerEventDefinition')[0];
+            const hasDuration = def.getElementsByTagNameNS(ns, 'timeDuration').length > 0;
+            const hasDate = def.getElementsByTagNameNS(ns, 'timeDate').length > 0;
+            const hasCycle = def.getElementsByTagNameNS(ns, 'timeCycle').length > 0;
+            if (!hasDuration && !hasDate && !hasCycle) {
+              errors.push(`Timer Intermediate Catch Event "${label(el)}" in "${tabName}" has no timer definition`);
+            }
+          }
+        }
+
+        // --- Intermediate Throw Events ---
+        const throwEvents = doc.getElementsByTagNameNS(ns, 'intermediateThrowEvent');
+        for (let i = 0; i < throwEvents.length; i++) {
+          const el = throwEvents[i];
+          if (!el.getAttribute('name')) {
+            errors.push(`Intermediate Throw Event "${el.getAttribute('id')}" in "${tabName}" has no name`);
+          }
+          if (hasEventDef(el, 'messageEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'messageEventDefinition')[0];
+            if (!def.getAttribute('messageRef')) {
+              errors.push(`Message Intermediate Throw Event "${label(el)}" in "${tabName}" has no message reference`);
+            }
+          }
+          if (hasEventDef(el, 'signalEventDefinition')) {
+            const def = el.getElementsByTagNameNS(ns, 'signalEventDefinition')[0];
+            if (!def.getAttribute('signalRef')) {
+              errors.push(`Signal Intermediate Throw Event "${label(el)}" in "${tabName}" has no signal reference`);
+            }
+          }
+        }
+
+        // --- Sequence Flows from XOR Gateways must have conditions ---
+        const exclusiveGateways = doc.getElementsByTagNameNS(ns, 'exclusiveGateway');
+        for (let i = 0; i < exclusiveGateways.length; i++) {
+          const gw = exclusiveGateways[i];
+          const outgoing = gw.getElementsByTagNameNS(ns, 'outgoing');
+          // Only validate diverging gateways (more than 1 outgoing flow)
+          if (outgoing.length > 1) {
+            const defaultFlow = gw.getAttribute('default');
+            for (let j = 0; j < outgoing.length; j++) {
+              const flowId = outgoing[j].textContent.trim();
+              if (flowId === defaultFlow) continue; // default flow doesn't need a condition
+              // Find the sequence flow element
+              const flows = doc.getElementsByTagNameNS(ns, 'sequenceFlow');
+              for (let k = 0; k < flows.length; k++) {
+                if (flows[k].getAttribute('id') === flowId) {
+                  const conditionExpr = flows[k].getElementsByTagNameNS(ns, 'conditionExpression');
+                  if (conditionExpr.length === 0 || !conditionExpr[0].textContent.trim()) {
+                    errors.push(`Sequence flow "${flowId}" from XOR gateway "${label(gw)}" in "${tabName}" has no condition`);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return errors;
+    },
+
     async generateCode() {
       try {
-        this.showButtons = true;
-
         // Save current active process first
         if (this.bpmnModeler) {
           const currentXML = await this.bpmnModeler.saveXML({ format: true });
           this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
         }
+
+        // Validate all diagrams before sending to backend
+        const errors = this.validateDiagrams();
+        if (errors.length > 0) {
+          alert('Please fix the following issues:\n\n' + errors.map(e => '• ' + e).join('\n'));
+          return;
+        }
+
+        this.showButtons = true;
 
         // Collect all processes — use the sanitized name as key for Call Activity
         // sub-processes so the backend can match them to calledElement references
