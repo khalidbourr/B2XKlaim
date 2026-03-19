@@ -160,6 +160,7 @@ import CustomPaletteProvider from './CustomPaletteProvider.js';
 import CustomReplaceMenuProvider from './CustomReplaceMenuProvider.js';
 import { CustomCreateMenuProvider, CustomAppendMenuProvider } from './CustomCreateAppendProvider.js';
 import CustomPropertiesProvider from './CustomPropertiesProvider.js';
+import CallActivityDrilldownProvider from './CallActivityDrilldownProvider.js';
 
 export default {
   name: "App",
@@ -213,19 +214,20 @@ export default {
       },
       additionalModules: [
         {
-          __init__: ['paletteProvider', 'customPropertiesProvider'],
+          __init__: ['paletteProvider', 'customPropertiesProvider', 'callActivityDrilldownProvider'],
           paletteProvider: ['type', CustomPaletteProvider],
           replaceMenuProvider: ['type', CustomReplaceMenuProvider],
           createMenuProvider: ['type', CustomCreateMenuProvider],
           appendMenuProvider: ['type', CustomAppendMenuProvider],
-          customPropertiesProvider: ['type', CustomPropertiesProvider]
+          customPropertiesProvider: ['type', CustomPropertiesProvider],
+          callActivityDrilldownProvider: ['type', CallActivityDrilldownProvider]
         },
       ]
     });
 
     const someDiagram = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
         "<bpmn:definitions xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" id=\"Definitions_1mpw3ap\" targetNamespace=\"http://bpmn.io/schema/bpmn\" exporter=\"bpmn-js (https://demo.bpmn.io)\" exporterVersion=\"14.0.0\">\n" +
-        "  <bpmn:process id=\"Process_0d01xqv\" isExecutable=\"false\">\n" +
+        "  <bpmn:process id=\"Process_0d01xqv\" name=\"Main\" isExecutable=\"false\">\n" +
         "    <bpmn:startEvent id=\"StartEvent_08r9k21\" />\n" +
         "  </bpmn:process>\n" +
         "  <bpmndi:BPMNDiagram id=\"BPMNDiagram_1\">\n" +
@@ -244,8 +246,76 @@ export default {
     } catch (err) {
       console.error("something went wrong:", err);
     }
+
+    // Listen for drill-down into Call Activities
+    const eventBus = this.bpmnModeler.get('eventBus');
+    eventBus.on('callActivity.drilldown', (event) => {
+      this.openCallActivityProcess(event.element);
+    });
   },
   methods: {
+    // Open or create a sub-process for a Call Activity element
+    async openCallActivityProcess(element) {
+      const bo = element.businessObject;
+      const processKey = `callActivity_${bo.id}`;
+
+      // If this Call Activity already has a linked process tab, switch to it
+      if (this.bpmnProcesses.has(processKey)) {
+        await this.switchToProcess(processKey);
+        return;
+      }
+
+      // Prompt for a meaningful name if the Call Activity has no name yet
+      let activityName = bo.name;
+      if (!activityName || !activityName.trim()) {
+        activityName = prompt('Enter a name for this called process:');
+        if (!activityName || !activityName.trim()) {
+          return; // User cancelled
+        }
+        activityName = activityName.trim();
+        // Set the name on the Call Activity element
+        const modeling = this.bpmnModeler.get('modeling');
+        modeling.updateProperties(element, { name: activityName });
+      }
+
+      const sanitizedName = activityName.replace(/[^a-zA-Z0-9_]/g, '_');
+
+      // Check if a process with this name already exists (reuse — same name = same process)
+      let existingKey = null;
+      for (const [key, data] of this.bpmnProcesses.entries()) {
+        if (data.name === activityName) {
+          existingKey = key;
+          break;
+        }
+      }
+
+      if (existingKey) {
+        // Reuse existing process — just link and navigate
+        const modeling = this.bpmnModeler.get('modeling');
+        modeling.updateProperties(element, { calledElement: sanitizedName });
+        await this.switchToProcess(existingKey);
+        return;
+      }
+
+      // Create a new process tab for this Call Activity
+      const newProcessXML = this.createEmptyBPMNProcess(activityName);
+
+      this.bpmnProcesses.set(processKey, {
+        xml: newProcessXML,
+        name: activityName
+      });
+
+      // Set calledElement directly to the name (readable in generated X-Klaim code)
+      const modeling = this.bpmnModeler.get('modeling');
+      modeling.updateProperties(element, {
+        calledElement: sanitizedName
+      });
+
+      // Switch to the new process tab
+      await this.switchToProcess(processKey);
+      this.$forceUpdate();
+    },
+
     // Import BPMN file function
     importBPMN() {
       // Trigger the hidden file input
@@ -424,7 +494,7 @@ export default {
 
     createEmptyBPMNProcess(processName) {
       // Generate unique IDs to avoid conflicts
-      const processId = `Process_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const processId = processName.replace(/[^a-zA-Z0-9_]/g, '_');
       const startEventId = `StartEvent_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
       const flowId = `Flow_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
       const diagramId = `BPMNDiagram_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
