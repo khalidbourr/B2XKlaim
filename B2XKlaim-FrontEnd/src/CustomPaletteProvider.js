@@ -13,61 +13,36 @@ export default class MyPaletteProvider extends PaletteProvider {
     getPaletteEntries(element) {
         const actions = super.getPaletteEntries(element);
 
-
-        // Define the Call Activity creation function
-        const createCallActivity = (event) => {
-            const shape = this._elementFactory.createShape({ type: 'bpmn:CallActivity' });
+        const createShape = (type, options) => (event) => {
+            const shape = this._elementFactory.createShape({ type, ...options });
             this._create.start(event, shape);
         };
 
+        const callActivity = createShape('bpmn:CallActivity');
+        const eventSubProcess = createShape('bpmn:SubProcess', { isExpanded: true, triggeredByEvent: true });
+        const scriptTask = createShape('bpmn:ScriptTask');
 
-
-        // Define the Event Subprocess creation function
-        const createEventSubProcess = (event) => {
-            const shape = this._elementFactory.createShape({ type: 'bpmn:SubProcess', isExpanded: true, triggeredByEvent: true });
-            this._create.start(event, shape);
-        };
-
-        // Define the Script Task creation function
-        const createScriptTask = (event) => {
-            const shape = this._elementFactory.createShape({ type: 'bpmn:ScriptTask' });
-            this._create.start(event, shape);
-        };
-
-        // Add the Call Activity to the palette entries
         actions['create.call-activity'] = {
             group: 'activity',
             className: 'bpmn-icon-call-activity',
             title: this._translate('Create CallActivity'),
-            action: {
-                dragstart: createCallActivity,
-                click: createCallActivity
-            }
+            action: { dragstart: callActivity, click: callActivity }
         };
 
-        // Add the Event Subprocess to the palette entries
         actions['create.event-subprocess'] = {
             group: 'activity',
-            className: 'bpmn-icon-subprocess-expanded', // Use the appropriate icon class
+            className: 'bpmn-icon-subprocess-expanded',
             title: this._translate('Create EventSubProcess'),
-            action: {
-                dragstart: createEventSubProcess,
-                click: createEventSubProcess
-            }
+            action: { dragstart: eventSubProcess, click: eventSubProcess }
         };
 
-        // Add the Script Task to the palette entries
         actions['create.script-task'] = {
             group: 'activity',
             className: 'bpmn-icon-script-task',
             title: this._translate('Create ScriptTask'),
-            action: {
-                dragstart: createScriptTask,
-                click: createScriptTask
-            }
+            action: { dragstart: scriptTask, click: scriptTask }
         };
 
-        // Remove unsupported entries (no translation available)
         delete actions['create.data-store'];
         delete actions['create.data-object'];
         delete actions['create.cancel-event'];

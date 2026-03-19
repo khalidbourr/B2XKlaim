@@ -33,7 +33,6 @@
              :class="{ 'tab': true, 'active': activeProcess === processId }"
              @click="switchToProcess(processId)">
           {{ processData.name }}
-          <!-- Optional: Add close button for non-main processes -->
           <span v-if="processId !== 'main'"
                 class="close-tab"
                 @click.stop="removeProcess(processId)">
@@ -143,10 +142,9 @@
 
 
 
-
     <!-- Footer -->
     <footer class="footer">
-      <p>&copy; 2023 B2XKlaim. All rights reserved.</p>
+      <p>&copy; 2026 B2XKlaim. All rights reserved.</p>
     </footer>
   </div>
 </template>
@@ -154,7 +152,6 @@
 <script>
 import BpmnModeler from "camunda-bpmn-js/lib/camunda-platform/Modeler";
 import "camunda-bpmn-js/dist/assets/camunda-platform-modeler.css";
-// Import the saveAs function from file-saver library
 import JSZip from 'jszip';
 import CustomPaletteProvider from './CustomPaletteProvider.js';
 import CustomReplaceMenuProvider from './CustomReplaceMenuProvider.js';
@@ -241,10 +238,9 @@ export default {
 
     try {
       this.bpmnModeler.importXML(someDiagram);
-      console.log("success!");
       this.bpmnModeler.get("canvas").zoom("fit-viewport");
     } catch (err) {
-      console.error("something went wrong:", err);
+      console.error("Failed to load initial diagram:", err);
     }
 
     // Listen for drill-down into Call Activities
@@ -316,13 +312,10 @@ export default {
       this.$forceUpdate();
     },
 
-    // Import BPMN file function
     importBPMN() {
-      // Trigger the hidden file input
       document.getElementById('bpmn-file-input').click();
     },
 
-    // Handle the file selection
     handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -338,7 +331,6 @@ export default {
                   console.warn('Warnings while importing BPMN:', warnings);
                 }
                 this.bpmnModeler.get('canvas').zoom('fit-viewport');
-                console.log('BPMN diagram imported successfully');
               })
               .catch(err => {
                 console.error('Error importing BPMN diagram', err);
@@ -361,37 +353,22 @@ export default {
       event.target.value = '';
     },
 
-    // Save BPMN diagram as XML
     async saveBPMN() {
       try {
-        // Get the XML from the BPMN modeler with proper formatting
         const {xml} = await this.bpmnModeler.saveXML({format: true});
-
-        // Create a Blob from the XML string
-        // Setting type to application/xml ensures proper handling by browsers
         const blob = new Blob([xml], {type: 'application/xml'});
-
-        // Generate filename with timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `bpmn-diagram-${timestamp}.bpmn`;
-
-        // Create a URL for the blob
         const url = URL.createObjectURL(blob);
-
-        // Create a temporary link element
         const link = document.createElement('a');
         link.href = url;
         link.download = filename;
 
-        // Append to the document, click, and clean up
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        // Clean up the URL object
         URL.revokeObjectURL(url);
-
-        console.log('BPMN diagram exported successfully');
       } catch (err) {
         console.error('Error exporting BPMN diagram:', err);
         alert('Error exporting BPMN diagram: ' + err.message);
@@ -406,34 +383,25 @@ export default {
 
       const trimmedName = processName.trim();
 
-      // Check if process already exists
       if (this.bpmnProcesses.has(trimmedName)) {
         alert(`Process "${trimmedName}" already exists!`);
         return;
       }
 
       try {
-        // Create new empty BPMN process
         const newProcessXML = this.createEmptyBPMNProcess(trimmedName);
-
-        // Store it
         this.bpmnProcesses.set(trimmedName, {
           xml: newProcessXML,
           name: trimmedName
         });
 
-        // Switch to the new process
         await this.switchToProcess(trimmedName);
 
-        // Force Vue to update the DOM
         this.$forceUpdate();
-
-        console.log(`New process "${trimmedName}" created successfully`);
       } catch (error) {
         console.error('Error creating new process:', error);
         alert(`Error creating process "${trimmedName}": ${error.message}`);
 
-        // Clean up if process was partially created
         if (this.bpmnProcesses.has(trimmedName)) {
           this.bpmnProcesses.delete(trimmedName);
         }
@@ -447,22 +415,17 @@ export default {
       }
 
       if (confirm(`Are you sure you want to remove the process "${this.bpmnProcesses.get(processId).name}"?`)) {
-        // Remove from the map
         this.bpmnProcesses.delete(processId);
-
-        // If we're currently viewing the deleted process, switch to main
         if (this.activeProcess === processId) {
           await this.switchToProcess('main');
         }
 
-        // Force update to refresh the tabs
         this.$forceUpdate();
       }
     },
 
     async switchToProcess(processName) {
       try {
-        // Save current process first
         if (this.bpmnModeler) {
           const currentXML = await this.bpmnModeler.saveXML({ format: true });
           this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
@@ -473,16 +436,12 @@ export default {
         if (processData) {
           const result = await this.bpmnModeler.importXML(processData.xml);
 
-          // Handle warnings if any
           if (result.warnings && result.warnings.length > 0) {
             console.warn('Warnings while switching process:', result.warnings);
           }
 
-          // Update active process and fit viewport
           this.activeProcess = processName;
           this.bpmnModeler.get('canvas').zoom('fit-viewport');
-
-          console.log(`Successfully switched to process: ${processName}`);
         } else {
           throw new Error(`Process data not found for: ${processName}`);
         }
@@ -493,14 +452,9 @@ export default {
     },
 
     createEmptyBPMNProcess(processName) {
-      // Generate unique IDs to avoid conflicts
-      const processId = processName.replace(/[^a-zA-Z0-9_]/g, '_');
-      const startEventId = `StartEvent_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      const flowId = `Flow_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      const diagramId = `BPMNDiagram_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      const planeId = `BPMNPlane_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      const startShapeId = `_BPMNShape_StartEvent_${processName.replace(/[^a-zA-Z0-9]/g, '_')}`;
-
+      const safe = processName.replace(/[^a-zA-Z0-9_]/g, '_');
+      const startEventId = `StartEvent_${safe}`;
+      const flowId = `Flow_${safe}`;
 
       return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -508,19 +462,19 @@ export default {
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                  id="Definitions_${processName.replace(/[^a-zA-Z0-9]/g, '_')}"
+                  id="Definitions_${safe}"
                   targetNamespace="http://bpmn.io/schema/bpmn"
                   exporter="bpmn-js (https://demo.bpmn.io)"
                   exporterVersion="14.0.0">
-  <bpmn:process id="${processId}" name="${processName}" isExecutable="false">
+  <bpmn:process id="${safe}" name="${processName}" isExecutable="false">
     <bpmn:startEvent id="${startEventId}" name="start">
       <bpmn:outgoing>${flowId}</bpmn:outgoing>
     </bpmn:startEvent>
   </bpmn:process>
 
-  <bpmndi:BPMNDiagram id="${diagramId}">
-    <bpmndi:BPMNPlane id="${planeId}" bpmnElement="${processId}">
-      <bpmndi:BPMNShape id="${startShapeId}" bpmnElement="${startEventId}">
+  <bpmndi:BPMNDiagram id="BPMNDiagram_${safe}">
+    <bpmndi:BPMNPlane id="BPMNPlane_${safe}" bpmnElement="${safe}">
+      <bpmndi:BPMNShape id="Shape_${startEventId}" bpmnElement="${startEventId}">
         <dc:Bounds x="152" y="102" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="157" y="145" width="25" height="14" />
@@ -548,8 +502,6 @@ export default {
         for (let [processId, processData] of this.bpmnProcesses.entries()) {
           allProcesses[processId] = processData.xml;
         }
-
-        console.log("Sending all processes:", Object.keys(allProcesses));
 
         const response = await fetch("http://localhost:8081/generate-code", {
           method: "POST",
@@ -1111,7 +1063,7 @@ body {
   padding: 0;
   color: var(--text-color);
   background-color: var(--background-color);
-  font-size: 14px; /* Reduced base font size */
+  font-size: 14px;
 }
 
 .app-container {
@@ -1121,7 +1073,7 @@ body {
 }
 
 #main-content {
-  padding: 10px; /* Reduced padding */
+  padding: 10px;
   flex: 1;
 }
 
@@ -1134,7 +1086,6 @@ h1 {
   font-size: 20px;
 }
 
-/* Reduced heading sizes */
 h2 {
   font-size: 16px;
 }
@@ -1148,9 +1099,9 @@ h4 {
 }
 
 .section-title {
-  margin-bottom: 8px; /* Reduced margin */
-  border-bottom: 1px solid var(--accent-color); /* Thinner border */
-  padding-bottom: 3px; /* Reduced padding */
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--accent-color);
+  padding-bottom: 3px;
 }
 
 /* Navigation Bar */
@@ -1159,12 +1110,12 @@ h4 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px; /* Reduced padding */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Smaller shadow */
+  padding: 6px 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 40px; /* Fixed smaller height */
+  height: 40px;
 }
 
 .logo-container {
@@ -1173,8 +1124,8 @@ h4 {
 }
 
 .logo {
-  height: 32px; /* Smaller logo */
-  margin-right: 10px; /* Reduced margin */
+  height: 32px;
+  margin-right: 10px;
 }
 
 .title-container {
@@ -1188,7 +1139,7 @@ h4 {
   font-size: 1.0rem;
   font-weight: 1000;
   color: #388285;
-  margin: 50;
+  margin: 0;
   line-height: 0.5;
   letter-spacing: -1px;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
@@ -1214,8 +1165,8 @@ h4 {
 .nav-btn {
   background-color: var(--accent-color);
   color: white;
-  padding: 6px 12px; /* Smaller button */
-  border-radius: 10px; /* Smaller radius */
+  padding: 6px 12px;
+  border-radius: 10px;
   text-decoration: none;
   font-weight: bold;
   transition: background-color 0.3s, transform 0.2s;
@@ -1223,20 +1174,20 @@ h4 {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 13px; /* Smaller font */
+  font-size: 13px;
 }
 
 .nav-btn:hover {
   background-color: var(--secondary-color);
-  transform: translateY(-1px); /* Smaller transform */
+  transform: translateY(-1px);
 }
 
 /* Download button (special styling) */
 .download-btn {
   background-color: var(--primary-color);
   color: white;
-  padding: 6px 12px; /* Smaller button */
-  border-radius: 10px; /* Smaller radius */
+  padding: 6px 12px;
+  border-radius: 10px;
   text-decoration: none;
   font-weight: bold;
   transition: background-color 0.3s, transform 0.2s;
@@ -1244,48 +1195,48 @@ h4 {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 13px; /* Smaller font */
+  font-size: 13px;
 }
 
 .download-btn:hover {
   background-color: var(--secondary-color);
-  transform: translateY(-1px); /* Smaller transform */
+  transform: translateY(-1px);
 }
 
 /* BPMN Editor Section */
 #canvas-container {
   background-color: var(--panel-color);
-  border-radius: 6px; /* Smaller radius */
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05); /* Smaller shadow */
-  margin-bottom: 15px; /* Reduced margin */
+  border-radius: 0 6px 6px 6px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+  margin-bottom: 15px;
   overflow: hidden;
 }
 
 .panel-header {
   background-color: var(--header-bg-color);
-  padding: 8px 12px; /* Reduced padding */
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border-color);
 }
 
 .editor-panels {
   display: flex;
-  height: 600px; /* Increased canvas height */
+  height: 600px;
 }
 
 .canvas-panel {
-  flex: 5; /* Increased the flex ratio for canvas */
+  flex: 5;
   border-right: 1px solid var(--border-color);
 }
 
 .properties-panel {
   flex: 1;
-  padding: 8px; /* Reduced padding */
+  padding: 8px;
   overflow-y: auto;
-  max-width: 240px; /* Limit properties panel width */
+  max-width: 240px;
 }
 
 .center-button-container {
-  padding: 8px; /* Reduced padding */
+  padding: 8px;
   text-align: center;
   border-top: 1px solid var(--border-color);
 }
@@ -1294,41 +1245,41 @@ h4 {
   background-color: var(--primary-color);
   color: white;
   border: none;
-  padding: 8px 16px; /* Smaller button */
-  border-radius: 3px; /* Smaller radius */
-  font-size: 14px; /* Smaller font */
+  padding: 8px 16px;
+  border-radius: 3px;
+  font-size: 14px;
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
 }
 
 .primary-button:hover {
   background-color: var(--secondary-color);
-  transform: translateY(-1px); /* Smaller transform */
+  transform: translateY(-1px);
 }
 
 /* Generated Code Section */
 #code-section {
   background-color: var(--panel-color);
-  border-radius: 6px; /* Smaller radius */
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05); /* Smaller shadow */
-  padding: 12px; /* Reduced padding */
+  border-radius: 6px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+  padding: 12px;
 }
 
 .code-tabs {
   display: flex;
-  margin-bottom: 10px; /* Reduced margin */
+  margin-bottom: 10px;
   border-bottom: 1px solid var(--border-color);
 }
 
 .code-tabs button {
   background-color: transparent;
   border: none;
-  padding: 6px 12px; /* Smaller padding */
+  padding: 6px 12px;
   cursor: pointer;
-  font-size: 13px; /* Smaller font */
+  font-size: 13px;
   color: var(--text-color);
-  margin-right: 3px; /* Reduced margin */
-  border-bottom: 2px solid transparent; /* Thinner border */
+  margin-right: 3px;
+  border-bottom: 2px solid transparent;
   transition: all 0.3s;
 }
 
@@ -1345,36 +1296,36 @@ h4 {
 /* Project Config */
 .project-config {
   background-color: var(--code-bg-color);
-  padding: 12px; /* Reduced padding */
-  border-radius: 4px; /* Smaller radius */
-  margin-bottom: 15px; /* Reduced margin */
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Smaller columns */
-  gap: 10px; /* Reduced gap */
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
 }
 
 .form-group {
-  margin-bottom: 8px; /* Reduced margin */
+  margin-bottom: 8px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 3px; /* Reduced margin */
+  margin-bottom: 3px;
   font-weight: 500;
-  font-size: 12px; /* Smaller font */
+  font-size: 12px;
 }
 
 .form-group input[type="text"] {
   width: 100%;
-  padding: 6px 8px; /* Smaller padding */
+  padding: 6px 8px;
   border: 1px solid var(--border-color);
-  border-radius: 3px; /* Smaller radius */
-  font-size: 12px; /* Smaller font */
+  border-radius: 3px;
+  font-size: 12px;
   transition: border-color 0.3s;
-  height: 28px; /* Fixed smaller height */
+  height: 28px;
 }
 
 .form-group input[type="text"]:focus {
@@ -1383,38 +1334,38 @@ h4 {
 }
 
 .form-group input[type="checkbox"] {
-  margin-right: 6px; /* Reduced margin */
+  margin-right: 6px;
 }
 
 /* Code Containers */
 .code-container {
   background-color: var(--code-bg-color);
-  border-radius: 4px; /* Smaller radius */
-  margin-bottom: 15px; /* Reduced margin */
+  border-radius: 4px;
+  margin-bottom: 15px;
   overflow: hidden;
 }
 
 .code-header {
   background-color: var(--header-bg-color);
-  padding: 6px 10px; /* Reduced padding */
+  padding: 6px 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
-  height: 30px; /* Fixed smaller height */
+  height: 30px;
 }
 
 .code-actions {
   display: flex;
-  gap: 6px; /* Reduced gap */
+  gap: 6px;
 }
 
 .copy-icon {
   cursor: pointer;
-  padding: 3px; /* Reduced padding */
-  border-radius: 3px; /* Smaller radius */
+  padding: 3px;
+  border-radius: 3px;
   transition: background-color 0.3s;
-  font-size: 12px; /* Smaller icon */
+  font-size: 12px;
 }
 
 .copy-icon:hover {
@@ -1427,12 +1378,12 @@ h4 {
 
 .code-editor {
   width: 100%;
-  min-height: 150px; /* Reduced height */
-  padding: 10px; /* Reduced padding */
+  min-height: 150px;
+  padding: 10px;
   border: none;
   font-family: 'Fira Code', monospace;
-  font-size: 12px; /* Smaller font */
-  line-height: 1.4; /* Reduced line height */
+  font-size: 12px;
+  line-height: 1.4;
   resize: vertical;
   background-color: var(--code-bg-color);
   color: var(--text-color);
@@ -1443,27 +1394,27 @@ h4 {
 }
 
 .collaboration {
-  border-left: 2px solid var(--primary-color); /* Thinner border */
+  border-left: 2px solid var(--primary-color);
 }
 
 .process {
-  border-left: 2px solid var(--accent-color); /* Thinner border */
+  border-left: 2px solid var(--accent-color);
 }
 
 .code-processes {
   display: flex;
   flex-direction: column;
-  gap: 12px; /* Reduced gap */
+  gap: 12px;
 }
 
 /* Footer */
 .footer {
   background-color: var(--header-bg-color);
   text-align: center;
-  padding: 8px; /* Reduced padding */
-  margin-top: 15px; /* Reduced margin */
+  padding: 8px;
+  margin-top: 15px;
   border-top: 1px solid var(--border-color);
-  font-size: 12px; /* Smaller font */
+  font-size: 12px;
 }
 
 
@@ -1542,12 +1493,6 @@ h4 {
   border-color: var(--accent-color);
 }
 
-/* Remove top border radius from canvas container when tabs are present */
-#canvas-container {
-  border-radius: 0 6px 6px 6px;
-}
-
-
 /* Responsive Design */
 @media (max-width: 768px) {
   .editor-panels {
@@ -1571,13 +1516,13 @@ h4 {
 
 /* Override for BPMN.js styles - keep these at original size or larger */
 :deep(.djs-palette) {
-  height: 500px; /* Keep palette tall */
+  height: 500px;
   overflow-y: auto;
 }
 
 /* Make diagram elements more visible */
 :deep(.djs-element) {
-  font-size: 12px !important; /* Ensure diagram text is readable */
+  font-size: 12px !important;
 }
 
 :deep(.djs-overlay) {
