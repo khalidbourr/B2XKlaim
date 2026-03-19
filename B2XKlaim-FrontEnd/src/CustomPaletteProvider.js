@@ -67,13 +67,15 @@ export default class MyPaletteProvider extends PaletteProvider {
             }
         };
 
-        // Remove undesired entries
+        // Remove unsupported entries (no translation available)
         delete actions['create.data-store'];
+        delete actions['create.data-object'];
         delete actions['create.cancel-event'];
         delete actions['create.escalation-event'];
         delete actions['create.task'];
         delete actions['create.subprocess'];
         delete actions['create.subprocess-expanded'];
+        delete actions['create.group'];
 
         return actions;
     }

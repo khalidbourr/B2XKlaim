@@ -157,6 +157,9 @@ import "camunda-bpmn-js/dist/assets/camunda-platform-modeler.css";
 // Import the saveAs function from file-saver library
 import JSZip from 'jszip';
 import CustomPaletteProvider from './CustomPaletteProvider.js';
+import CustomReplaceMenuProvider from './CustomReplaceMenuProvider.js';
+import { CustomCreateMenuProvider, CustomAppendMenuProvider } from './CustomCreateAppendProvider.js';
+import CustomPropertiesProvider from './CustomPropertiesProvider.js';
 
 export default {
   name: "App",
@@ -210,8 +213,12 @@ export default {
       },
       additionalModules: [
         {
-          __init__: ['paletteProvider'],
-          paletteProvider: ['type', CustomPaletteProvider]
+          __init__: ['paletteProvider', 'customPropertiesProvider'],
+          paletteProvider: ['type', CustomPaletteProvider],
+          replaceMenuProvider: ['type', CustomReplaceMenuProvider],
+          createMenuProvider: ['type', CustomCreateMenuProvider],
+          appendMenuProvider: ['type', CustomAppendMenuProvider],
+          customPropertiesProvider: ['type', CustomPropertiesProvider]
         },
       ]
     });
