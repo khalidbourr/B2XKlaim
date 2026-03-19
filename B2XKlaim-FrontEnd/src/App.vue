@@ -12,17 +12,19 @@
         </div>
       </div>
       <div class="nav-buttons">
-        <a href="#" @click="newProject" class="nav-btn nav-btn-new">
+        <a href="#" @click="newProject" class="nav-btn nav-btn-outline nav-btn-danger" title="Start a new project">
           <i class="fas fa-plus"></i> New
         </a>
-        <a href="#" id="ImportBPMN" @click="importBPMN" class="nav-btn">
-          <i class="fa fa-upload"></i> Import
+        <span class="nav-divider"></span>
+        <a href="#" @click="importBPMN" class="nav-btn nav-btn-outline" title="Import BPMN or project file">
+          <i class="fas fa-folder-open"></i> Import
         </a>
-        <a href="#" id="SaveBPMN" @click="saveBPMN" class="nav-btn">
-          <i class="fa fa-save"></i> Save
+        <a href="#" @click="saveBPMN" class="nav-btn nav-btn-outline" title="Save project file">
+          <i class="fas fa-save"></i> Save
         </a>
-        <a href="#" id="Download" @click="exportCode" class="download-btn">
-          <i class="fa fa-download"></i> Download
+        <span class="nav-divider"></span>
+        <a href="#" @click="exportCode" class="nav-btn nav-btn-primary" title="Generate code and download project">
+          <i class="fas fa-download"></i> Download
         </a>
       </div>
       <!-- Hidden file input for import -->
@@ -1485,61 +1487,73 @@ h4 {
   font-style: italic;
 }
 
-/* Navigation buttons container */
+/* Navigation buttons */
 .nav-buttons {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
-/* Styling for nav buttons */
+.nav-divider {
+  width: 1px;
+  height: 20px;
+  background-color: rgba(0, 0, 0, 0.15);
+  margin: 0 2px;
+}
+
 .nav-btn {
-  background-color: var(--accent-color);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 10px;
-  text-decoration: none;
-  font-weight: bold;
-  transition: background-color 0.3s, transform 0.2s;
-  border: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-}
-
-.nav-btn:hover {
-  background-color: var(--secondary-color);
-  transform: translateY(-1px);
-}
-
-.nav-btn-new {
-  background-color: #e07050;
-}
-
-.nav-btn-new:hover {
-  background-color: #c0503a;
-}
-
-/* Download button */
-.download-btn {
-  background-color: #4a9e6e;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 10px;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
   text-decoration: none;
-  font-weight: bold;
-  transition: background-color 0.3s, transform 0.2s;
-  border: none;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 13px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
 }
 
-.download-btn:hover {
-  background-color: #3b8559;
-  transform: translateY(-1px);
+.nav-btn i {
+  font-size: 11px;
+}
+
+/* Outlined buttons (Import, Save) */
+.nav-btn-outline {
+  background-color: transparent;
+  color: var(--secondary-color);
+  border-color: var(--secondary-color);
+}
+
+.nav-btn-outline:hover {
+  background-color: var(--secondary-color);
+  color: white;
+}
+
+/* Danger outlined button (New) */
+.nav-btn-danger {
+  color: #d35940;
+  border-color: #d35940;
+}
+
+.nav-btn-danger:hover {
+  background-color: #d35940;
+  color: white;
+}
+
+/* Primary solid button (Download) */
+.nav-btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.nav-btn-primary:hover {
+  background-color: var(--secondary-color);
+  border-color: var(--secondary-color);
 }
 
 /* BPMN Editor Section */
