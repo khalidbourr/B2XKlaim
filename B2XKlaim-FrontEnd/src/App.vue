@@ -243,10 +243,28 @@ export default {
       console.error("Failed to load initial diagram:", err);
     }
 
-    // Listen for drill-down into Call Activities
     const eventBus = this.bpmnModeler.get('eventBus');
+
+    // Listen for drill-down into Call Activities
     eventBus.on('callActivity.drilldown', (event) => {
       this.openCallActivityProcess(event.element);
+    });
+
+    // Auto-sync participant name to its process when created or renamed
+    eventBus.on('commandStack.changed', () => {
+      const elementRegistry = this.bpmnModeler.get('elementRegistry');
+
+      elementRegistry.filter(el => el.type === 'bpmn:Participant').forEach(participant => {
+        const bo = participant.businessObject;
+        const processRef = bo.processRef;
+        if (bo.name && processRef) {
+          const expectedName = bo.name + 'Behavior';
+          // Set process name if missing, or still has the default "Main" name
+          if (!processRef.name || processRef.name === 'Main') {
+            processRef.name = expectedName;
+          }
+        }
+      });
     });
   },
   methods: {
@@ -497,10 +515,16 @@ export default {
           this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
         }
 
-        // Collect all processes
+        // Collect all processes — use the sanitized name as key for Call Activity
+        // sub-processes so the backend can match them to calledElement references
         const allProcesses = {};
         for (let [processId, processData] of this.bpmnProcesses.entries()) {
-          allProcesses[processId] = processData.xml;
+          if (processId.startsWith('callActivity_')) {
+            const key = processData.name.replace(/[^a-zA-Z0-9_]/g, '_');
+            allProcesses[key] = processData.xml;
+          } else {
+            allProcesses[processId] = processData.xml;
+          }
         }
 
         const response = await fetch("http://localhost:8081/generate-code", {
@@ -1234,6 +1258,8 @@ h4 {
   overflow-y: auto;
   max-width: 240px;
 }
+
+
 
 .center-button-container {
   padding: 8px;
