@@ -12,11 +12,14 @@
         </div>
       </div>
       <div class="nav-buttons">
+        <a href="#" @click="newProject" class="nav-btn nav-btn-new">
+          <i class="fas fa-plus"></i> New
+        </a>
         <a href="#" id="ImportBPMN" @click="importBPMN" class="nav-btn">
-          <i class="fa fa-upload"></i> Import BPMN
+          <i class="fa fa-upload"></i> Import
         </a>
         <a href="#" id="SaveBPMN" @click="saveBPMN" class="nav-btn">
-          <i class="fa fa-save"></i> Save BPMN
+          <i class="fa fa-save"></i> Save
         </a>
         <a href="#" id="Download" @click="exportCode" class="download-btn">
           <i class="fa fa-download"></i> Download
@@ -203,7 +206,7 @@ export default {
     }
   },
 
-  mounted() {
+  async mounted() {
     this.bpmnModeler = new BpmnModeler({
       container: "#canvas",
       propertiesPanel: {
@@ -222,26 +225,8 @@ export default {
       ]
     });
 
-    const someDiagram = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-        "<bpmn:definitions xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" id=\"Definitions_1mpw3ap\" targetNamespace=\"http://bpmn.io/schema/bpmn\" exporter=\"bpmn-js (https://demo.bpmn.io)\" exporterVersion=\"14.0.0\">\n" +
-        "  <bpmn:process id=\"Process_0d01xqv\" name=\"Main\" isExecutable=\"false\">\n" +
-        "    <bpmn:startEvent id=\"StartEvent_08r9k21\" />\n" +
-        "  </bpmn:process>\n" +
-        "  <bpmndi:BPMNDiagram id=\"BPMNDiagram_1\">\n" +
-        "    <bpmndi:BPMNPlane id=\"BPMNPlane_1\" bpmnElement=\"Process_0d01xqv\">\n" +
-        "      <bpmndi:BPMNShape id=\"_BPMNShape_StartEvent_2\" bpmnElement=\"StartEvent_08r9k21\">\n" +
-        "        <dc:Bounds x=\"152\" y=\"82\" width=\"36\" height=\"36\" />\n" +
-        "      </bpmndi:BPMNShape>\n" +
-        "    </bpmndi:BPMNPlane>\n" +
-        "  </bpmndi:BPMNDiagram>\n" +
-        "</bpmn:definitions>";
-
-    try {
-      this.bpmnModeler.importXML(someDiagram);
-      this.bpmnModeler.get("canvas").zoom("fit-viewport");
-    } catch (err) {
-      console.error("Failed to load initial diagram:", err);
-    }
+    // Restore previous session from localStorage, or load empty diagram
+    await this.restoreFromLocalStorage();
 
     const eventBus = this.bpmnModeler.get('eventBus');
 
@@ -250,7 +235,7 @@ export default {
       this.openCallActivityProcess(event.element);
     });
 
-    // Auto-sync participant name to its process when created or renamed
+    // Auto-sync participant name to its process and auto-save to localStorage
     eventBus.on('commandStack.changed', () => {
       const elementRegistry = this.bpmnModeler.get('elementRegistry');
 
@@ -265,9 +250,94 @@ export default {
           }
         }
       });
+
+      // Auto-save after every change
+      this.saveToLocalStorage();
     });
   },
   methods: {
+    // Default empty diagram for new projects
+    getDefaultDiagram() {
+      return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+        '<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1mpw3ap" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="14.0.0">\n' +
+        '  <bpmn:process id="Process_0d01xqv" name="Main" isExecutable="false">\n' +
+        '    <bpmn:startEvent id="StartEvent_08r9k21" />\n' +
+        '  </bpmn:process>\n' +
+        '  <bpmndi:BPMNDiagram id="BPMNDiagram_1">\n' +
+        '    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_0d01xqv">\n' +
+        '      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_08r9k21">\n' +
+        '        <dc:Bounds x="152" y="82" width="36" height="36" />\n' +
+        '      </bpmndi:BPMNShape>\n' +
+        '    </bpmndi:BPMNPlane>\n' +
+        '  </bpmndi:BPMNDiagram>\n' +
+        '</bpmn:definitions>';
+    },
+
+    // Save current session to localStorage
+    async saveToLocalStorage() {
+      try {
+        if (this.bpmnModeler) {
+          const currentXML = await this.bpmnModeler.saveXML({ format: true });
+          this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
+        }
+        const data = { activeProcess: this.activeProcess, processes: {} };
+        for (const [key, val] of this.bpmnProcesses.entries()) {
+          data.processes[key] = { xml: val.xml, name: val.name };
+        }
+        localStorage.setItem('b2xklaim_project', JSON.stringify(data));
+      } catch (err) {
+        console.error('Auto-save failed:', err);
+      }
+    },
+
+    // Restore session from localStorage, or load default empty diagram
+    async restoreFromLocalStorage() {
+      try {
+        const saved = localStorage.getItem('b2xklaim_project');
+        if (saved) {
+          const data = JSON.parse(saved);
+          this.bpmnProcesses = new Map();
+          for (const [key, val] of Object.entries(data.processes)) {
+            this.bpmnProcesses.set(key, { xml: val.xml, name: val.name });
+          }
+          const activeKey = data.activeProcess || 'main';
+          const processData = this.bpmnProcesses.get(activeKey);
+          if (processData && processData.xml) {
+            await this.bpmnModeler.importXML(processData.xml);
+            this.activeProcess = activeKey;
+            this.bpmnModeler.get('canvas').zoom('fit-viewport');
+            this.$forceUpdate();
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to restore from localStorage:', err);
+      }
+
+      // Fallback: load default empty diagram
+      await this.bpmnModeler.importXML(this.getDefaultDiagram());
+      this.bpmnModeler.get('canvas').zoom('fit-viewport');
+    },
+
+    // Clear everything and start a fresh project
+    async newProject() {
+      if (!confirm('Start a new project? All unsaved work will be lost.')) return;
+
+      localStorage.removeItem('b2xklaim_project');
+      this.bpmnProcesses = new Map([['main', { xml: '', name: 'Main Process' }]]);
+      this.activeProcess = 'main';
+      this.showButtons = false;
+      this.collaboration = '';
+      this.processes = [];
+      this.callActivities = {};
+      this.scriptTaskProcs = {};
+      this.eventSubProcesses = {};
+
+      await this.bpmnModeler.importXML(this.getDefaultDiagram());
+      this.bpmnModeler.get('canvas').zoom('fit-viewport');
+      this.$forceUpdate();
+    },
+
     // Open or create a sub-process for a Call Activity element
     async openCallActivityProcess(element) {
       const bo = element.businessObject;
@@ -498,6 +568,7 @@ export default {
 
           this.activeProcess = processName;
           this.bpmnModeler.get('canvas').zoom('fit-viewport');
+          this.saveToLocalStorage();
         } else {
           throw new Error(`Process data not found for: ${processName}`);
         }
@@ -1432,7 +1503,7 @@ h4 {
   transition: background-color 0.3s, transform 0.2s;
   border: none;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
   font-size: 13px;
 }
@@ -1442,9 +1513,17 @@ h4 {
   transform: translateY(-1px);
 }
 
-/* Download button (special styling) */
+.nav-btn-new {
+  background-color: #e07050;
+}
+
+.nav-btn-new:hover {
+  background-color: #c0503a;
+}
+
+/* Download button */
 .download-btn {
-  background-color: var(--primary-color);
+  background-color: #4a9e6e;
   color: white;
   padding: 6px 12px;
   border-radius: 10px;
@@ -1459,7 +1538,7 @@ h4 {
 }
 
 .download-btn:hover {
-  background-color: var(--secondary-color);
+  background-color: #3b8559;
   transform: translateY(-1px);
 }
 
