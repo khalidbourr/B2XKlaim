@@ -3,154 +3,143 @@
     <!-- Top navigation bar -->
     <div id="nav-bar" class="topnav">
       <div class="logo-container">
-        <a href="index.html" class="active">
-          <img src="./assets/b2xklaim.jpg" alt="B2Xklaim Web Client" class="logo">
+        <a href="index.html">
+          <img src="./assets/b2xklaim.jpg" alt="B2Xklaim" class="logo">
         </a>
         <div class="title-container">
           <h1 class="app-main-title">B2XKlaim</h1>
-          <h2 class="app-subtitle">an X-Klaim BPMN Translator</h2>
+          <span class="app-subtitle">BPMN to X-Klaim Translator</span>
         </div>
       </div>
       <div class="nav-buttons">
-        <a href="#" @click="newProject" class="nav-btn nav-btn-outline nav-btn-danger" title="Start a new project">
+        <a href="#" @click="newProject" class="nav-btn nav-btn-ghost" title="New project">
           <i class="fas fa-plus"></i> New
         </a>
         <span class="nav-divider"></span>
-        <a href="#" @click="importBPMN" class="nav-btn nav-btn-outline" title="Import BPMN or project file">
+        <a href="#" @click="importBPMN" class="nav-btn nav-btn-ghost" title="Import BPMN or project file">
           <i class="fas fa-folder-open"></i> Import
         </a>
-        <a href="#" @click="saveBPMN" class="nav-btn nav-btn-outline" title="Save project file">
+        <a href="#" @click="saveBPMN" class="nav-btn nav-btn-ghost" title="Save project file">
           <i class="fas fa-save"></i> Save
         </a>
         <span class="nav-divider"></span>
-        <a href="#" @click="exportCode" class="nav-btn nav-btn-primary" title="Generate code and download project">
+        <a href="#" @click="generateCode" class="nav-btn nav-btn-accent" title="Generate X-Klaim code">
+          <i class="fas fa-code"></i> Generate
+        </a>
+        <a href="#" @click="exportCode" class="nav-btn nav-btn-primary" title="Download project as ZIP">
           <i class="fas fa-download"></i> Download
         </a>
       </div>
-      <!-- Hidden file input for import -->
       <input type="file" id="bpmn-file-input" accept=".bpmn,.xml,.b2x" style="display: none;" @change="handleFileSelect">
     </div>
 
     <div id="main-content">
+      <!-- Process Tabs -->
       <div class="process-tabs">
         <div v-for="[processId, processData] in processesArray"
              :key="processId"
-             :class="{ 'tab': true, 'active': activeProcess === processId }"
+             :class="{ 'process-tab': true, 'active': activeProcess === processId }"
              @click="switchToProcess(processId)">
+          <i class="fas fa-project-diagram" style="font-size: 10px; opacity: 0.6;"></i>
           {{ processData.name }}
           <span v-if="processId !== 'main'"
                 class="close-tab"
-                @click.stop="removeProcess(processId)">
-      ×
-    </span>
+                @click.stop="removeProcess(processId)"
+                title="Close tab">&times;</span>
         </div>
-        <button class="add-process-btn" @click="addNewProcess">+ Add Process</button>
+        <button class="add-process-btn" @click="addNewProcess" title="Add new process tab">
+          <i class="fas fa-plus"></i>
+        </button>
       </div>
-      <!-- BPMN Editor Section -->
+
+      <!-- BPMN Editor -->
       <div id="canvas-container">
-        <div class="panel-header">
-          <h3>BPMN Editor</h3>
-        </div>
         <div class="editor-panels">
           <div id="canvas" class="canvas-panel"></div>
           <div id="properties" class="properties-panel"></div>
-        </div>
-        <div class="center-button-container">
-          <button @click="generateCode" class="primary-button">Generate X-Klaim Code</button>
         </div>
       </div>
 
       <!-- Generated Code Section -->
       <div v-if="showButtons" id="code-section">
-        <div class="code-tabs">
-          <button v-for="tab in availableTabs" :key="tab" @click="activeTab = tab"
-                  :class="{ 'tab-button--active': activeTab === tab }">
-            {{ tab }}
-          </button>
+        <div class="code-section-header">
+          <h3><i class="fas fa-code"></i> Generated X-Klaim Code</h3>
+          <div class="code-tabs">
+            <button v-for="tab in availableTabs" :key="tab" @click="activeTab = tab"
+                    :class="{ 'code-tab': true, 'code-tab--active': activeTab === tab }">
+              {{ tab }}
+            </button>
+          </div>
         </div>
 
-        <!-- Project Configuration Panel -->
+        <!-- Project Configuration -->
         <div class="project-config">
-          <h3 class="section-title">Project Configuration</h3>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="projectName">Project Name:</label>
-              <input type="text" id="projectName" v-model="projectConfig.name" placeholder="my-xklaim-project">
-            </div>
-            <div class="form-group">
-              <label for="groupId">Group ID:</label>
-              <input type="text" id="groupId" v-model="projectConfig.groupId" placeholder="com.example">
-            </div>
-            <div class="form-group">
-              <label for="artifactId">Artifact ID:</label>
-              <input type="text" id="artifactId" v-model="projectConfig.artifactId" placeholder="xklaim-bpmn-project">
-            </div>
-            <div class="form-group">
-              <label for="version">Version:</label>
-              <input type="text" id="version" v-model="projectConfig.version" placeholder="1.0-SNAPSHOT">
-            </div>
+          <div class="config-header" @click="showConfig = !showConfig">
+            <span><i class="fas fa-cog"></i> Project Configuration</span>
+            <i :class="showConfig ? 'fas fa-chevron-up' : 'fas fa-chevron-down'"></i>
           </div>
-        </div>
-
-        <!-- Collaboration Code Textarea -->
-        <div v-if="collaboration && activeTab === 'collaboration'" class="code-container collaboration">
-          <div class="code-header">
-            <h4>Main Collaboration</h4>
-            <div class="code-actions">
-              <span @click="copyToClipboard('collaboration')" class="copy-icon" title="Copy to clipboard">
-                <i class="fa fa-copy"></i>
-              </span>
-            </div>
-          </div>
-          <div class="textarea-wrapper">
-            <textarea ref="collaboration" class="textarea code-editor" placeholder="Collaboration Code..." v-model="collaboration"></textarea>
-          </div>
-        </div>
-
-        <!-- Participant's Process Code Textareas -->
-        <div v-if="activeTab === 'processes'" class="code-processes">
-          <div v-for="process in processes" :key="process.name" class="code-container process">
-            <div class="code-header">
-              <h4>{{ process.name }}</h4>
-              <div class="code-actions">
-                <span @click="copyToClipboard(process.name)" class="copy-icon" title="Copy to clipboard">
-                  <i class="fa fa-copy"></i>
-                </span>
+          <div v-if="showConfig" class="config-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="projectName">Project Name</label>
+                <input type="text" id="projectName" v-model="projectConfig.name" placeholder="my-xklaim-project">
+              </div>
+              <div class="form-group">
+                <label for="groupId">Group ID</label>
+                <input type="text" id="groupId" v-model="projectConfig.groupId" placeholder="com.example">
+              </div>
+              <div class="form-group">
+                <label for="artifactId">Artifact ID</label>
+                <input type="text" id="artifactId" v-model="projectConfig.artifactId" placeholder="xklaim-bpmn-project">
+              </div>
+              <div class="form-group">
+                <label for="version">Version</label>
+                <input type="text" id="version" v-model="projectConfig.version" placeholder="1.0-SNAPSHOT">
               </div>
             </div>
-            <div class="textarea-wrapper">
-              <textarea :ref="process.name" class="textarea code-editor"
-                        :placeholder="process.name + ' Code...'" v-model="process.code"></textarea>
-            </div>
           </div>
         </div>
 
-        <!-- Event Sub-Processes Code Textareas -->
-        <div v-if="activeTab === 'event-subprocesses' && hasEventSubprocesses" class="code-processes">
-          <div v-for="(codeList, espId) in eventSubProcesses" :key="espId" class="code-container process">
-            <div class="code-header">
-              <h4>Event Sub-Process: {{ espId }}</h4>
-              <div class="code-actions">
-                <span @click="copyToClipboard(espId)" class="copy-icon" title="Copy to clipboard">
-                  <i class="fa fa-copy"></i>
-                </span>
-              </div>
+        <!-- Collaboration Code -->
+        <div v-if="collaboration && activeTab === 'collaboration'" class="code-card">
+          <div class="code-card-header">
+            <span class="code-card-title"><i class="fas fa-network-wired"></i> Main Collaboration</span>
+            <button @click="copyToClipboard('collaboration')" class="copy-btn" title="Copy to clipboard">
+              <i class="fas fa-copy"></i> Copy
+            </button>
+          </div>
+          <textarea ref="collaboration" class="code-editor" placeholder="Collaboration Code..." v-model="collaboration"></textarea>
+        </div>
+
+        <!-- Process Code -->
+        <div v-if="activeTab === 'processes'" class="code-list">
+          <div v-for="process in processes" :key="process.name" class="code-card">
+            <div class="code-card-header">
+              <span class="code-card-title"><i class="fas fa-cogs"></i> {{ process.name }}</span>
+              <button @click="copyToClipboard(process.name)" class="copy-btn" title="Copy to clipboard">
+                <i class="fas fa-copy"></i> Copy
+              </button>
             </div>
-            <div class="textarea-wrapper">
-              <textarea :ref="espId" class="textarea code-editor"
-                        :placeholder="'Event Sub-Process Code...'" v-model="eventSubProcesses[espId][0]"></textarea>
+            <textarea :ref="process.name" class="code-editor"
+                      :placeholder="process.name + ' Code...'" v-model="process.code"></textarea>
+          </div>
+        </div>
+
+        <!-- Event Sub-Processes Code -->
+        <div v-if="activeTab === 'event-subprocesses' && hasEventSubprocesses" class="code-list">
+          <div v-for="(codeList, espId) in eventSubProcesses" :key="espId" class="code-card">
+            <div class="code-card-header">
+              <span class="code-card-title"><i class="fas fa-bolt"></i> {{ espId }}</span>
+              <button @click="copyToClipboard(espId)" class="copy-btn" title="Copy to clipboard">
+                <i class="fas fa-copy"></i> Copy
+              </button>
             </div>
+            <textarea :ref="espId" class="code-editor"
+                      :placeholder="'Event Sub-Process Code...'" v-model="eventSubProcesses[espId][0]"></textarea>
           </div>
         </div>
       </div>
     </div>
-
-
-
-    <!-- Footer -->
-    <footer class="footer">
-      <p>&copy; 2026 B2XKlaim. All rights reserved.</p>
-    </footer>
   </div>
 </template>
 
@@ -177,6 +166,7 @@ export default {
       scriptTaskProcs: {},
       eventSubProcesses: {},
       allTabs: ['collaboration', 'processes', 'event-subprocesses'],
+      showConfig: false,
       projectConfig: {
         name: 'xklaim-bpmn-project',
         groupId: 'com.example',
@@ -1376,27 +1366,33 @@ Thumbs.db
 </script>
 
 <style>
-/* Color Variables */
 :root {
-  --primary-color: #388285;
-  --secondary-color: #387c85;
-  --accent-color: #75a2a8;
-  --background-color: #f8f9fa;
-  --panel-color: #ffffff;
-  --border-color: #e0e0e0;
-  --text-color: #333333;
-  --code-bg-color: #f5f7f9;
-  --header-bg-color: #CEE1DF;
+  --primary: #2c7a7b;
+  --primary-light: #38a89d;
+  --primary-dark: #234e52;
+  --accent: #e07050;
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --surface-alt: #f7f8fa;
+  --border: #e2e8f0;
+  --text: #2d3748;
+  --text-muted: #718096;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.1);
+  --radius: 8px;
+  --radius-sm: 5px;
 }
 
-/* Global Styles */
+* { box-sizing: border-box; }
+
 body {
-  font-family: 'Roboto', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
   padding: 0;
-  color: var(--text-color);
-  background-color: var(--background-color);
-  font-size: 14px;
+  color: var(--text);
+  background-color: var(--bg);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
 }
 
 .app-container {
@@ -1405,487 +1401,436 @@ body {
   min-height: 100vh;
 }
 
-#main-content {
-  padding: 10px;
-  flex: 1;
-}
-
-h1, h2, h3, h4 {
-  margin: 0;
-  color: var(--secondary-color);
-}
-
-h1 {
-  font-size: 20px;
-}
-
-h2 {
-  font-size: 16px;
-}
-
-h3 {
-  font-size: 14px;
-}
-
-h4 {
-  font-size: 13px;
-}
-
-.section-title {
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--accent-color);
-  padding-bottom: 3px;
-}
-
-/* Navigation Bar */
+/* ── Navigation Bar ── */
 .topnav {
-  background-color: var(--header-bg-color);
+  background-color: var(--surface);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 0 16px;
+  height: 48px;
+  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 40px;
 }
 
 .logo-container {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
+.logo-container a { display: flex; }
+
 .logo {
-  height: 32px;
-  margin-right: 10px;
+  height: 28px;
 }
 
 .title-container {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  position: sticky;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .app-main-title {
-  font-size: 1.0rem;
-  font-weight: 1000;
-  color: #388285;
-  margin: 0;
-  line-height: 0.5;
-  letter-spacing: -1px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.3px;
 }
 
 .app-subtitle {
-  font-size: 0.8rem;
-  font-weight: 300;
-  color: #265557;
-  margin: 5px 0 0;
-  text-transform: lowercase;
-  font-style: italic;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
 }
 
-/* Navigation buttons */
+/* ── Nav Buttons ── */
 .nav-buttons {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
 }
 
 .nav-divider {
   width: 1px;
   height: 20px;
-  background-color: rgba(0, 0, 0, 0.15);
-  margin: 0 2px;
+  background-color: var(--border);
+  margin: 0 4px;
 }
 
 .nav-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 14px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
   cursor: pointer;
-  border: 1.5px solid transparent;
-  transition: all 0.2s ease;
+  border: none;
+  transition: all 0.15s ease;
   white-space: nowrap;
-  letter-spacing: 0.2px;
 }
 
-.nav-btn i {
-  font-size: 11px;
+.nav-btn i { font-size: 11px; }
+
+.nav-btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
 }
 
-/* Outlined buttons (Import, Save) */
-.nav-btn-outline {
-  background-color: transparent;
-  color: var(--secondary-color);
-  border-color: var(--secondary-color);
+.nav-btn-ghost:hover {
+  background-color: var(--surface-alt);
+  color: var(--text);
 }
 
-.nav-btn-outline:hover {
-  background-color: var(--secondary-color);
+.nav-btn-accent {
+  background-color: var(--primary-light);
   color: white;
 }
 
-/* Danger outlined button (New) */
-.nav-btn-danger {
-  color: #d35940;
-  border-color: #d35940;
+.nav-btn-accent:hover {
+  background-color: var(--primary);
 }
 
-.nav-btn-danger:hover {
-  background-color: #d35940;
-  color: white;
-}
-
-/* Primary solid button (Download) */
 .nav-btn-primary {
-  background-color: var(--primary-color);
+  background-color: var(--primary);
   color: white;
-  border-color: var(--primary-color);
 }
 
 .nav-btn-primary:hover {
-  background-color: var(--secondary-color);
-  border-color: var(--secondary-color);
+  background-color: var(--primary-dark);
 }
 
-/* BPMN Editor Section */
+/* ── Main Content ── */
+#main-content {
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Process Tabs ── */
+.process-tabs {
+  display: flex;
+  align-items: center;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+  gap: 0;
+  min-height: 36px;
+}
+
+.process-tab {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.process-tab:hover {
+  color: var(--text);
+  background-color: var(--surface-alt);
+}
+
+.process-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+.close-tab {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.close-tab:hover {
+  background-color: rgba(220, 50, 50, 0.1);
+  color: #dc3232;
+}
+
+.add-process-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  margin-left: 4px;
+  transition: all 0.15s;
+}
+
+.add-process-btn:hover {
+  background-color: var(--surface-alt);
+  color: var(--primary);
+}
+
+/* ── BPMN Editor ── */
 #canvas-container {
-  background-color: var(--panel-color);
-  border-radius: 0 6px 6px 6px;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
-  margin-bottom: 15px;
+  background-color: var(--surface);
+  flex: 1;
   overflow: hidden;
-}
-
-.panel-header {
-  background-color: var(--header-bg-color);
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-color);
 }
 
 .editor-panels {
   display: flex;
-  height: 600px;
+  height: calc(100vh - 130px);
+  min-height: 500px;
 }
 
 .canvas-panel {
-  flex: 5;
-  border-right: 1px solid var(--border-color);
+  flex: 1;
+  border-right: 1px solid var(--border);
 }
 
 .properties-panel {
-  flex: 1;
-  padding: 8px;
+  width: 260px;
+  min-width: 260px;
   overflow-y: auto;
-  max-width: 240px;
+  border-left: 1px solid var(--border);
+  background-color: var(--surface);
 }
 
-
-
-.center-button-container {
-  padding: 8px;
-  text-align: center;
-  border-top: 1px solid var(--border-color);
-}
-
-.primary-button {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 3px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
-}
-
-.primary-button:hover {
-  background-color: var(--secondary-color);
-  transform: translateY(-1px);
-}
-
-/* Generated Code Section */
+/* ── Generated Code Section ── */
 #code-section {
-  background-color: var(--panel-color);
-  border-radius: 6px;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
-  padding: 12px;
+  background-color: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 0;
+}
+
+.code-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.code-section-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.code-section-header h3 i {
+  color: var(--primary);
 }
 
 .code-tabs {
   display: flex;
-  margin-bottom: 10px;
-  border-bottom: 1px solid var(--border-color);
+  gap: 2px;
 }
 
-.code-tabs button {
-  background-color: transparent;
+.code-tab {
+  background: none;
   border: none;
-  padding: 6px 12px;
+  padding: 6px 14px;
   cursor: pointer;
-  font-size: 13px;
-  color: var(--text-color);
-  margin-right: 3px;
-  border-bottom: 2px solid transparent;
-  transition: all 0.3s;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: all 0.15s;
 }
 
-.code-tabs button:hover {
-  color: var(--primary-color);
+.code-tab:hover {
+  background-color: var(--surface-alt);
+  color: var(--text);
 }
 
-.tab-button--active {
-  color: var(--primary-color) !important;
-  border-bottom-color: var(--primary-color) !important;
-  font-weight: bold;
+.code-tab--active {
+  background-color: var(--primary) !important;
+  color: white !important;
 }
 
-/* Project Config */
+/* ── Project Config ── */
 .project-config {
-  background-color: var(--code-bg-color);
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 15px;
+  margin: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.config-header {
+  padding: 10px 14px;
+  background-color: var(--surface-alt);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+}
+
+.config-header i { color: var(--text-muted); font-size: 10px; }
+
+.config-body {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 10px;
 }
 
 .form-group {
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .form-group input[type="text"] {
   width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   font-size: 12px;
-  transition: border-color 0.3s;
-  height: 28px;
+  transition: border-color 0.2s;
+  background-color: var(--surface);
 }
 
 .form-group input[type="text"]:focus {
-  border-color: var(--primary-color);
+  border-color: var(--primary);
   outline: none;
+  box-shadow: 0 0 0 2px rgba(44, 122, 123, 0.15);
 }
 
-.form-group input[type="checkbox"] {
-  margin-right: 6px;
+/* ── Code Cards ── */
+.code-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
 }
 
-/* Code Containers */
-.code-container {
-  background-color: var(--code-bg-color);
-  border-radius: 4px;
-  margin-bottom: 15px;
+.code-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   overflow: hidden;
+  background-color: var(--surface);
 }
 
-.code-header {
-  background-color: var(--header-bg-color);
-  padding: 6px 10px;
+.code-card-header {
+  padding: 8px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-color);
-  height: 30px;
+  background-color: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
 }
 
-.code-actions {
+.code-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 
-.copy-icon {
+.code-card-title i {
+  color: var(--primary);
+  font-size: 11px;
+}
+
+.copy-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  padding: 3px;
-  border-radius: 3px;
-  transition: background-color 0.3s;
-  font-size: 12px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
 }
 
-.copy-icon:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-}
-
-.textarea-wrapper {
-  position: relative;
+.copy-btn:hover {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
 }
 
 .code-editor {
   width: 100%;
-  min-height: 150px;
-  padding: 10px;
+  min-height: 180px;
+  padding: 14px;
   border: none;
-  font-family: 'Fira Code', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.6;
   resize: vertical;
-  background-color: var(--code-bg-color);
-  color: var(--text-color);
+  background-color: #1e1e2e;
+  color: #cdd6f4;
 }
 
 .code-editor:focus {
   outline: none;
 }
 
-.collaboration {
-  border-left: 2px solid var(--primary-color);
-}
-
-.process {
-  border-left: 2px solid var(--accent-color);
-}
-
-.code-processes {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Footer */
-.footer {
-  background-color: var(--header-bg-color);
-  text-align: center;
-  padding: 8px;
-  margin-top: 15px;
-  border-top: 1px solid var(--border-color);
-  font-size: 12px;
-}
-
-
-.close-tab {
-  margin-left: 8px;
-  color: #999;
-  font-weight: bold;
-  cursor: pointer;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  transition: all 0.3s;
-}
-
-.close-tab:hover {
-  background-color: rgba(255, 0, 0, 0.1);
-  color: red;
-}
-
-
-/* Process Tabs Styling */
-.process-tabs {
-  display: flex;
-  align-items: center;
-  background-color: var(--background-color);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0;
-  margin-bottom: 0;
-  gap: 2px;
-}
-
-.tab {
-  background-color: var(--panel-color);
-  border: 1px solid var(--border-color);
-  border-bottom: none;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--text-color);
-  border-radius: 4px 4px 0 0;
-  transition: background-color 0.3s;
-}
-
-.tab:hover {
-  background-color: var(--code-bg-color);
-}
-
-.tab.active {
-  background-color: var(--header-bg-color);
-  color: var(--primary-color);
-  font-weight: 600;
-}
-
-.add-process-btn {
-  background-color: transparent;
-  border: 1px dashed var(--border-color);
-  color: var(--accent-color);
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  margin-left: 8px;
-  transition: all 0.3s;
-}
-
-.add-process-btn:hover {
-  background-color: var(--accent-color);
-  color: white;
-  border-color: var(--accent-color);
-}
-
-/* Responsive Design */
+/* ── Responsive ── */
 @media (max-width: 768px) {
   .editor-panels {
     flex-direction: column;
     height: auto;
   }
-
-  .canvas-panel {
-    height: 450px; /* Maintain larger height on mobile */
-  }
-
+  .canvas-panel { height: 400px; }
   .properties-panel {
+    width: 100%;
+    min-width: unset;
     height: 300px;
-    max-width: none;
   }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
+  .form-grid { grid-template-columns: 1fr; }
+  .topnav { padding: 0 8px; }
+  .nav-buttons { gap: 2px; }
 }
 
-/* Override for BPMN.js styles - keep these at original size or larger */
+/* ── BPMN.js Overrides ── */
 :deep(.djs-palette) {
   height: 500px;
   overflow-y: auto;
 }
 
-/* Make diagram elements more visible */
-:deep(.djs-element) {
-  font-size: 12px !important;
-}
-
-:deep(.djs-overlay) {
-  font-size: 12px !important;
-}
-
-:deep(.djs-container) {
-  font-size: 12px !important;
-}
-
+:deep(.djs-element) { font-size: 12px !important; }
+:deep(.djs-overlay) { font-size: 12px !important; }
+:deep(.djs-container) { font-size: 12px !important; }
 </style>
