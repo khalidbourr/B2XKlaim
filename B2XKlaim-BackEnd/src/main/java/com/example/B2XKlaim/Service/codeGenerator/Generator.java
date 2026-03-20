@@ -56,13 +56,14 @@ public class Generator {
         Objects.requireNonNull(processDiagram, "processDiagram cannot be null");
         this.processDiagram = processDiagram;
         this.visitor = new BPMNTranslator(processDiagram);
-        this.allProcesses = null; // Add this line
+        this.allProcesses = null;
     }
 
     public Generator(Map<String, BpmnElements> allProcesses) {
-        Objects.requireNonNull(allProcesses, "allProcesses cannot be null"); // Add this
+        Objects.requireNonNull(allProcesses, "allProcesses cannot be null");
         this.allProcesses = allProcesses;
         this.processDiagram = allProcesses.get("main");
+        Objects.requireNonNull(this.processDiagram, "Main process ('main' key) is required in allProcesses");
         this.visitor = new BPMNTranslator(processDiagram);
     }
 

@@ -256,7 +256,7 @@ import lombok.extern.slf4j.Slf4j;
                     currentElement.getId());
         }
 
-        log.warn(">>> translateProcessBody returning: [\n{}]", bodyCode.toString());
+        log.debug("translateProcessBody result: [\n{}]", bodyCode.toString());
         return bodyCode.toString();
         }
         
@@ -338,7 +338,7 @@ import lombok.extern.slf4j.Slf4j;
             resetProcessState();
         }
 
-        log.warn(">>> visit(Collab) returning full code:\n{}", collabCode.toString());
+        log.debug("visit(Collab) result:\n{}", collabCode.toString());
         return collabCode.toString();
     }
 
@@ -594,31 +594,35 @@ import lombok.extern.slf4j.Slf4j;
         List<String> sequences = new ArrayList<>();
 
         for (List<String> branchElements : and.getFlowElementMap().values()) {
-
             for (int i = 0; i < branchElements.size(); i++) {
                 String elementId = branchElements.get(i);
                 BpmnElement element = bpmnElements.getElementById(elementId);
-                if (element!=null) {
-                    s.append(element.accept(this));
+                if (element == null) {
+                    log.warn("AND gateway: element '{}' not found, skipping", elementId);
+                    continue;
+                }
+                s.append(element.accept(this));
 
-                    if (i < branchElements.size() - 1) {
-                        BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
+                if (i < branchElements.size() - 1) {
+                    BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
+                    if (sequence != null) {
                         s.append(sequence.accept(this));
                     }
-                    if (i == branchElements.size() - 1) {
-                        sequences.add(element.getOutgoingEdge());
-                    }
+                }
+                if (i == branchElements.size() - 1) {
+                    sequences.add(element.getOutgoingEdge());
                 }
             }
         }
 
         for (String sequenceId : sequences) {
-            if (sequenceId != and.getOutgoingEdge()) {
+            if (sequenceId != null && !sequenceId.equals(and.getOutgoingEdge())) {
                 BpmnElement sequence = bpmnElements.getElementById(sequenceId);
                 if (sequence != null) {
                     s.append(sequence.accept(this));
-                }}
+                }
             }
+        }
         s.append(String.format("out('%s')@self\n", and.getOutgoingEdge()));
 
 
@@ -665,18 +669,20 @@ import lombok.extern.slf4j.Slf4j;
         // Translating elements for the true branch
         for (String elementId : trueBranch.getValue()) {
             BpmnElement element = bpmnElements.getElementById(elementId);
+            if (element == null) { log.warn("XOR: element '{}' not found", elementId); continue; }
             s.append("  ").append(element.accept(this));
             BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
-            s.append("  ").append(sequence.accept(this));
+            if (sequence != null) { s.append("  ").append(sequence.accept(this)); }
         }
         s.append("} else {\n  ");
 
         // Translating elements for the false branch
         for (String elementId : falseBranch.getValue()) {
             BpmnElement element = bpmnElements.getElementById(elementId);
+            if (element == null) { log.warn("XOR: element '{}' not found", elementId); continue; }
             s.append("  ").append(element.accept(this));
             BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
-            s.append("  ").append(sequence.accept(this));
+            if (sequence != null) { s.append("  ").append(sequence.accept(this)); }
         }
         s.append("}\n");
 
@@ -692,9 +698,10 @@ import lombok.extern.slf4j.Slf4j;
          sb.append("while(").append(lp.getCondition()).append("){\n");
          for (String elementId : lp.getFlowElementMap()) {
              BpmnElement element = bpmnElements.getElementById(elementId);
+             if (element == null) { log.warn("LP: element '{}' not found", elementId); continue; }
              sb.append(element.accept(this));
              BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
-             sb.append(sequence.accept(this));
+             if (sequence != null) { sb.append(sequence.accept(this)); }
          }
          sb.append("}\n");
          sb.append("out('").append(lp.getOutgoingEdge()).append("')@self\n");

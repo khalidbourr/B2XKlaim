@@ -39,6 +39,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
 import com.example.B2XKlaim.Service.bpmnElements.activities.CLA;
 import com.example.B2XKlaim.Service.bpmnElements.activities.ESP;
@@ -64,8 +66,9 @@ import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
 
+@Slf4j
 public class BpmnElementFactory {
-    private static Document document;
+    private final Document document;
     private List<MessageFLow> messageFlows;
 
 
@@ -76,7 +79,6 @@ public class BpmnElementFactory {
     }
 
     public BpmnElement createBpmnElement(Element element) {
-        BpmnElementFactory factory = new BpmnElementFactory(document);
         String tagName = element.getTagName();
         String id = element.getAttribute("id");
         String name = element.getAttribute("name");
@@ -89,24 +91,14 @@ public class BpmnElementFactory {
                 String eventSourceId = element.getAttribute("sourceRef");
                 String eventTargetId = element.getAttribute("targetRef");
 
-                System.err.println("--- Processing MessageFlow: " + msgId + " ---"); // DEBUG LOGGING
-                System.err.println("    Source Element ID: " + eventSourceId);        // DEBUG LOGGING
-                System.err.println("    Target Element ID: " + eventTargetId);        // DEBUG LOGGING
+                log.debug("Processing MessageFlow: {} (source: {}, target: {})", msgId, eventSourceId, eventTargetId);
 
-                // Call helpers - Log results immediately
                 String senderParticipantId = getEnclosingParticipantId(eventSourceId);
-                System.err.println("    Lookup Sender Participant ID for " + eventSourceId + ": " + senderParticipantId); // DEBUG LOGGING
-
                 String receiverParticipantId = getEnclosingParticipantId(eventTargetId);
-                 System.err.println("    Lookup Receiver Participant ID for " + eventTargetId + ": " + receiverParticipantId); // DEBUG LOGGING
-
-
-                // Dependent calls - Log results immediately
                 String senderParticipantName = getParticipantNameById(senderParticipantId);
-                System.err.println("    Lookup Sender Name for " + senderParticipantId + ": " + senderParticipantName); // DEBUG LOGGING
-
                 String receiverParticipantName = getParticipantNameById(receiverParticipantId);
-                 System.err.println("    Lookup Receiver Name for " + receiverParticipantId + ": " + receiverParticipantName); // DEBUG LOGGING
+
+                log.debug("MessageFlow {}: sender={} ({}), receiver={} ({})", msgId, senderParticipantName, senderParticipantId, receiverParticipantName, receiverParticipantId);
 
 
                 // Create the MessageFLow object
@@ -121,25 +113,9 @@ public class BpmnElementFactory {
                         .sourceRef(eventSourceId)
                         .build();
 
-                 // Alternatively, use the constructor directly if builder isn't setup/preferred
-                 // MessageFLow messageFlow = new MessageFLow(msgId, receiverParticipantId, receiverParticipantName, senderParticipantId, senderParticipantName, eventTargetId, eventSourceId);
-
-
-                // Check if messageFlow object itself is null (shouldn't be)
-                if (messageFlow == null) {
-                     System.err.println("    ERROR: Failed to create MessageFLow object for " + msgId);
-                     return null; // Or handle error appropriately
-                }
-                // Ensure messageFlows list exists (should be initialized in factory constructor)
-                 if (this.messageFlows == null) {
-                     System.err.println("    ERROR: messageFlows list is null in factory instance!");
-                     this.messageFlows = new ArrayList<>();
-                 }
-
-                messageFlows.add(messageFlow); // Add to factory's instance list
-                 System.err.println("    Successfully created and added MessageFLow: " + messageFlow); // DEBUG LOGGING
-                 System.err.println("--- End Processing MessageFlow: " + msgId + " ---"); // DEBUG LOGGING
-                return messageFlow; // Return the created object
+                messageFlows.add(messageFlow);
+                log.debug("Successfully created MessageFLow: {}", messageFlow);
+                return messageFlow;
 
 
 
@@ -268,7 +244,7 @@ public class BpmnElementFactory {
                                 String senderSignalParticipantId = getEnclosingParticipantId(senderEventId);
                                 String senderSignalParticipantName = Optional.ofNullable(getParticipantNameById(senderSignalParticipantId))
                                         .orElse("self");
-                                System.err.println(senderEventId);        
+                                log.debug("SIC signal sender: {}", senderEventId);
                                 SIC sic = new SIC(name, id, incoming, outgoing, signalId, senderSignalParticipantName);
                                 return sic;
                             }
@@ -592,42 +568,40 @@ public class BpmnElementFactory {
             Node elementNode = (Node) xpath.evaluate(expression, document, XPathConstants.NODE);
     
             if (elementNode == null) {
-                System.err.println("getEnclosingParticipantId: Could not find element with ID: " + elementId);
+                log.debug("Element not found for XPath expression: {}", expression);
                 return null;
             }
-    
-            // 2. Traverse upwards from the found node to find the parent <bpmn:process>
+
+            // Traverse upwards to find the parent <bpmn:process>
             Node parent = elementNode.getParentNode();
             while (parent != null) {
-                // Check if the node is an Element node and its tag name is bpmn:process
                 if (parent.getNodeType() == Node.ELEMENT_NODE && "bpmn:process".equals(parent.getNodeName())) {
-                     // 3. Get the ID of the process element
                     enclosingProcessId = ((Element) parent).getAttribute("id");
-                    break; // Found the process
+                    break;
                 }
-                parent = parent.getParentNode(); // Move up
+                parent = parent.getParentNode();
             }
-    
+
             if (enclosingProcessId == null) {
-                 System.err.println("getEnclosingParticipantId: Could not find enclosing <bpmn:process> for element ID: " + elementId);
-                 return null;
+                log.debug("No enclosing process found for element: {}", elementId);
+                return null;
             }
-    
+
         } catch (XPathExpressionException e) {
-            System.err.println("getEnclosingParticipantId: XPath error finding element ID " + elementId + ": " + e.getMessage());
+            log.debug("XPath error looking up element {}: {}", elementId, e.getMessage());
             return null;
         }
-    
-        // 4. Find the participant associated with this process ID (using original logic)
+
+        // Find the participant associated with this process ID
         if (enclosingProcessId != null) {
             NodeList participantNodes = document.getElementsByTagName("bpmn:participant");
             for (int i = 0; i < participantNodes.getLength(); i++) {
                 Element participantElement = (Element) participantNodes.item(i);
                 if (enclosingProcessId.equals(participantElement.getAttribute("processRef"))) {
-                    return participantElement.getAttribute("id"); // Return participant ID
+                    return participantElement.getAttribute("id");
                 }
             }
-             System.err.println("getEnclosingParticipantId: Found process ID '" + enclosingProcessId + "' but no participant references it.");
+            log.debug("No participant found for process: {}", enclosingProcessId);
         }
     
         return null; // Participant not found for the process
@@ -691,8 +665,8 @@ public class BpmnElementFactory {
             }
         }
     
-        System.err.println("findThrowingSignalEventBySignalId: Could not find a THROWING event for signalRef: " + signalId);
-        return null; // No throwing event found for this signal ID
+        log.debug("No throwing signal event found for signalId: {}", signalId);
+        return null;
     }
 
 
@@ -1196,13 +1170,10 @@ public class BpmnElementFactory {
         // Reuse the existing createBpmnElement method for consistent parsing
         BpmnElement element = createBpmnElement(childElement);
         
-        // For debugging
         if (element != null) {
-            System.err.println("Successfully parsed sub-process element: " + childElement.getTagName() + 
-                            " (ID: " + childElement.getAttribute("id") + ")");
+            log.debug("Parsed sub-process element: {} (ID: {})", childElement.getTagName(), childElement.getAttribute("id"));
         } else {
-            System.err.println("Failed to parse sub-process element: " + childElement.getTagName() + 
-                            " (ID: " + childElement.getAttribute("id") + ")");
+            log.debug("Skipped sub-process element: {} (ID: {})", childElement.getTagName(), childElement.getAttribute("id"));
         }
         
         return element;
