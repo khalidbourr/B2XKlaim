@@ -633,40 +633,25 @@ import lombok.extern.slf4j.Slf4j;
     public String visit(XOR xor) throws FileNotFoundException, UnsupportedEncodingException {
         StringBuilder s = new StringBuilder();
 
-        if (xor.getConditionElementMap().size() != 2) {
-            throw new IllegalArgumentException("XOR gateway must have two branches");
-        }
-
         Iterator<Map.Entry<String, List<String>>> iterator = xor.getConditionElementMap().entrySet().iterator();
 
-
-
         Map.Entry<String, List<String>> trueBranch = iterator.next();
-        Map.Entry<String, List<String>> falseBranch = iterator.next();
+        Map.Entry<String, List<String>> falseBranch = iterator.hasNext() ? iterator.next() : null;
 
-
-        // Ensure one branch has condition, other is default
-        if ((trueBranch.getKey() == null || trueBranch.getKey().trim().isEmpty()) &&
-                (falseBranch.getKey() == null || falseBranch.getKey().trim().isEmpty())) {
-            throw new IllegalArgumentException("XOR gateway must have exactly one conditional branch");
-        }
-
-        if ((trueBranch.getKey() != null && !trueBranch.getKey().trim().isEmpty()) &&
+        // Swap if needed so trueBranch has the condition
+        if (falseBranch != null &&
+                (trueBranch.getKey() == null || trueBranch.getKey().trim().isEmpty()) &&
                 (falseBranch.getKey() != null && !falseBranch.getKey().trim().isEmpty())) {
-            throw new IllegalArgumentException("XOR gateway must have exactly one default branch");
-        }
-
-// Swap if needed so trueBranch has the condition
-        if (trueBranch.getKey() == null || trueBranch.getKey().trim().isEmpty()) {
             Map.Entry<String, List<String>> temp = trueBranch;
             trueBranch = falseBranch;
             falseBranch = temp;
         }
 
-        // Condition for the true branch
-        s.append(String.format("if(%s){\n  ", trueBranch.getKey()));
+        // Generate if block — use condition if present, otherwise default to "true"
+        String condition = (trueBranch.getKey() != null && !trueBranch.getKey().trim().isEmpty())
+                ? trueBranch.getKey() : "true";
+        s.append(String.format("if(%s){\n", condition));
 
-        // Translating elements for the true branch
         for (String elementId : trueBranch.getValue()) {
             BpmnElement element = bpmnElements.getElementById(elementId);
             if (element == null) { log.warn("XOR: element '{}' not found", elementId); continue; }
@@ -674,18 +659,20 @@ import lombok.extern.slf4j.Slf4j;
             BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
             if (sequence != null) { s.append("  ").append(sequence.accept(this)); }
         }
-        s.append("} else {\n  ");
 
-        // Translating elements for the false branch
-        for (String elementId : falseBranch.getValue()) {
-            BpmnElement element = bpmnElements.getElementById(elementId);
-            if (element == null) { log.warn("XOR: element '{}' not found", elementId); continue; }
-            s.append("  ").append(element.accept(this));
-            BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
-            if (sequence != null) { s.append("  ").append(sequence.accept(this)); }
+        // Generate else block if there's a second branch
+        if (falseBranch != null) {
+            s.append("} else {\n");
+            for (String elementId : falseBranch.getValue()) {
+                BpmnElement element = bpmnElements.getElementById(elementId);
+                if (element == null) { log.warn("XOR: element '{}' not found", elementId); continue; }
+                s.append("  ").append(element.accept(this));
+                BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
+                if (sequence != null) { s.append("  ").append(sequence.accept(this)); }
+            }
         }
-        s.append("}\n");
 
+        s.append("}\n");
         s.append(String.format("out('%s')@self\n", xor.getOutgoingEdge()));
 
         return s.toString();
