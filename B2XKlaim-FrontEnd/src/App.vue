@@ -176,7 +176,8 @@ export default {
       bpmnProcesses: new Map([
         ['main', { xml: '', name: 'Main Process' }]
       ]),
-      activeProcess: 'main'
+      activeProcess: 'main',
+      isSwitchingProcess: false
     };
   },
 
@@ -220,6 +221,25 @@ export default {
     // Restore previous session from localStorage, or load empty diagram
     await this.restoreFromLocalStorage();
 
+    // Forward document keyboard events to the bpmn-js keyboard handler
+    // so Ctrl+Z/Y and other shortcuts work without needing to click the canvas first
+    const keyboard = this.bpmnModeler.get('keyboard');
+    document.addEventListener('keydown', (event) => {
+      // Skip if user is typing in an input, textarea, or contenteditable
+      const tag = event.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target.isContentEditable) {
+        return;
+      }
+      keyboard._keyHandler(event, 'keyboard.keydown');
+    });
+    document.addEventListener('keyup', (event) => {
+      const tag = event.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target.isContentEditable) {
+        return;
+      }
+      keyboard._keyHandler(event, 'keyboard.keyup');
+    });
+
     const eventBus = this.bpmnModeler.get('eventBus');
 
     // Listen for drill-down into Call Activities
@@ -229,6 +249,9 @@ export default {
 
     // Auto-sync participant name to its process and auto-save to localStorage
     eventBus.on('commandStack.changed', () => {
+      // Skip auto-save during tab switches to prevent overwriting process XML
+      if (this.isSwitchingProcess) return;
+
       const elementRegistry = this.bpmnModeler.get('elementRegistry');
 
       elementRegistry.filter(el => el.type === 'bpmn:Participant').forEach(participant => {
@@ -239,6 +262,18 @@ export default {
           // Set process name if missing, or still has the default "Main" name
           if (!processRef.name || processRef.name === 'Main') {
             processRef.name = expectedName;
+          }
+        }
+      });
+
+      // Auto-set calledElement to the call activity's name so users can
+      // use call activities without drilling down to design a sub-process
+      elementRegistry.filter(el => el.type === 'bpmn:CallActivity').forEach(callActivity => {
+        const bo = callActivity.businessObject;
+        if (bo.name && bo.name.trim()) {
+          const sanitizedName = bo.name.replace(/[^a-zA-Z0-9_]/g, '_');
+          if (!bo.calledElement || bo.calledElement !== sanitizedName) {
+            bo.calledElement = sanitizedName;
           }
         }
       });
@@ -269,8 +304,21 @@ export default {
     async saveToLocalStorage() {
       try {
         if (this.bpmnModeler) {
-          const currentXML = await this.bpmnModeler.saveXML({ format: true });
-          this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
+          // Remove incomplete edges (no target) before saving
+          const elementRegistry = this.bpmnModeler.get('elementRegistry');
+          const modeling = this.bpmnModeler.get('modeling');
+          const incompleteFlows = elementRegistry.filter(
+            el => el.type === 'bpmn:SequenceFlow' && (!el.target || !el.source)
+          );
+          if (incompleteFlows.length) {
+            modeling.removeElements(incompleteFlows);
+          }
+
+          const currentProcess = this.bpmnProcesses.get(this.activeProcess);
+          if (currentProcess) {
+            const currentXML = await this.bpmnModeler.saveXML({ format: true });
+            currentProcess.xml = currentXML.xml;
+          }
         }
         const data = { activeProcess: this.activeProcess, processes: {} };
         for (const [key, val] of this.bpmnProcesses.entries()) {
@@ -462,8 +510,11 @@ export default {
       try {
         // Save the currently active process XML first
         if (this.bpmnModeler) {
-          const currentXML = await this.bpmnModeler.saveXML({ format: true });
-          this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
+          const currentProcess = this.bpmnProcesses.get(this.activeProcess);
+          if (currentProcess) {
+            const currentXML = await this.bpmnModeler.saveXML({ format: true });
+            currentProcess.xml = currentXML.xml;
+          }
         }
 
         // Build project file containing all process tabs
@@ -533,11 +584,22 @@ export default {
       }
 
       if (confirm(`Are you sure you want to remove the process "${this.bpmnProcesses.get(processId).name}"?`)) {
-        this.bpmnProcesses.delete(processId);
-        if (this.activeProcess === processId) {
-          await this.switchToProcess('main');
+        const wasActive = this.activeProcess === processId;
+
+        if (wasActive) {
+          // Switch to main first, then delete
+          this.activeProcess = 'main';
+          this.isSwitchingProcess = true;
+          const mainData = this.bpmnProcesses.get('main');
+          if (mainData && mainData.xml) {
+            await this.bpmnModeler.importXML(mainData.xml);
+            this.bpmnModeler.get('canvas').zoom('fit-viewport');
+          }
+          this.isSwitchingProcess = false;
         }
 
+        this.bpmnProcesses.delete(processId);
+        this.saveToLocalStorage();
         this.$forceUpdate();
       }
     },
@@ -545,20 +607,29 @@ export default {
     async switchToProcess(processName) {
       try {
         if (this.bpmnModeler) {
-          const currentXML = await this.bpmnModeler.saveXML({ format: true });
-          this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
+          const currentProcess = this.bpmnProcesses.get(this.activeProcess);
+          if (currentProcess) {
+            const currentXML = await this.bpmnModeler.saveXML({ format: true });
+            currentProcess.xml = currentXML.xml;
+          }
         }
 
         // Load new process
         const processData = this.bpmnProcesses.get(processName);
         if (processData) {
+          // Update activeProcess BEFORE importXML to prevent the commandStack.changed
+          // handler from saving the new XML back to the old process entry
+          this.activeProcess = processName;
+          this.isSwitchingProcess = true;
+
           const result = await this.bpmnModeler.importXML(processData.xml);
+
+          this.isSwitchingProcess = false;
 
           if (result.warnings && result.warnings.length > 0) {
             console.warn('Warnings while switching process:', result.warnings);
           }
 
-          this.activeProcess = processName;
           this.bpmnModeler.get('canvas').zoom('fit-viewport');
           this.saveToLocalStorage();
         } else {
@@ -573,7 +644,6 @@ export default {
     createEmptyBPMNProcess(processName) {
       const safe = processName.replace(/[^a-zA-Z0-9_]/g, '_');
       const startEventId = `StartEvent_${safe}`;
-      const flowId = `Flow_${safe}`;
 
       return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -586,9 +656,7 @@ export default {
                   exporter="bpmn-js (https://demo.bpmn.io)"
                   exporterVersion="14.0.0">
   <bpmn:process id="${safe}" name="${processName}" isExecutable="false">
-    <bpmn:startEvent id="${startEventId}" name="start">
-      <bpmn:outgoing>${flowId}</bpmn:outgoing>
-    </bpmn:startEvent>
+    <bpmn:startEvent id="${startEventId}" name="start" />
   </bpmn:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_${safe}">
@@ -651,7 +719,7 @@ export default {
             errors.push(`Call Activity "${label(el)}" in "${tabName}" has no name`);
           }
           if (!el.getAttribute('calledElement')) {
-            errors.push(`Call Activity "${label(el)}" in "${tabName}" has no called element — use the drill-down button to link a process`);
+            errors.push(`Call Activity "${label(el)}" in "${tabName}" has no called element — give it a name or use the drill-down button to design its process`);
           }
         }
 
@@ -801,8 +869,11 @@ export default {
       try {
         // Save current active process first
         if (this.bpmnModeler) {
-          const currentXML = await this.bpmnModeler.saveXML({ format: true });
-          this.bpmnProcesses.get(this.activeProcess).xml = currentXML.xml;
+          const currentProcess = this.bpmnProcesses.get(this.activeProcess);
+          if (currentProcess) {
+            const currentXML = await this.bpmnModeler.saveXML({ format: true });
+            currentProcess.xml = currentXML.xml;
+          }
         }
 
         // Validate all diagrams before sending to backend

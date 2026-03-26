@@ -120,25 +120,25 @@ public class ComplexBPMNTranslationTest {
 
     @Test
     public void test_event_based_gateway_polling_structure() {
-        assertTrue(translatedCode.contains("while (!eventOccurred)"),
+        assertTrue(translatedCode.contains("while(!eventOccured)"),
                 "Event-based gateway should generate polling loop");
     }
 
     @Test
     public void test_event_based_gateway_timer_branch() {
-        assertTrue(translatedCode.contains("System.currentTimeMillis() - currentTime > 30"),
+        assertTrue(translatedCode.contains("System.currentTimeMillis() - startTime >= 30"),
                 "Timer branch should check 30ms elapsed");
     }
 
     @Test
     public void test_event_based_gateway_join_message_branch() {
-        assertTrue(translatedCode.contains("in('Message_2g93ger')@self within pollTimeOut"),
+        assertTrue(translatedCode.contains("in('Message_2g93ger')@self within 1000"),
                 "Join message branch should poll for Message_2g93ger");
     }
 
     @Test
     public void test_event_based_gateway_not_join_message_branch() {
-        assertTrue(translatedCode.contains("in('Message_0rm7e5v')@self within pollTimeOut"),
+        assertTrue(translatedCode.contains("in('Message_0rm7e5v')@self within 1000"),
                 "NotJoin message branch should poll for Message_0rm7e5v");
     }
 

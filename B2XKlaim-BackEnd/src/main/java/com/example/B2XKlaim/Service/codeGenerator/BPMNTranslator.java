@@ -61,6 +61,10 @@ import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
  
  
  /**
@@ -698,101 +702,108 @@ import lombok.extern.slf4j.Slf4j;
 
     /**
      * Visitor implementation for Event-Based Gateway (EB).
-     * This implementation uses a polling approach with timeouts to handle multiple possible events.
+     * Three patterns:
+     * 1) Messages only        → polling loop with pollTimeout
+     * 2) Single message+timer → if(in()@self within d) / else
+     * 3) Multi messages+timer → polling loop + elapsed time check for timer
      */
     @Override
     public String visit(EB eb) throws FileNotFoundException, UnsupportedEncodingException {
         StringBuilder s = new StringBuilder();
-    
-        // Start the polling loop structure
-        s.append("var long pollTimeOut = 1000; // 1 second polling timeout\n");
-        s.append("var long currentTime = System.currentTimeMillis();\n");
-        s.append("var boolean eventOccurred = false;\n");
-        s.append("while (!eventOccurred) {\n");
-    
-        boolean firstCondition = true;
-    
+
+        // Separate receive paths (message/signal) from the timer path
+        List<Map.Entry<String, List<String>>> receivePaths = new ArrayList<>();
+        Map.Entry<String, List<String>> timerPath = null;
+        long timerDuration = 0;
+
         for (Map.Entry<String, List<String>> entry : eb.getEventPathMap().entrySet()) {
-            List<String> path = entry.getValue();
-            if (path.isEmpty()) continue;
-    
-            String eventId = path.get(0);
-            BpmnElement event = bpmnElements.getElementById(eventId);
-    
-            if (event == null) continue;
-    
-            // Generate condition based on event type
-            String condition = null;
-    
+            if (entry.getValue().isEmpty()) continue;
+            BpmnElement event = bpmnElements.getElementById(entry.getValue().get(0));
             if (event instanceof TCE) {
-                TCE timer = (TCE) event;
-                condition = String.format("System.currentTimeMillis() - currentTime > %d", timer.getDuration());
-            } else if (event instanceof MIC) {
-                MIC mic = (MIC) event;
-                condition = String.format("in('%s')@self within pollTimeOut", mic.getMessageId());
-            } else if (event instanceof SIC) {
-                SIC sic = (SIC) event;
-                String location = sic.getSignalSenderName();
-                if (currentParamMap != null && currentParamMap.containsKey(location)) {
-                    location = currentParamMap.get(location);
-                }
-                condition = String.format("read('%s')@%s within pollTimeOut", sic.getSignalId(), location);
+                timerPath = entry;
+                timerDuration = ((TCE) event).getDuration();
             } else {
-                // Default fallback for other event types
-                condition = String.format("in('%s')@self within pollTimeOut", eventId);
+                receivePaths.add(entry);
             }
-    
-            if (condition == null) continue;
-    
-            // Add the condition check with proper indentation
-            if (firstCondition) {
-                s.append("        if (").append(condition).append(") {\n");
-                firstCondition = false;
-            } else {
-                s.append("        } else if (").append(condition).append(") {\n");
-            }
-    
-            // Process elements in this path
-            for (int i = 1; i < path.size(); i++) {
-                BpmnElement element = bpmnElements.getElementById(path.get(i));
-                if (element != null) {
-                    String elementCode = element.accept(this);
-                    // Make sure to indent properly here
-                    String[] lines = elementCode.split("\n");
-                    for (String line : lines) {
-                        if (!line.trim().isEmpty()) {
-                            s.append("            ").append(line).append("\n");
-                        }
-                    }
-    
-                    // Add sequence flow handling
-                    String outgoingEdge = element.getOutgoingEdge();
-                    if (outgoingEdge != null && !outgoingEdge.isEmpty()) {
-                        BpmnElement sequence = bpmnElements.getElementById(outgoingEdge);
-                        if (sequence != null) {
-                            String seqCode = sequence.accept(this);
-                            String[] seqLines = seqCode.split("\n");
-                            for (String line : seqLines) {
-                                if (!line.trim().isEmpty()) {
-                                    s.append("            ").append(line).append("\n");
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-    
-            s.append("            eventOccurred = true;\n");
         }
-    
-        s.append("        }\n");
-        s.append("    }\n");
-    
+
+        boolean hasTimer = timerPath != null;
+        boolean singleReceive = receivePaths.size() == 1;
+
+        if (hasTimer && singleReceive) {
+            // Pattern 2: single message + timer → if/else with timer duration as within
+            Map.Entry<String, List<String>> msgEntry = receivePaths.get(0);
+            s.append(String.format("if(%s){\n", buildReceiveCondition(msgEntry.getValue(), timerDuration)));
+            appendPathBody(s, msgEntry.getValue());
+            s.append("} else {\n");
+            appendPathBody(s, timerPath.getValue());
+            s.append("}\n");
+        } else {
+            // Pattern 1 (no timer) or Pattern 3 (multi messages + timer)
+            s.append("var boolean eventOccured = false\n");
+            if (hasTimer) {
+                s.append("var long startTime = System.currentTimeMillis()\n");
+            }
+            s.append("while(!eventOccured){\n");
+
+            boolean first = true;
+            for (Map.Entry<String, List<String>> entry : receivePaths) {
+                String condition = buildReceiveCondition(entry.getValue(), 1000);
+                if (first) {
+                    s.append(String.format("  if(%s){\n", condition));
+                    first = false;
+                } else {
+                    s.append(String.format("  } else if(%s){\n", condition));
+                }
+                s.append("    eventOccured = true\n");
+                appendPathBody(s, entry.getValue());
+            }
+
+            if (hasTimer) {
+                s.append(String.format("  } else if(System.currentTimeMillis() - startTime >= %d){\n", timerDuration));
+                s.append("    eventOccured = true\n");
+                appendPathBody(s, timerPath.getValue());
+            }
+
+            s.append("  }\n");
+            s.append("}\n");
+        }
+
         if (eb.getOutgoingEdge() != null) {
-            s.append("    out('").append(eb.getOutgoingEdge()).append("')@self\n");
+            s.append("out('").append(eb.getOutgoingEdge()).append("')@self\n");
         }
-    
+
         return s.toString();
+    }
+
+    private String buildReceiveCondition(List<String> path, long timeout) {
+        BpmnElement event = bpmnElements.getElementById(path.get(0));
+        if (event instanceof MIC) {
+            return String.format("in('%s')@self within %d", ((MIC) event).getMessageId(), timeout);
+        } else if (event instanceof SIC) {
+            SIC sic = (SIC) event;
+            String location = sic.getSignalSenderName();
+            if (currentParamMap != null && currentParamMap.containsKey(location)) {
+                location = currentParamMap.get(location);
+            }
+            return String.format("read('%s')@%s within %d", sic.getSignalId(), location, timeout);
+        }
+        return String.format("in('%s')@self within %d", path.get(0), timeout);
+    }
+
+    private void appendPathBody(StringBuilder s, List<String> path) throws FileNotFoundException, UnsupportedEncodingException {
+        for (int i = 1; i < path.size(); i++) {
+            BpmnElement element = bpmnElements.getElementById(path.get(i));
+            if (element == null) continue;
+            s.append("  ").append(element.accept(this));
+            String outEdge = element.getOutgoingEdge();
+            if (outEdge != null && !outEdge.isEmpty()) {
+                BpmnElement sequence = bpmnElements.getElementById(outEdge);
+                if (sequence != null) {
+                    s.append("  ").append(sequence.accept(this));
+                }
+            }
+        }
     }
 
 

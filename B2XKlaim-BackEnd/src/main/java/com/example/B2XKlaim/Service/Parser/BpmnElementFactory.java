@@ -931,37 +931,124 @@ public class BpmnElementFactory {
         return new AND(andId, flowElementMap, caOutgoing);
     }
 
-    private LP processLoop(NodeList outgoings, String loopID){
-        String loopCondition = null;
-        List<String> elementsInsideLoop = new ArrayList<>();
-        String loopExitEdge = null;
-
+    private LP processLoop(NodeList outgoings, String loopID) {
         Element xorMerge = getElementById(loopID);
         String outgoingMerge = xorMerge.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
-        Element xorSplit = getNextElementByFlowId(outgoingMerge);
+
+        // Find the loop's XOR split by searching for an XOR split with a back-edge to loopID
+        Element xorSplit = findLoopSplit(loopID);
+        if (xorSplit == null) return null;
+
         Map<String, Element> loopOutgoingFlow = findLoopOutgoingFlows(xorSplit);
+        if (!loopOutgoingFlow.containsKey("withCondition")) return null;
 
-        if (loopOutgoingFlow.containsKey("withCondition")) {
-            loopCondition = getConditionExpression(loopOutgoingFlow.get("withCondition"));
+        String loopCondition = getConditionExpression(loopOutgoingFlow.get("withCondition"));
+        String loopExitEdge = loopOutgoingFlow.containsKey("withoutCondition")
+                ? loopOutgoingFlow.get("withoutCondition").getAttribute("id") : null;
+        if (loopCondition == null || loopExitEdge == null) return null;
 
-            // Collect elements inside the loop, starting from the target of the loopOutgoingFlow
-            String targetRef = loopOutgoingFlow.get("withCondition").getAttribute("targetRef");
-            Element currentElement = getElementById(targetRef);
+        // Collect loop body: walk from merge to split, skipping merge gateways
+        // and jumping over composite elements (EB, AND, nested XOR)
+        List<String> elementsInsideLoop = collectLoopBody(
+                outgoingMerge, xorSplit.getAttribute("id"), loopID);
 
-            while (!currentElement.getAttribute("id").equals(loopID)) {
-                elementsInsideLoop.add(currentElement.getAttribute("id"));
-                currentElement = getNextElement(currentElement);
-            }
-
-            loopExitEdge = loopOutgoingFlow.containsKey("withoutCondition")
-                    ? loopOutgoingFlow.get("withoutCondition").getAttribute("id")
-                    : null;
+        // Also collect elements on the loop-back branch (split → merge)
+        String targetRef = loopOutgoingFlow.get("withCondition").getAttribute("targetRef");
+        Element current = getElementById(targetRef);
+        while (current != null && !current.getAttribute("id").equals(loopID)) {
+            elementsInsideLoop.add(current.getAttribute("id"));
+            current = getNextElement(current);
         }
 
-        if (loopCondition != null && !elementsInsideLoop.isEmpty() && loopExitEdge != null) {
-            // Update elementsInLoop set after confirming a valid loop structure
-            List<String> elementsInLoop = new ArrayList<>(elementsInsideLoop);
-            return new LP(loopID, loopCondition, elementsInLoop, loopExitEdge);
+        if (elementsInsideLoop.isEmpty()) return null;
+        return new LP(loopID, loopCondition, new ArrayList<>(elementsInsideLoop), loopExitEdge);
+    }
+
+    /**
+     * Search all XOR splits in the document for one with a direct back-edge to loopMergeId.
+     */
+    private Element findLoopSplit(String loopMergeId) {
+        NodeList allGateways = document.getElementsByTagName("bpmn:exclusiveGateway");
+        for (int i = 0; i < allGateways.getLength(); i++) {
+            Element gw = (Element) allGateways.item(i);
+            if (isXORSplit(gw) && hasDirectBackEdgeTo(gw, loopMergeId)) {
+                return gw;
+            }
+        }
+        return null;
+    }
+
+    private boolean hasDirectBackEdgeTo(Element xorSplit, String targetId) {
+        NodeList splitOutgoings = xorSplit.getElementsByTagName("bpmn:outgoing");
+        for (int i = 0; i < splitOutgoings.getLength(); i++) {
+            Element outFlow = getElementByFlowId(splitOutgoings.item(i).getTextContent());
+            if (outFlow != null && outFlow.getAttribute("targetRef").equals(targetId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Walk from entryFlowId to splitId, collecting translatable elements.
+     * Skips XOR merge gateways and jumps over composite elements (EB, AND, nested XOR).
+     */
+    private List<String> collectLoopBody(String entryFlowId, String splitId, String loopMergeId) {
+        List<String> elements = new ArrayList<>();
+        Element current = getNextElementByFlowId(entryFlowId);
+        Set<String> visited = new HashSet<>();
+
+        while (current != null) {
+            String id = current.getAttribute("id");
+            if (id.equals(splitId) || visited.contains(id)) break;
+            visited.add(id);
+
+            // Skip pure merge gateways — they're navigational, not translatable
+            if (isXORMerge(current) || isANDMerge(current)) {
+                current = getNextElement(current);
+                continue;
+            }
+
+            elements.add(id);
+
+            if (current.getTagName().equals("bpmn:eventBasedGateway")) {
+                Element ebMerge = findMergeForEventBasedGateway(current);
+                if (ebMerge == null) break;
+                current = getNextElement(ebMerge);
+            } else if (isANDSplit(current)) {
+                NodeList nestedOutgoings = current.getElementsByTagName("bpmn:outgoing");
+                AND nestedAND = processANDGateway(nestedOutgoings, id);
+                if (nestedAND == null || nestedAND.getOutgoingEdge() == null) break;
+                current = getNextElementByFlowId(nestedAND.getOutgoingEdge());
+            } else if (isXORSplit(current)) {
+                // Nested if-else inside the loop body
+                NodeList nestedOutgoings = current.getElementsByTagName("bpmn:outgoing");
+                XOR nestedXOR = processXORGateway(nestedOutgoings, id);
+                if (nestedXOR == null || nestedXOR.getOutgoingEdge() == null) break;
+                current = getNextElementByFlowId(nestedXOR.getOutgoingEdge());
+            } else {
+                current = getNextElement(current);
+            }
+        }
+        return elements;
+    }
+
+    /**
+     * Follow one path from an event-based gateway to find the XOR merge
+     * where its branches converge.
+     */
+    private Element findMergeForEventBasedGateway(Element ebGateway) {
+        NodeList ebOutgoings = ebGateway.getElementsByTagName("bpmn:outgoing");
+        if (ebOutgoings.getLength() == 0) return null;
+
+        Element current = getNextElementByFlowId(ebOutgoings.item(0).getTextContent());
+        Set<String> visited = new HashSet<>();
+        while (current != null) {
+            String id = current.getAttribute("id");
+            if (visited.contains(id)) return null;
+            visited.add(id);
+            if (isXORMerge(current)) return current;
+            current = getNextElement(current);
         }
         return null;
     }
