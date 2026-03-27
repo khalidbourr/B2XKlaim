@@ -187,6 +187,9 @@ function getSupportedCreateOptions() {
     { label: 'Signal end event', actionName: 'signal-end', className: 'bpmn-icon-end-event-signal', target: { type: 'bpmn:EndEvent', eventDefinitionType: 'bpmn:SignalEventDefinition' }, group: EVENT_GROUP },
     { label: 'Terminate end event', actionName: 'terminate-end', className: 'bpmn-icon-end-event-terminate', target: { type: 'bpmn:EndEvent', eventDefinitionType: 'bpmn:TerminateEventDefinition' }, group: EVENT_GROUP },
 
+    // Data
+    { label: 'Data object', actionName: 'data-object', className: 'bpmn-icon-data-object', target: { type: 'bpmn:DataObjectReference' }, group: { id: 'data', name: 'Data' } },
+
     // Participants
     { label: 'Expanded pool/participant', search: 'Non-empty pool/participant', actionName: 'expanded-pool', className: 'bpmn-icon-participant', target: { type: 'bpmn:Participant', isExpanded: true }, group: PARTICIPANT_GROUP },
     { label: 'Empty pool/participant', search: 'Collapsed pool/participant', actionName: 'collapsed-pool', className: 'bpmn-icon-lane', target: { type: 'bpmn:Participant', isExpanded: false }, group: PARTICIPANT_GROUP },

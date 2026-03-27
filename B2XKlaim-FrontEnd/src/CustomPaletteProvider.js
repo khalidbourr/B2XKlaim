@@ -44,7 +44,7 @@ export default class MyPaletteProvider extends PaletteProvider {
         };
 
         delete actions['create.data-store'];
-        delete actions['create.data-object'];
+
         delete actions['create.cancel-event'];
         delete actions['create.escalation-event'];
         delete actions['create.task'];
