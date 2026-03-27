@@ -153,11 +153,14 @@ import { CustomCreateMenuProvider, CustomAppendMenuProvider } from './CustomCrea
 import CustomPropertiesProvider from './CustomPropertiesProvider.js';
 import CallActivityDrilldownProvider from './CallActivityDrilldownProvider.js';
 
+// Store modeler outside Vue's reactivity system to prevent infinite recursion
+// when bpmn-js internally traverses model elements (e.g. auto-resize)
+let _bpmnModeler = null;
+
 export default {
   name: "App",
   data() {
     return {
-      bpmnModeler: null,
       activeTab: 'collaboration',
       showButtons: false,
       collaboration: '',
@@ -200,7 +203,7 @@ export default {
   },
 
   async mounted() {
-    this.bpmnModeler = new BpmnModeler({
+    _bpmnModeler = new BpmnModeler({
       container: "#canvas",
       propertiesPanel: {
         parent: "#properties",
@@ -223,7 +226,7 @@ export default {
 
     // Forward document keyboard events to the bpmn-js keyboard handler
     // so Ctrl+Z/Y and other shortcuts work without needing to click the canvas first
-    const keyboard = this.bpmnModeler.get('keyboard');
+    const keyboard = _bpmnModeler.get('keyboard');
     document.addEventListener('keydown', (event) => {
       // Skip if user is typing in an input, textarea, or contenteditable
       const tag = event.target.tagName;
@@ -240,7 +243,7 @@ export default {
       keyboard._keyHandler(event, 'keyboard.keyup');
     });
 
-    const eventBus = this.bpmnModeler.get('eventBus');
+    const eventBus = _bpmnModeler.get('eventBus');
 
     // Listen for drill-down into Call Activities
     eventBus.on('callActivity.drilldown', (event) => {
@@ -248,11 +251,15 @@ export default {
     });
 
     // Auto-sync participant name to its process and auto-save to localStorage
+    let isSaving = false;
     eventBus.on('commandStack.changed', () => {
       // Skip auto-save during tab switches to prevent overwriting process XML
       if (this.isSwitchingProcess) return;
+      // Prevent re-entrancy when removeElements triggers another commandStack.changed
+      if (isSaving) return;
+      isSaving = true;
 
-      const elementRegistry = this.bpmnModeler.get('elementRegistry');
+      const elementRegistry = _bpmnModeler.get('elementRegistry');
 
       elementRegistry.filter(el => el.type === 'bpmn:Participant').forEach(participant => {
         const bo = participant.businessObject;
@@ -279,7 +286,7 @@ export default {
       });
 
       // Auto-save after every change
-      this.saveToLocalStorage();
+      this.saveToLocalStorage().finally(() => { isSaving = false; });
     });
   },
   methods: {
@@ -303,10 +310,10 @@ export default {
     // Save current session to localStorage
     async saveToLocalStorage() {
       try {
-        if (this.bpmnModeler) {
+        if (_bpmnModeler) {
           // Remove incomplete edges (no target) before saving
-          const elementRegistry = this.bpmnModeler.get('elementRegistry');
-          const modeling = this.bpmnModeler.get('modeling');
+          const elementRegistry = _bpmnModeler.get('elementRegistry');
+          const modeling = _bpmnModeler.get('modeling');
           const incompleteFlows = elementRegistry.filter(
             el => el.type === 'bpmn:SequenceFlow' && (!el.target || !el.source)
           );
@@ -316,7 +323,7 @@ export default {
 
           const currentProcess = this.bpmnProcesses.get(this.activeProcess);
           if (currentProcess) {
-            const currentXML = await this.bpmnModeler.saveXML({ format: true });
+            const currentXML = await _bpmnModeler.saveXML({ format: true });
             currentProcess.xml = currentXML.xml;
           }
         }
@@ -343,9 +350,9 @@ export default {
           const activeKey = data.activeProcess || 'main';
           const processData = this.bpmnProcesses.get(activeKey);
           if (processData && processData.xml) {
-            await this.bpmnModeler.importXML(processData.xml);
+            await _bpmnModeler.importXML(processData.xml);
             this.activeProcess = activeKey;
-            this.bpmnModeler.get('canvas').zoom('fit-viewport');
+            _bpmnModeler.get('canvas').zoom('fit-viewport');
             this.$forceUpdate();
             return;
           }
@@ -355,8 +362,8 @@ export default {
       }
 
       // Fallback: load default empty diagram
-      await this.bpmnModeler.importXML(this.getDefaultDiagram());
-      this.bpmnModeler.get('canvas').zoom('fit-viewport');
+      await _bpmnModeler.importXML(this.getDefaultDiagram());
+      _bpmnModeler.get('canvas').zoom('fit-viewport');
     },
 
     // Clear everything and start a fresh project
@@ -373,8 +380,8 @@ export default {
       this.scriptTaskProcs = {};
       this.eventSubProcesses = {};
 
-      await this.bpmnModeler.importXML(this.getDefaultDiagram());
-      this.bpmnModeler.get('canvas').zoom('fit-viewport');
+      await _bpmnModeler.importXML(this.getDefaultDiagram());
+      _bpmnModeler.get('canvas').zoom('fit-viewport');
       this.$forceUpdate();
     },
 
@@ -398,7 +405,7 @@ export default {
         }
         activityName = activityName.trim();
         // Set the name on the Call Activity element
-        const modeling = this.bpmnModeler.get('modeling');
+        const modeling = _bpmnModeler.get('modeling');
         modeling.updateProperties(element, { name: activityName });
       }
 
@@ -415,7 +422,7 @@ export default {
 
       if (existingKey) {
         // Reuse existing process — just link and navigate
-        const modeling = this.bpmnModeler.get('modeling');
+        const modeling = _bpmnModeler.get('modeling');
         modeling.updateProperties(element, { calledElement: sanitizedName });
         await this.switchToProcess(existingKey);
         return;
@@ -430,7 +437,7 @@ export default {
       });
 
       // Set calledElement directly to the name (readable in generated X-Klaim code)
-      const modeling = this.bpmnModeler.get('modeling');
+      const modeling = _bpmnModeler.get('modeling');
       modeling.updateProperties(element, {
         calledElement: sanitizedName
       });
@@ -467,11 +474,11 @@ export default {
         try {
           this.bpmnProcesses = new Map([['main', { xml: content, name: 'Main Process' }]]);
           this.activeProcess = 'main';
-          const { warnings } = await this.bpmnModeler.importXML(content);
+          const { warnings } = await _bpmnModeler.importXML(content);
           if (warnings.length) {
             console.warn('Warnings while importing BPMN:', warnings);
           }
-          this.bpmnModeler.get('canvas').zoom('fit-viewport');
+          _bpmnModeler.get('canvas').zoom('fit-viewport');
           this.$forceUpdate();
         } catch (err) {
           console.error('Error importing BPMN diagram:', err);
@@ -499,9 +506,9 @@ export default {
       const activeKey = projectData.activeProcess || 'main';
       const processData = this.bpmnProcesses.get(activeKey);
       if (processData) {
-        await this.bpmnModeler.importXML(processData.xml);
+        await _bpmnModeler.importXML(processData.xml);
         this.activeProcess = activeKey;
-        this.bpmnModeler.get('canvas').zoom('fit-viewport');
+        _bpmnModeler.get('canvas').zoom('fit-viewport');
       }
       this.$forceUpdate();
     },
@@ -509,10 +516,10 @@ export default {
     async saveBPMN() {
       try {
         // Save the currently active process XML first
-        if (this.bpmnModeler) {
+        if (_bpmnModeler) {
           const currentProcess = this.bpmnProcesses.get(this.activeProcess);
           if (currentProcess) {
-            const currentXML = await this.bpmnModeler.saveXML({ format: true });
+            const currentXML = await _bpmnModeler.saveXML({ format: true });
             currentProcess.xml = currentXML.xml;
           }
         }
@@ -592,8 +599,8 @@ export default {
           this.isSwitchingProcess = true;
           const mainData = this.bpmnProcesses.get('main');
           if (mainData && mainData.xml) {
-            await this.bpmnModeler.importXML(mainData.xml);
-            this.bpmnModeler.get('canvas').zoom('fit-viewport');
+            await _bpmnModeler.importXML(mainData.xml);
+            _bpmnModeler.get('canvas').zoom('fit-viewport');
           }
           this.isSwitchingProcess = false;
         }
@@ -606,10 +613,10 @@ export default {
 
     async switchToProcess(processName) {
       try {
-        if (this.bpmnModeler) {
+        if (_bpmnModeler) {
           const currentProcess = this.bpmnProcesses.get(this.activeProcess);
           if (currentProcess) {
-            const currentXML = await this.bpmnModeler.saveXML({ format: true });
+            const currentXML = await _bpmnModeler.saveXML({ format: true });
             currentProcess.xml = currentXML.xml;
           }
         }
@@ -622,7 +629,7 @@ export default {
           this.activeProcess = processName;
           this.isSwitchingProcess = true;
 
-          const result = await this.bpmnModeler.importXML(processData.xml);
+          const result = await _bpmnModeler.importXML(processData.xml);
 
           this.isSwitchingProcess = false;
 
@@ -630,7 +637,7 @@ export default {
             console.warn('Warnings while switching process:', result.warnings);
           }
 
-          this.bpmnModeler.get('canvas').zoom('fit-viewport');
+          _bpmnModeler.get('canvas').zoom('fit-viewport');
           this.saveToLocalStorage();
         } else {
           throw new Error(`Process data not found for: ${processName}`);
@@ -868,10 +875,10 @@ export default {
     async generateCode() {
       try {
         // Save current active process first
-        if (this.bpmnModeler) {
+        if (_bpmnModeler) {
           const currentProcess = this.bpmnProcesses.get(this.activeProcess);
           if (currentProcess) {
-            const currentXML = await this.bpmnModeler.saveXML({ format: true });
+            const currentXML = await _bpmnModeler.saveXML({ format: true });
             currentProcess.xml = currentXML.xml;
           }
         }
