@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_and_in_lp"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="Camunda Modeler" exporterVersion="5.28.0">
+
+  <!-- AND_in_LP: Start → TaskPre → AND split →
+         Branch1: Loop( TaskL1 → TaskL2 ) → TaskA1
+         Branch2: TaskB1 → TaskB2
+       → AND merge → TaskPost → End -->
+  <bpmn:process id="Process_AND_in_LP" name="AND_in_LP" isExecutable="false">
+
+    <bpmn:startEvent id="Start_1" name="start">
+      <bpmn:outgoing>Flow_s_to_pre</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:scriptTask id="Task_Pre" name="OpenConnection">
+      <bpmn:incoming>Flow_s_to_pre</bpmn:incoming>
+      <bpmn:outgoing>Flow_pre_to_asplit</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- AND split (2 branches) -->
+    <bpmn:parallelGateway id="AND_Split">
+      <bpmn:incoming>Flow_pre_to_asplit</bpmn:incoming>
+      <bpmn:outgoing>Flow_as_to_lmerge</bpmn:outgoing>
+      <bpmn:outgoing>Flow_as_to_B1</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Branch 1: Loop followed by a task -->
+    <bpmn:exclusiveGateway id="LP_Merge">
+      <bpmn:incoming>Flow_as_to_lmerge</bpmn:incoming>
+      <bpmn:incoming>Flow_loop_back</bpmn:incoming>
+      <bpmn:outgoing>Flow_lm_to_L1</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:scriptTask id="Task_L1" name="SendHeartbeat">
+      <bpmn:incoming>Flow_lm_to_L1</bpmn:incoming>
+      <bpmn:outgoing>Flow_L1_to_L2</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Task_L2" name="WaitInterval">
+      <bpmn:incoming>Flow_L1_to_L2</bpmn:incoming>
+      <bpmn:outgoing>Flow_L2_to_lsplit</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:exclusiveGateway id="LP_Split" default="Flow_lp_exit_to_A1">
+      <bpmn:incoming>Flow_L2_to_lsplit</bpmn:incoming>
+      <bpmn:outgoing>Flow_loop_back</bpmn:outgoing>
+      <bpmn:outgoing>Flow_lp_exit_to_A1</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:scriptTask id="Task_A1" name="ConfirmAlive">
+      <bpmn:incoming>Flow_lp_exit_to_A1</bpmn:incoming>
+      <bpmn:outgoing>Flow_A1_to_amerge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- Branch 2: sequence of tasks -->
+    <bpmn:scriptTask id="Task_B1" name="DownloadData">
+      <bpmn:incoming>Flow_as_to_B1</bpmn:incoming>
+      <bpmn:outgoing>Flow_B1_to_B2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_B2" name="ValidateData">
+      <bpmn:incoming>Flow_B1_to_B2</bpmn:incoming>
+      <bpmn:outgoing>Flow_B2_to_amerge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- AND merge -->
+    <bpmn:parallelGateway id="AND_Merge">
+      <bpmn:incoming>Flow_A1_to_amerge</bpmn:incoming>
+      <bpmn:incoming>Flow_B2_to_amerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_am_to_post</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:scriptTask id="Task_Post" name="CloseConnection">
+      <bpmn:incoming>Flow_am_to_post</bpmn:incoming>
+      <bpmn:outgoing>Flow_post_to_end</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_1" name="end">
+      <bpmn:incoming>Flow_post_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_s_to_pre" sourceRef="Start_1" targetRef="Task_Pre" />
+    <bpmn:sequenceFlow id="Flow_pre_to_asplit" sourceRef="Task_Pre" targetRef="AND_Split" />
+    <bpmn:sequenceFlow id="Flow_as_to_lmerge" sourceRef="AND_Split" targetRef="LP_Merge" />
+    <bpmn:sequenceFlow id="Flow_as_to_B1" sourceRef="AND_Split" targetRef="Task_B1" />
+    <bpmn:sequenceFlow id="Flow_lm_to_L1" sourceRef="LP_Merge" targetRef="Task_L1" />
+    <bpmn:sequenceFlow id="Flow_L1_to_L2" sourceRef="Task_L1" targetRef="Task_L2" />
+    <bpmn:sequenceFlow id="Flow_L2_to_lsplit" sourceRef="Task_L2" targetRef="LP_Split" />
+    <bpmn:sequenceFlow id="Flow_loop_back" sourceRef="LP_Split" targetRef="LP_Merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">isAlive == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_lp_exit_to_A1" sourceRef="LP_Split" targetRef="Task_A1" />
+    <bpmn:sequenceFlow id="Flow_A1_to_amerge" sourceRef="Task_A1" targetRef="AND_Merge" />
+    <bpmn:sequenceFlow id="Flow_B1_to_B2" sourceRef="Task_B1" targetRef="Task_B2" />
+    <bpmn:sequenceFlow id="Flow_B2_to_amerge" sourceRef="Task_B2" targetRef="AND_Merge" />
+    <bpmn:sequenceFlow id="Flow_am_to_post" sourceRef="AND_Merge" targetRef="Task_Post" />
+    <bpmn:sequenceFlow id="Flow_post_to_end" sourceRef="Task_Post" targetRef="End_1" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_AND_in_LP">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1"><dc:Bounds x="152" y="302" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Pre_di" bpmnElement="Task_Pre"><dc:Bounds x="240" y="280" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AND_Split_di" bpmnElement="AND_Split"><dc:Bounds x="395" y="295" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LP_Merge_di" bpmnElement="LP_Merge" isMarkerVisible="true"><dc:Bounds x="495" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_L1_di" bpmnElement="Task_L1"><dc:Bounds x="600" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_L2_di" bpmnElement="Task_L2"><dc:Bounds x="750" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LP_Split_di" bpmnElement="LP_Split" isMarkerVisible="true"><dc:Bounds x="895" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_A1_di" bpmnElement="Task_A1"><dc:Bounds x="990" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_B1_di" bpmnElement="Task_B1"><dc:Bounds x="600" y="400" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_B2_di" bpmnElement="Task_B2"><dc:Bounds x="750" y="400" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AND_Merge_di" bpmnElement="AND_Merge"><dc:Bounds x="1135" y="295" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Post_di" bpmnElement="Task_Post"><dc:Bounds x="1240" y="280" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1"><dc:Bounds x="1392" y="302" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_s_to_pre_di" bpmnElement="Flow_s_to_pre"><di:waypoint x="188" y="320" /><di:waypoint x="240" y="320" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_pre_to_asplit_di" bpmnElement="Flow_pre_to_asplit"><di:waypoint x="340" y="320" /><di:waypoint x="395" y="320" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_as_to_lmerge_di" bpmnElement="Flow_as_to_lmerge"><di:waypoint x="420" y="295" /><di:waypoint x="420" y="180" /><di:waypoint x="495" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_as_to_B1_di" bpmnElement="Flow_as_to_B1"><di:waypoint x="420" y="345" /><di:waypoint x="420" y="440" /><di:waypoint x="600" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_lm_to_L1_di" bpmnElement="Flow_lm_to_L1"><di:waypoint x="545" y="180" /><di:waypoint x="600" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_L1_to_L2_di" bpmnElement="Flow_L1_to_L2"><di:waypoint x="700" y="180" /><di:waypoint x="750" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_L2_to_lsplit_di" bpmnElement="Flow_L2_to_lsplit"><di:waypoint x="850" y="180" /><di:waypoint x="895" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_loop_back_di" bpmnElement="Flow_loop_back"><di:waypoint x="920" y="155" /><di:waypoint x="920" y="80" /><di:waypoint x="520" y="80" /><di:waypoint x="520" y="155" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_lp_exit_to_A1_di" bpmnElement="Flow_lp_exit_to_A1"><di:waypoint x="945" y="180" /><di:waypoint x="990" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A1_to_amerge_di" bpmnElement="Flow_A1_to_amerge"><di:waypoint x="1090" y="180" /><di:waypoint x="1160" y="180" /><di:waypoint x="1160" y="295" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_B1_to_B2_di" bpmnElement="Flow_B1_to_B2"><di:waypoint x="700" y="440" /><di:waypoint x="750" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_B2_to_amerge_di" bpmnElement="Flow_B2_to_amerge"><di:waypoint x="850" y="440" /><di:waypoint x="1160" y="440" /><di:waypoint x="1160" y="345" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_am_to_post_di" bpmnElement="Flow_am_to_post"><di:waypoint x="1185" y="320" /><di:waypoint x="1240" y="320" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_post_to_end_di" bpmnElement="Flow_post_to_end"><di:waypoint x="1340" y="320" /><di:waypoint x="1392" y="320" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

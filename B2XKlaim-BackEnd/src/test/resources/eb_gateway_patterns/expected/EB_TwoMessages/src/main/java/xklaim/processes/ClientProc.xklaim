@@ -1,0 +1,34 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.ProcessReject
+import xklaim.tasks.ProcessAccept
+import xklaim.tasks.SendRequest
+import xklaim.tasks.Finish
+
+proc ClientProc() {
+
+
+  eval(new SendRequest('Fcl_2'/* TODO: Pass other necessary args */))@self
+  in('Fcl_2')@self
+
+  var boolean eventOccured = false
+  while(!eventOccured){
+    if (in('Msg_Reject')@self within 1000){
+      eventOccured = true
+      eval(new ProcessReject('Fcl_r2'/* TODO: Pass other necessary args */))@self
+      in('Fcl_r2')@self
+
+    } else if (in('Msg_Accept')@self within 1000){
+      eventOccured = true
+      eval(new ProcessAccept('Fcl_a2'/* TODO: Pass other necessary args */))@self
+      in('Fcl_a2')@self
+
+    }
+  }
+
+
+  eval(new Finish('Fcl_final'/* TODO: Pass other necessary args */))@self
+  in('Fcl_final')@self
+
+}

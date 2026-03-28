@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc CloseConnection(String edge){
+
+ /* Placeholder implementation for Script Task 'CloseConnection' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

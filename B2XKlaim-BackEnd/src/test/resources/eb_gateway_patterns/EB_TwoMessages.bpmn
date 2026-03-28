@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_eb2" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.28.0">
+  <bpmn:collaboration id="Collab_EB2">
+    <bpmn:participant id="Part_Server" name="Server" processRef="Proc_Server" />
+    <bpmn:participant id="Part_Client" name="Client" processRef="Proc_Client" />
+    <bpmn:messageFlow id="MF_Accept" name="accept" sourceRef="Evt_SendAccept" targetRef="Evt_CatchAccept" />
+    <bpmn:messageFlow id="MF_Reject" name="reject" sourceRef="Evt_SendReject" targetRef="Evt_CatchReject" />
+  </bpmn:collaboration>
+
+  <!-- Server: Start → Evaluate(ST) → XOR → (cond: SendAccept) / (default: SendReject) → XOR merge → Log(ST) → End -->
+  <bpmn:process id="Proc_Server" name="ServerProc" isExecutable="false">
+    <bpmn:startEvent id="Start_Sv" name="start">
+      <bpmn:outgoing>Fsv_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Task_Evaluate" name="Evaluate">
+      <bpmn:incoming>Fsv_1</bpmn:incoming>
+      <bpmn:outgoing>Fsv_2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="XOR_Decision" default="Fsv_to_reject">
+      <bpmn:incoming>Fsv_2</bpmn:incoming>
+      <bpmn:outgoing>Fsv_to_accept</bpmn:outgoing>
+      <bpmn:outgoing>Fsv_to_reject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateThrowEvent id="Evt_SendAccept" name="sendAccept">
+      <bpmn:incoming>Fsv_to_accept</bpmn:incoming>
+      <bpmn:outgoing>Fsv_a1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_SendAccept" messageRef="Msg_Accept" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="Evt_SendReject" name="sendReject">
+      <bpmn:incoming>Fsv_to_reject</bpmn:incoming>
+      <bpmn:outgoing>Fsv_r1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_SendReject" messageRef="Msg_Reject" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:exclusiveGateway id="XOR_Merge_Sv">
+      <bpmn:incoming>Fsv_a1</bpmn:incoming>
+      <bpmn:incoming>Fsv_r1</bpmn:incoming>
+      <bpmn:outgoing>Fsv_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_LogSv" name="LogDecision">
+      <bpmn:incoming>Fsv_end</bpmn:incoming>
+      <bpmn:outgoing>Fsv_final</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_Sv" name="end">
+      <bpmn:incoming>Fsv_final</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Fsv_1" sourceRef="Start_Sv" targetRef="Task_Evaluate" />
+    <bpmn:sequenceFlow id="Fsv_2" sourceRef="Task_Evaluate" targetRef="XOR_Decision" />
+    <bpmn:sequenceFlow id="Fsv_to_accept" sourceRef="XOR_Decision" targetRef="Evt_SendAccept">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">score &gt; 50</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Fsv_to_reject" sourceRef="XOR_Decision" targetRef="Evt_SendReject" />
+    <bpmn:sequenceFlow id="Fsv_a1" sourceRef="Evt_SendAccept" targetRef="XOR_Merge_Sv" />
+    <bpmn:sequenceFlow id="Fsv_r1" sourceRef="Evt_SendReject" targetRef="XOR_Merge_Sv" />
+    <bpmn:sequenceFlow id="Fsv_end" sourceRef="XOR_Merge_Sv" targetRef="Task_LogSv" />
+    <bpmn:sequenceFlow id="Fsv_final" sourceRef="Task_LogSv" targetRef="End_Sv" />
+  </bpmn:process>
+
+  <!-- Client: Start → SendRequest(ST) → EB Gateway → (CatchAccept → ProcessAccept(ST)) / (CatchReject → ProcessReject(ST)) → XOR merge → Finish(ST) → End -->
+  <bpmn:process id="Proc_Client" name="ClientProc" isExecutable="false">
+    <bpmn:startEvent id="Start_Cl" name="start">
+      <bpmn:outgoing>Fcl_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Task_SendReq" name="SendRequest">
+      <bpmn:incoming>Fcl_1</bpmn:incoming>
+      <bpmn:outgoing>Fcl_2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:eventBasedGateway id="EB_Response">
+      <bpmn:incoming>Fcl_2</bpmn:incoming>
+      <bpmn:outgoing>Fcl_to_accept</bpmn:outgoing>
+      <bpmn:outgoing>Fcl_to_reject</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <!-- Path 1: accept -->
+    <bpmn:intermediateCatchEvent id="Evt_CatchAccept" name="getAccept">
+      <bpmn:incoming>Fcl_to_accept</bpmn:incoming>
+      <bpmn:outgoing>Fcl_a1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_CatchAccept" messageRef="Msg_Accept" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:scriptTask id="Task_ProcessAccept" name="ProcessAccept">
+      <bpmn:incoming>Fcl_a1</bpmn:incoming>
+      <bpmn:outgoing>Fcl_a2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <!-- Path 2: reject -->
+    <bpmn:intermediateCatchEvent id="Evt_CatchReject" name="getRejection">
+      <bpmn:incoming>Fcl_to_reject</bpmn:incoming>
+      <bpmn:outgoing>Fcl_r1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_CatchReject" messageRef="Msg_Reject" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:scriptTask id="Task_ProcessReject" name="ProcessReject">
+      <bpmn:incoming>Fcl_r1</bpmn:incoming>
+      <bpmn:outgoing>Fcl_r2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <!-- XOR merge -->
+    <bpmn:exclusiveGateway id="XOR_Merge_Cl">
+      <bpmn:incoming>Fcl_a2</bpmn:incoming>
+      <bpmn:incoming>Fcl_r2</bpmn:incoming>
+      <bpmn:outgoing>Fcl_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_Finish" name="Finish">
+      <bpmn:incoming>Fcl_end</bpmn:incoming>
+      <bpmn:outgoing>Fcl_final</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_Cl" name="end">
+      <bpmn:incoming>Fcl_final</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Fcl_1" sourceRef="Start_Cl" targetRef="Task_SendReq" />
+    <bpmn:sequenceFlow id="Fcl_2" sourceRef="Task_SendReq" targetRef="EB_Response" />
+    <bpmn:sequenceFlow id="Fcl_to_accept" sourceRef="EB_Response" targetRef="Evt_CatchAccept" />
+    <bpmn:sequenceFlow id="Fcl_to_reject" sourceRef="EB_Response" targetRef="Evt_CatchReject" />
+    <bpmn:sequenceFlow id="Fcl_a1" sourceRef="Evt_CatchAccept" targetRef="Task_ProcessAccept" />
+    <bpmn:sequenceFlow id="Fcl_a2" sourceRef="Task_ProcessAccept" targetRef="XOR_Merge_Cl" />
+    <bpmn:sequenceFlow id="Fcl_r1" sourceRef="Evt_CatchReject" targetRef="Task_ProcessReject" />
+    <bpmn:sequenceFlow id="Fcl_r2" sourceRef="Task_ProcessReject" targetRef="XOR_Merge_Cl" />
+    <bpmn:sequenceFlow id="Fcl_end" sourceRef="XOR_Merge_Cl" targetRef="Task_Finish" />
+    <bpmn:sequenceFlow id="Fcl_final" sourceRef="Task_Finish" targetRef="End_Cl" />
+  </bpmn:process>
+
+  <bpmn:message id="Msg_Accept" name="Msg_Accept" />
+  <bpmn:message id="Msg_Reject" name="Msg_Reject" />
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_EB2">
+      <bpmndi:BPMNShape id="Part_Server_di" bpmnElement="Part_Server" isHorizontal="true"><dc:Bounds x="160" y="60" width="800" height="250" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Part_Client_di" bpmnElement="Part_Client" isHorizontal="true"><dc:Bounds x="160" y="380" width="800" height="280" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Sv_di" bpmnElement="Start_Sv"><dc:Bounds x="222" y="162" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Evaluate_di" bpmnElement="Task_Evaluate"><dc:Bounds x="300" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Decision_di" bpmnElement="XOR_Decision" isMarkerVisible="true"><dc:Bounds x="445" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_SendAccept_di" bpmnElement="Evt_SendAccept"><dc:Bounds x="542" y="102" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_SendReject_di" bpmnElement="Evt_SendReject"><dc:Bounds x="542" y="222" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Merge_Sv_di" bpmnElement="XOR_Merge_Sv" isMarkerVisible="true"><dc:Bounds x="625" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_LogSv_di" bpmnElement="Task_LogSv"><dc:Bounds x="720" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Sv_di" bpmnElement="End_Sv"><dc:Bounds x="862" y="162" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Cl_di" bpmnElement="Start_Cl"><dc:Bounds x="222" y="502" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendReq_di" bpmnElement="Task_SendReq"><dc:Bounds x="300" y="480" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EB_Response_di" bpmnElement="EB_Response"><dc:Bounds x="445" y="495" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_CatchAccept_di" bpmnElement="Evt_CatchAccept"><dc:Bounds x="542" y="432" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ProcessAccept_di" bpmnElement="Task_ProcessAccept"><dc:Bounds x="610" y="410" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_CatchReject_di" bpmnElement="Evt_CatchReject"><dc:Bounds x="542" y="572" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ProcessReject_di" bpmnElement="Task_ProcessReject"><dc:Bounds x="610" y="550" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Merge_Cl_di" bpmnElement="XOR_Merge_Cl" isMarkerVisible="true"><dc:Bounds x="745" y="495" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Finish_di" bpmnElement="Task_Finish"><dc:Bounds x="830" y="480" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Cl_di" bpmnElement="End_Cl"><dc:Bounds x="962" y="502" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Fsv_1_di" bpmnElement="Fsv_1"><di:waypoint x="258" y="180" /><di:waypoint x="300" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fsv_2_di" bpmnElement="Fsv_2"><di:waypoint x="400" y="180" /><di:waypoint x="445" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fsv_to_accept_di" bpmnElement="Fsv_to_accept"><di:waypoint x="470" y="155" /><di:waypoint x="470" y="120" /><di:waypoint x="542" y="120" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fsv_to_reject_di" bpmnElement="Fsv_to_reject"><di:waypoint x="470" y="205" /><di:waypoint x="470" y="240" /><di:waypoint x="542" y="240" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fsv_a1_di" bpmnElement="Fsv_a1"><di:waypoint x="578" y="120" /><di:waypoint x="650" y="120" /><di:waypoint x="650" y="155" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fsv_r1_di" bpmnElement="Fsv_r1"><di:waypoint x="578" y="240" /><di:waypoint x="650" y="240" /><di:waypoint x="650" y="205" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fsv_end_di" bpmnElement="Fsv_end"><di:waypoint x="675" y="180" /><di:waypoint x="720" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fsv_final_di" bpmnElement="Fsv_final"><di:waypoint x="820" y="180" /><di:waypoint x="862" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_1_di" bpmnElement="Fcl_1"><di:waypoint x="258" y="520" /><di:waypoint x="300" y="520" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_2_di" bpmnElement="Fcl_2"><di:waypoint x="400" y="520" /><di:waypoint x="445" y="520" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_to_accept_di" bpmnElement="Fcl_to_accept"><di:waypoint x="470" y="495" /><di:waypoint x="470" y="450" /><di:waypoint x="542" y="450" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_to_reject_di" bpmnElement="Fcl_to_reject"><di:waypoint x="470" y="545" /><di:waypoint x="470" y="590" /><di:waypoint x="542" y="590" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_a1_di" bpmnElement="Fcl_a1"><di:waypoint x="578" y="450" /><di:waypoint x="610" y="450" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_a2_di" bpmnElement="Fcl_a2"><di:waypoint x="710" y="450" /><di:waypoint x="770" y="450" /><di:waypoint x="770" y="495" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_r1_di" bpmnElement="Fcl_r1"><di:waypoint x="578" y="590" /><di:waypoint x="610" y="590" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_r2_di" bpmnElement="Fcl_r2"><di:waypoint x="710" y="590" /><di:waypoint x="770" y="590" /><di:waypoint x="770" y="545" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_end_di" bpmnElement="Fcl_end"><di:waypoint x="795" y="520" /><di:waypoint x="830" y="520" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fcl_final_di" bpmnElement="Fcl_final"><di:waypoint x="930" y="520" /><di:waypoint x="962" y="520" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MF_Accept_di" bpmnElement="MF_Accept"><di:waypoint x="560" y="138" /><di:waypoint x="560" y="432" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MF_Reject_di" bpmnElement="MF_Reject"><di:waypoint x="560" y="258" /><di:waypoint x="560" y="572" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

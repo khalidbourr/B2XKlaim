@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc Setup(String edge){
+
+ /* Placeholder implementation for Script Task 'Setup' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

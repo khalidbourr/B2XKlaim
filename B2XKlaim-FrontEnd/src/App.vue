@@ -138,6 +138,20 @@
                       :placeholder="'Event Sub-Process Code...'" v-model="eventSubProcesses[espId][0]"></textarea>
           </div>
         </div>
+
+        <!-- AND Branch Procs Code -->
+        <div v-if="activeTab === 'and-branches' && hasAndBranchProcs" class="code-list">
+          <div v-for="(codeList, branchName) in andBranchProcs" :key="branchName" class="code-card">
+            <div class="code-card-header">
+              <span class="code-card-title"><i class="fas fa-code-branch"></i> {{ branchName }}</span>
+              <button @click="copyToClipboard(branchName)" class="copy-btn" title="Copy to clipboard">
+                <i class="fas fa-copy"></i> Copy
+              </button>
+            </div>
+            <textarea :ref="branchName" class="code-editor"
+                      :placeholder="'AND Branch Code...'" v-model="andBranchProcs[branchName][0]"></textarea>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -168,7 +182,8 @@ export default {
       callActivities: {},
       scriptTaskProcs: {},
       eventSubProcesses: {},
-      allTabs: ['collaboration', 'processes', 'event-subprocesses'],
+      andBranchProcs: {},
+      allTabs: ['collaboration', 'processes', 'event-subprocesses', 'and-branches'],
       showConfig: false,
       projectConfig: {
         name: 'xklaim-bpmn-project',
@@ -188,11 +203,16 @@ export default {
     hasEventSubprocesses() {
       return Object.keys(this.eventSubProcesses).length > 0;
     },
+    hasAndBranchProcs() {
+      return Object.keys(this.andBranchProcs).length > 0;
+    },
     availableTabs() {
-      // Filter tabs to only show event-subprocesses when they exist
       return this.allTabs.filter(tab => {
         if (tab === 'event-subprocesses') {
           return this.hasEventSubprocesses;
+        }
+        if (tab === 'and-branches') {
+          return this.hasAndBranchProcs;
         }
         return true;
       });
@@ -379,6 +399,7 @@ export default {
       this.callActivities = {};
       this.scriptTaskProcs = {};
       this.eventSubProcesses = {};
+      this.andBranchProcs = {};
 
       await _bpmnModeler.importXML(this.getDefaultDiagram());
       _bpmnModeler.get('canvas').zoom('fit-viewport');
@@ -925,6 +946,7 @@ export default {
         this.callActivities = data.callActivities || {};
         this.scriptTaskProcs = data.scriptTaskProcs || {};
         this.eventSubProcesses = data.eventSubProcesses || {};
+        this.andBranchProcs = data.andBranchProcs || {};
 
         // Select first available tab
         this.activeTab = this.availableTabs[0];
@@ -942,7 +964,7 @@ export default {
       this.projectConfig.name = uniqueName;
       this.projectConfig.artifactId = uniqueName;
 
-      if (!this.collaboration && !this.processes.length && !Object.keys(this.callActivities).length && !Object.keys(this.scriptTaskProcs).length) {
+      if (!this.collaboration && !this.processes.length && !Object.keys(this.callActivities).length && !Object.keys(this.scriptTaskProcs).length && !Object.keys(this.andBranchProcs).length) {
         alert("No code has been generated to download.");
         return;
       }
@@ -972,6 +994,11 @@ export default {
       // Track call activities
       Object.keys(this.callActivities).forEach(activityName => {
         elementLocations.set(activityName, `xklaim.activities.${activityName}`);
+      });
+
+      // Track AND branch procs
+      Object.keys(this.andBranchProcs).forEach(branchName => {
+        elementLocations.set(branchName, `xklaim.branches.${branchName}`);
       });
       
       // Track script tasks - first determine their parent
@@ -1050,6 +1077,13 @@ export default {
           }
         });
         
+        // Check for AND branch procs
+        Object.keys(this.andBranchProcs).forEach(branchName => {
+          if (process.code.includes(`${branchName}(`)) {
+            imports.add(`import ${elementLocations.get(branchName)}`);
+          }
+        });
+
         // Check for event sub-processes
         Object.keys(this.eventSubProcesses).forEach(espId => {
           if (process.code.includes(espId)) {
@@ -1091,12 +1125,19 @@ export default {
       // --- Collaboration File ---
       if (this.collaboration) {
         const collabImports = new Set();
-        
+
         // Import all processes
         this.processes.forEach(process => {
           collabImports.add(`import ${elementLocations.get(process.name)}`);
         });
-        
+
+        // Import AND branch procs referenced in collaboration
+        Object.keys(this.andBranchProcs).forEach(branchName => {
+          if (this.collaboration.includes(`${branchName}(`)) {
+            collabImports.add(`import ${elementLocations.get(branchName)}`);
+          }
+        });
+
         const collaborationWithPackage = `package xklaim\n\n${Array.from(collabImports).join('\n')}\n\n${this.collaboration}`;
         zip.file(`${srcMainJavaXklaimPath}Collaboration.xklaim`, collaborationWithPackage);
       }
@@ -1146,15 +1187,29 @@ export default {
       // --- Event Sub-Process Files ---
       Object.keys(this.eventSubProcesses).forEach(espId => {
         const espData = this.eventSubProcesses[espId];
-        const espCode = Array.isArray(espData) ? espData.join('\n') : 
+        const espCode = Array.isArray(espData) ? espData.join('\n') :
                         (typeof espData === 'object' ? (espData.code || '') : espData);
-        
+
         const packageDeclaration = `package xklaim.tasks\n\n`;
         const imports = `import klava.Locality\n`;
-        
+
         const espWithPackage = packageDeclaration + imports + "\n" + espCode;
         const espFilePath = `${srcMainJavaXklaimPath}tasks/${espId}.xklaim`;
         zip.file(espFilePath, espWithPackage);
+      });
+
+      // --- AND Branch Proc Files ---
+      Object.keys(this.andBranchProcs).forEach(branchName => {
+        const branchData = this.andBranchProcs[branchName];
+        const branchCode = Array.isArray(branchData) ? branchData.join('\n') :
+                           (typeof branchData === 'object' ? (branchData.code || '') : branchData);
+
+        const packageDeclaration = `package xklaim.branches\n\n`;
+        const imports = `import klava.Locality\n`;
+
+        const branchWithPackage = packageDeclaration + imports + "\n" + branchCode;
+        const branchFilePath = `${srcMainJavaXklaimPath}branches/${branchName}.xklaim`;
+        zip.file(branchFilePath, branchWithPackage);
       });
 
       // --- Generate zip ---

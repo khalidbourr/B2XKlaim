@@ -22,17 +22,16 @@ public class ResponseBuilder {
     private Map<String, List<String>> callActivities;
     private Map<String, List<String>> scriptTaskProcs;
     private Map<String, List<String>> eventSubProcesses;
+    private Map<String, List<String>> andBranchProcs;
     private List<String> participants;
     private String error;
 
-    /**
-     * Private constructor to enforce builder pattern usage.
-     */
     private ResponseBuilder() {
         this.processes = new ArrayList<>();
         this.callActivities = new HashMap<>();
         this.scriptTaskProcs = new HashMap<>();
         this.eventSubProcesses = new HashMap<>();
+        this.andBranchProcs = new HashMap<>();
         this.participants = new ArrayList<>();
     }
 
@@ -136,6 +135,12 @@ public class ResponseBuilder {
         return this;
     }
 
+    public ResponseBuilder withAndBranchProcs(Map<String, List<String>> andBranchProcs) {
+        log.trace("Setting AND branch procs with {} entries", andBranchProcs.size());
+        this.andBranchProcs = new HashMap<>(andBranchProcs);
+        return this;
+    }
+
     /**
      * Sets the participants from a Set.
      * 
@@ -194,6 +199,7 @@ public class ResponseBuilder {
         response.put("callActivities", callActivities);
         response.put("scriptTaskProcs", scriptTaskProcs);
         response.put("eventSubProcesses", eventSubProcesses);
+        response.put("andBranchProcs", andBranchProcs);
         response.put("participants", participants);
 
         log.debug("Built complete response with all fields");
@@ -225,9 +231,10 @@ public class ResponseBuilder {
             return true; // Error responses are always valid
         }
 
-        boolean valid = collaboration != null && processes != null && 
-                       callActivities != null && scriptTaskProcs != null && 
-                       eventSubProcesses != null && participants != null;
+        boolean valid = collaboration != null && processes != null &&
+                       callActivities != null && scriptTaskProcs != null &&
+                       eventSubProcesses != null && andBranchProcs != null &&
+                       participants != null;
 
         log.trace("Builder validation result: {}", valid);
         return valid;
@@ -245,6 +252,7 @@ public class ResponseBuilder {
         this.callActivities = new HashMap<>();
         this.scriptTaskProcs = new HashMap<>();
         this.eventSubProcesses = new HashMap<>();
+        this.andBranchProcs = new HashMap<>();
         this.participants = new ArrayList<>();
         this.error = null;
         return this;

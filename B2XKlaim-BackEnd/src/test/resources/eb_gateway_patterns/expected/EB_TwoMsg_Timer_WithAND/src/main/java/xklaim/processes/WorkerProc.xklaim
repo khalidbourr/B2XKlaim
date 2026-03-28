@@ -1,0 +1,56 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.Escalate
+import xklaim.tasks.Timeout
+import xklaim.tasks.Ready
+import xklaim.tasks.Commit
+import xklaim.tasks.NotifyAbort
+import xklaim.tasks.Rollback
+import xklaim.tasks.Finish
+import xklaim.branches.AND_AND_Split_W_Branch0
+import xklaim.branches.AND_AND_Split_W_Branch1
+
+proc WorkerProc() {
+
+
+  eval(new Ready('Fw_2'/* TODO: Pass other necessary args */))@self
+  in('Fw_2')@self
+
+  var boolean eventOccured = false
+  var long startTime = System.currentTimeMillis()
+  while(!eventOccured){
+    if (in('Msg_Cancel')@self within 1000){
+      eventOccured = true
+      eval(new Rollback('Fw_cancel2'/* TODO: Pass other necessary args */))@self
+      in('Fw_cancel2')@self
+
+      eval(new NotifyAbort('Fw_cancel_done'/* TODO: Pass other necessary args */))@self
+      in('Fw_cancel_done')@self
+
+    } else if (in('Msg_Start')@self within 1000){
+      eventOccured = true
+      eval(new AND_AND_Split_W_Branch0())@self
+      eval(new AND_AND_Split_W_Branch1())@self
+      in('Fw_a2')@self
+      in('Fw_f2')@self
+
+      eval(new Commit('Fw_start_done'/* TODO: Pass other necessary args */))@self
+      in('Fw_start_done')@self
+
+    } else if (System.currentTimeMillis() - startTime >= 30){
+      eventOccured = true
+      eval(new Timeout('Fw_t2'/* TODO: Pass other necessary args */))@self
+      in('Fw_t2')@self
+
+      eval(new Escalate('Fw_timer_done'/* TODO: Pass other necessary args */))@self
+      in('Fw_timer_done')@self
+
+    }
+  }
+
+
+  eval(new Finish('Fw_final'/* TODO: Pass other necessary args */))@self
+  in('Fw_final')@self
+
+}

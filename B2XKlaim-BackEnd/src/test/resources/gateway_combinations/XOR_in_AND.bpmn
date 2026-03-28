@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_xor_in_and"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="Camunda Modeler" exporterVersion="5.28.0">
+
+  <!-- XOR_in_AND: Start → TaskPre → AND split →
+         Branch1: XOR split → (cond: TaskA1→TaskA2) / (default: TaskB1→TaskB2) → XOR merge
+         Branch2: TaskC1 → TaskC2
+       → AND merge → TaskPost → End -->
+  <bpmn:process id="Process_XOR_in_AND" name="XOR_in_AND" isExecutable="false">
+
+    <bpmn:startEvent id="Start_1" name="start">
+      <bpmn:outgoing>Flow_s_to_pre</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:scriptTask id="Task_Pre" name="Setup">
+      <bpmn:incoming>Flow_s_to_pre</bpmn:incoming>
+      <bpmn:outgoing>Flow_pre_to_asplit</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- AND split (2 branches) -->
+    <bpmn:parallelGateway id="AND_Split">
+      <bpmn:incoming>Flow_pre_to_asplit</bpmn:incoming>
+      <bpmn:outgoing>Flow_as_to_xsplit</bpmn:outgoing>
+      <bpmn:outgoing>Flow_as_to_C1</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Branch 1: XOR split/merge -->
+    <bpmn:exclusiveGateway id="XOR_Split" default="Flow_xs_to_B1">
+      <bpmn:incoming>Flow_as_to_xsplit</bpmn:incoming>
+      <bpmn:outgoing>Flow_xs_to_A1</bpmn:outgoing>
+      <bpmn:outgoing>Flow_xs_to_B1</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:scriptTask id="Task_A1" name="ValidateInput">
+      <bpmn:incoming>Flow_xs_to_A1</bpmn:incoming>
+      <bpmn:outgoing>Flow_A1_to_A2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_A2" name="TransformData">
+      <bpmn:incoming>Flow_A1_to_A2</bpmn:incoming>
+      <bpmn:outgoing>Flow_A2_to_xmerge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Task_B1" name="UseDefaults">
+      <bpmn:incoming>Flow_xs_to_B1</bpmn:incoming>
+      <bpmn:outgoing>Flow_B1_to_B2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_B2" name="LogDefault">
+      <bpmn:incoming>Flow_B1_to_B2</bpmn:incoming>
+      <bpmn:outgoing>Flow_B2_to_xmerge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:exclusiveGateway id="XOR_Merge">
+      <bpmn:incoming>Flow_A2_to_xmerge</bpmn:incoming>
+      <bpmn:incoming>Flow_B2_to_xmerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_xm_to_amerge</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Branch 2: sequence of tasks -->
+    <bpmn:scriptTask id="Task_C1" name="FetchRemote">
+      <bpmn:incoming>Flow_as_to_C1</bpmn:incoming>
+      <bpmn:outgoing>Flow_C1_to_C2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_C2" name="CacheResult">
+      <bpmn:incoming>Flow_C1_to_C2</bpmn:incoming>
+      <bpmn:outgoing>Flow_C2_to_amerge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- AND merge -->
+    <bpmn:parallelGateway id="AND_Merge">
+      <bpmn:incoming>Flow_xm_to_amerge</bpmn:incoming>
+      <bpmn:incoming>Flow_C2_to_amerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_am_to_post</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:scriptTask id="Task_Post" name="Aggregate">
+      <bpmn:incoming>Flow_am_to_post</bpmn:incoming>
+      <bpmn:outgoing>Flow_post_to_end</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_1" name="end">
+      <bpmn:incoming>Flow_post_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_s_to_pre" sourceRef="Start_1" targetRef="Task_Pre" />
+    <bpmn:sequenceFlow id="Flow_pre_to_asplit" sourceRef="Task_Pre" targetRef="AND_Split" />
+    <bpmn:sequenceFlow id="Flow_as_to_xsplit" sourceRef="AND_Split" targetRef="XOR_Split" />
+    <bpmn:sequenceFlow id="Flow_as_to_C1" sourceRef="AND_Split" targetRef="Task_C1" />
+    <bpmn:sequenceFlow id="Flow_xs_to_A1" sourceRef="XOR_Split" targetRef="Task_A1">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">status == "ok"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_xs_to_B1" sourceRef="XOR_Split" targetRef="Task_B1" />
+    <bpmn:sequenceFlow id="Flow_A1_to_A2" sourceRef="Task_A1" targetRef="Task_A2" />
+    <bpmn:sequenceFlow id="Flow_A2_to_xmerge" sourceRef="Task_A2" targetRef="XOR_Merge" />
+    <bpmn:sequenceFlow id="Flow_B1_to_B2" sourceRef="Task_B1" targetRef="Task_B2" />
+    <bpmn:sequenceFlow id="Flow_B2_to_xmerge" sourceRef="Task_B2" targetRef="XOR_Merge" />
+    <bpmn:sequenceFlow id="Flow_xm_to_amerge" sourceRef="XOR_Merge" targetRef="AND_Merge" />
+    <bpmn:sequenceFlow id="Flow_C1_to_C2" sourceRef="Task_C1" targetRef="Task_C2" />
+    <bpmn:sequenceFlow id="Flow_C2_to_amerge" sourceRef="Task_C2" targetRef="AND_Merge" />
+    <bpmn:sequenceFlow id="Flow_am_to_post" sourceRef="AND_Merge" targetRef="Task_Post" />
+    <bpmn:sequenceFlow id="Flow_post_to_end" sourceRef="Task_Post" targetRef="End_1" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_XOR_in_AND">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1"><dc:Bounds x="152" y="302" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Pre_di" bpmnElement="Task_Pre"><dc:Bounds x="240" y="280" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AND_Split_di" bpmnElement="AND_Split"><dc:Bounds x="395" y="295" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Split_di" bpmnElement="XOR_Split" isMarkerVisible="true"><dc:Bounds x="495" y="165" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_A1_di" bpmnElement="Task_A1"><dc:Bounds x="600" y="60" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_A2_di" bpmnElement="Task_A2"><dc:Bounds x="750" y="60" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_B1_di" bpmnElement="Task_B1"><dc:Bounds x="600" y="220" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_B2_di" bpmnElement="Task_B2"><dc:Bounds x="750" y="220" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Merge_di" bpmnElement="XOR_Merge" isMarkerVisible="true"><dc:Bounds x="895" y="165" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_C1_di" bpmnElement="Task_C1"><dc:Bounds x="600" y="400" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_C2_di" bpmnElement="Task_C2"><dc:Bounds x="750" y="400" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AND_Merge_di" bpmnElement="AND_Merge"><dc:Bounds x="995" y="295" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Post_di" bpmnElement="Task_Post"><dc:Bounds x="1100" y="280" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1"><dc:Bounds x="1252" y="302" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_s_to_pre_di" bpmnElement="Flow_s_to_pre"><di:waypoint x="188" y="320" /><di:waypoint x="240" y="320" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_pre_to_asplit_di" bpmnElement="Flow_pre_to_asplit"><di:waypoint x="340" y="320" /><di:waypoint x="395" y="320" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_as_to_xsplit_di" bpmnElement="Flow_as_to_xsplit"><di:waypoint x="420" y="295" /><di:waypoint x="420" y="190" /><di:waypoint x="495" y="190" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_as_to_C1_di" bpmnElement="Flow_as_to_C1"><di:waypoint x="420" y="345" /><di:waypoint x="420" y="440" /><di:waypoint x="600" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_xs_to_A1_di" bpmnElement="Flow_xs_to_A1"><di:waypoint x="520" y="165" /><di:waypoint x="520" y="100" /><di:waypoint x="600" y="100" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_xs_to_B1_di" bpmnElement="Flow_xs_to_B1"><di:waypoint x="520" y="215" /><di:waypoint x="520" y="260" /><di:waypoint x="600" y="260" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A1_to_A2_di" bpmnElement="Flow_A1_to_A2"><di:waypoint x="700" y="100" /><di:waypoint x="750" y="100" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A2_to_xmerge_di" bpmnElement="Flow_A2_to_xmerge"><di:waypoint x="850" y="100" /><di:waypoint x="920" y="100" /><di:waypoint x="920" y="165" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_B1_to_B2_di" bpmnElement="Flow_B1_to_B2"><di:waypoint x="700" y="260" /><di:waypoint x="750" y="260" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_B2_to_xmerge_di" bpmnElement="Flow_B2_to_xmerge"><di:waypoint x="850" y="260" /><di:waypoint x="920" y="260" /><di:waypoint x="920" y="215" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_xm_to_amerge_di" bpmnElement="Flow_xm_to_amerge"><di:waypoint x="945" y="190" /><di:waypoint x="970" y="190" /><di:waypoint x="970" y="320" /><di:waypoint x="995" y="320" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C1_to_C2_di" bpmnElement="Flow_C1_to_C2"><di:waypoint x="700" y="440" /><di:waypoint x="750" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C2_to_amerge_di" bpmnElement="Flow_C2_to_amerge"><di:waypoint x="850" y="440" /><di:waypoint x="1020" y="440" /><di:waypoint x="1020" y="345" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_am_to_post_di" bpmnElement="Flow_am_to_post"><di:waypoint x="1045" y="320" /><di:waypoint x="1100" y="320" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_post_to_end_di" bpmnElement="Flow_post_to_end"><di:waypoint x="1200" y="320" /><di:waypoint x="1252" y="320" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

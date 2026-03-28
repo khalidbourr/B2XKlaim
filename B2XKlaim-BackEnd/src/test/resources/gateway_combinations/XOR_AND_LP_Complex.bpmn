@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_complex"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="Camunda Modeler" exporterVersion="5.28.0">
+
+  <!-- XOR_AND_LP_Complex:
+       Start → TaskInit → TaskConfig → XOR split →
+         Branch1 (condition): AND split →
+           AND-B1: Loop( TaskScan → TaskAnalyze ) → TaskReport
+           AND-B2: TaskMonitor → TaskAlert
+         → AND merge → TaskMergeData
+         Branch2 (default): TaskFallback1 → TaskFallback2 → Loop( TaskRetry → TaskCheck ) → TaskRecover
+       → XOR merge → TaskFinalize → TaskShutdown → End -->
+  <bpmn:process id="Process_Complex" name="XOR_AND_LP_Complex" isExecutable="false">
+
+    <bpmn:startEvent id="Start_1" name="start">
+      <bpmn:outgoing>Flow_s_to_init</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Pre-gateway sequence -->
+    <bpmn:scriptTask id="Task_Init" name="BootSystem">
+      <bpmn:incoming>Flow_s_to_init</bpmn:incoming>
+      <bpmn:outgoing>Flow_init_to_config</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Task_Config" name="LoadConfig">
+      <bpmn:incoming>Flow_init_to_config</bpmn:incoming>
+      <bpmn:outgoing>Flow_config_to_xsplit</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- === OUTER XOR SPLIT (2 branches) === -->
+    <bpmn:exclusiveGateway id="XOR1_Split" default="Flow_x1s_to_F1">
+      <bpmn:incoming>Flow_config_to_xsplit</bpmn:incoming>
+      <bpmn:outgoing>Flow_x1s_to_asplit</bpmn:outgoing>
+      <bpmn:outgoing>Flow_x1s_to_F1</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ========================================= -->
+    <!-- BRANCH 1 (condition): AND with LP nested  -->
+    <!-- ========================================= -->
+    <bpmn:parallelGateway id="AND1_Split">
+      <bpmn:incoming>Flow_x1s_to_asplit</bpmn:incoming>
+      <bpmn:outgoing>Flow_a1s_to_lp1merge</bpmn:outgoing>
+      <bpmn:outgoing>Flow_a1s_to_M1</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- AND Branch 1: Loop(TaskScan → TaskAnalyze) → TaskReport -->
+    <bpmn:exclusiveGateway id="LP1_Merge">
+      <bpmn:incoming>Flow_a1s_to_lp1merge</bpmn:incoming>
+      <bpmn:incoming>Flow_lp1_back</bpmn:incoming>
+      <bpmn:outgoing>Flow_lp1m_to_Scan</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:scriptTask id="Task_Scan" name="ScanArea">
+      <bpmn:incoming>Flow_lp1m_to_Scan</bpmn:incoming>
+      <bpmn:outgoing>Flow_Scan_to_Analyze</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Task_Analyze" name="AnalyzeData">
+      <bpmn:incoming>Flow_Scan_to_Analyze</bpmn:incoming>
+      <bpmn:outgoing>Flow_Analyze_to_lp1split</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:exclusiveGateway id="LP1_Split" default="Flow_lp1_exit">
+      <bpmn:incoming>Flow_Analyze_to_lp1split</bpmn:incoming>
+      <bpmn:outgoing>Flow_lp1_back</bpmn:outgoing>
+      <bpmn:outgoing>Flow_lp1_exit</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:scriptTask id="Task_Report" name="GenerateReport">
+      <bpmn:incoming>Flow_lp1_exit</bpmn:incoming>
+      <bpmn:outgoing>Flow_Report_to_a1merge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- AND Branch 2: TaskMonitor → TaskAlert -->
+    <bpmn:scriptTask id="Task_Monitor" name="MonitorHealth">
+      <bpmn:incoming>Flow_a1s_to_M1</bpmn:incoming>
+      <bpmn:outgoing>Flow_M1_to_Alert</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Task_Alert" name="SendAlert">
+      <bpmn:incoming>Flow_M1_to_Alert</bpmn:incoming>
+      <bpmn:outgoing>Flow_Alert_to_a1merge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- AND merge -->
+    <bpmn:parallelGateway id="AND1_Merge">
+      <bpmn:incoming>Flow_Report_to_a1merge</bpmn:incoming>
+      <bpmn:incoming>Flow_Alert_to_a1merge</bpmn:incoming>
+      <bpmn:outgoing>Flow_a1m_to_MergeData</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:scriptTask id="Task_MergeData" name="ConsolidateResults">
+      <bpmn:incoming>Flow_a1m_to_MergeData</bpmn:incoming>
+      <bpmn:outgoing>Flow_MergeData_to_x1merge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- ========================================= -->
+    <!-- BRANCH 2 (default): sequence → LP         -->
+    <!-- ========================================= -->
+    <bpmn:scriptTask id="Task_F1" name="LogFallback">
+      <bpmn:incoming>Flow_x1s_to_F1</bpmn:incoming>
+      <bpmn:outgoing>Flow_F1_to_F2</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Task_F2" name="PrepareRetry">
+      <bpmn:incoming>Flow_F1_to_F2</bpmn:incoming>
+      <bpmn:outgoing>Flow_F2_to_lp2merge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- Loop: TaskRetry → TaskCheck -->
+    <bpmn:exclusiveGateway id="LP2_Merge">
+      <bpmn:incoming>Flow_F2_to_lp2merge</bpmn:incoming>
+      <bpmn:incoming>Flow_lp2_back</bpmn:incoming>
+      <bpmn:outgoing>Flow_lp2m_to_Retry</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:scriptTask id="Task_Retry" name="RetryConnection">
+      <bpmn:incoming>Flow_lp2m_to_Retry</bpmn:incoming>
+      <bpmn:outgoing>Flow_Retry_to_Check</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Task_Check" name="VerifyStatus">
+      <bpmn:incoming>Flow_Retry_to_Check</bpmn:incoming>
+      <bpmn:outgoing>Flow_Check_to_lp2split</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:exclusiveGateway id="LP2_Split" default="Flow_lp2_exit">
+      <bpmn:incoming>Flow_Check_to_lp2split</bpmn:incoming>
+      <bpmn:outgoing>Flow_lp2_back</bpmn:outgoing>
+      <bpmn:outgoing>Flow_lp2_exit</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:scriptTask id="Task_Recover" name="RecoverState">
+      <bpmn:incoming>Flow_lp2_exit</bpmn:incoming>
+      <bpmn:outgoing>Flow_Recover_to_x1merge</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- === OUTER XOR MERGE === -->
+    <bpmn:exclusiveGateway id="XOR1_Merge">
+      <bpmn:incoming>Flow_MergeData_to_x1merge</bpmn:incoming>
+      <bpmn:incoming>Flow_Recover_to_x1merge</bpmn:incoming>
+      <bpmn:outgoing>Flow_x1m_to_Finalize</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Post-gateway sequence -->
+    <bpmn:scriptTask id="Task_Finalize" name="WriteOutput">
+      <bpmn:incoming>Flow_x1m_to_Finalize</bpmn:incoming>
+      <bpmn:outgoing>Flow_Finalize_to_Shutdown</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Task_Shutdown" name="Shutdown">
+      <bpmn:incoming>Flow_Finalize_to_Shutdown</bpmn:incoming>
+      <bpmn:outgoing>Flow_Shutdown_to_end</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_1" name="end">
+      <bpmn:incoming>Flow_Shutdown_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- === SEQUENCE FLOWS === -->
+    <!-- Pre-gateway -->
+    <bpmn:sequenceFlow id="Flow_s_to_init" sourceRef="Start_1" targetRef="Task_Init" />
+    <bpmn:sequenceFlow id="Flow_init_to_config" sourceRef="Task_Init" targetRef="Task_Config" />
+    <bpmn:sequenceFlow id="Flow_config_to_xsplit" sourceRef="Task_Config" targetRef="XOR1_Split" />
+
+    <!-- Outer XOR split -->
+    <bpmn:sequenceFlow id="Flow_x1s_to_asplit" sourceRef="XOR1_Split" targetRef="AND1_Split">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">systemReady == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_x1s_to_F1" sourceRef="XOR1_Split" targetRef="Task_F1" />
+
+    <!-- AND branches -->
+    <bpmn:sequenceFlow id="Flow_a1s_to_lp1merge" sourceRef="AND1_Split" targetRef="LP1_Merge" />
+    <bpmn:sequenceFlow id="Flow_a1s_to_M1" sourceRef="AND1_Split" targetRef="Task_Monitor" />
+
+    <!-- Loop 1 (inside AND branch 1) -->
+    <bpmn:sequenceFlow id="Flow_lp1m_to_Scan" sourceRef="LP1_Merge" targetRef="Task_Scan" />
+    <bpmn:sequenceFlow id="Flow_Scan_to_Analyze" sourceRef="Task_Scan" targetRef="Task_Analyze" />
+    <bpmn:sequenceFlow id="Flow_Analyze_to_lp1split" sourceRef="Task_Analyze" targetRef="LP1_Split" />
+    <bpmn:sequenceFlow id="Flow_lp1_back" sourceRef="LP1_Split" targetRef="LP1_Merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">areasRemaining &gt; 0</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_lp1_exit" sourceRef="LP1_Split" targetRef="Task_Report" />
+
+    <!-- AND branch 2 -->
+    <bpmn:sequenceFlow id="Flow_M1_to_Alert" sourceRef="Task_Monitor" targetRef="Task_Alert" />
+
+    <!-- AND merge and post-AND task -->
+    <bpmn:sequenceFlow id="Flow_Report_to_a1merge" sourceRef="Task_Report" targetRef="AND1_Merge" />
+    <bpmn:sequenceFlow id="Flow_Alert_to_a1merge" sourceRef="Task_Alert" targetRef="AND1_Merge" />
+    <bpmn:sequenceFlow id="Flow_a1m_to_MergeData" sourceRef="AND1_Merge" targetRef="Task_MergeData" />
+    <bpmn:sequenceFlow id="Flow_MergeData_to_x1merge" sourceRef="Task_MergeData" targetRef="XOR1_Merge" />
+
+    <!-- Branch 2: sequence → loop -->
+    <bpmn:sequenceFlow id="Flow_F1_to_F2" sourceRef="Task_F1" targetRef="Task_F2" />
+    <bpmn:sequenceFlow id="Flow_F2_to_lp2merge" sourceRef="Task_F2" targetRef="LP2_Merge" />
+    <bpmn:sequenceFlow id="Flow_lp2m_to_Retry" sourceRef="LP2_Merge" targetRef="Task_Retry" />
+    <bpmn:sequenceFlow id="Flow_Retry_to_Check" sourceRef="Task_Retry" targetRef="Task_Check" />
+    <bpmn:sequenceFlow id="Flow_Check_to_lp2split" sourceRef="Task_Check" targetRef="LP2_Split" />
+    <bpmn:sequenceFlow id="Flow_lp2_back" sourceRef="LP2_Split" targetRef="LP2_Merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">retryCount &lt; maxRetries</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_lp2_exit" sourceRef="LP2_Split" targetRef="Task_Recover" />
+    <bpmn:sequenceFlow id="Flow_Recover_to_x1merge" sourceRef="Task_Recover" targetRef="XOR1_Merge" />
+
+    <!-- Post-gateway -->
+    <bpmn:sequenceFlow id="Flow_x1m_to_Finalize" sourceRef="XOR1_Merge" targetRef="Task_Finalize" />
+    <bpmn:sequenceFlow id="Flow_Finalize_to_Shutdown" sourceRef="Task_Finalize" targetRef="Task_Shutdown" />
+    <bpmn:sequenceFlow id="Flow_Shutdown_to_end" sourceRef="Task_Shutdown" targetRef="End_1" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_Complex">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1"><dc:Bounds x="152" y="382" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Init_di" bpmnElement="Task_Init"><dc:Bounds x="240" y="360" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Config_di" bpmnElement="Task_Config"><dc:Bounds x="390" y="360" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR1_Split_di" bpmnElement="XOR1_Split" isMarkerVisible="true"><dc:Bounds x="545" y="375" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AND1_Split_di" bpmnElement="AND1_Split"><dc:Bounds x="655" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LP1_Merge_di" bpmnElement="LP1_Merge" isMarkerVisible="true"><dc:Bounds x="765" y="95" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Scan_di" bpmnElement="Task_Scan"><dc:Bounds x="870" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Analyze_di" bpmnElement="Task_Analyze"><dc:Bounds x="1020" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LP1_Split_di" bpmnElement="LP1_Split" isMarkerVisible="true"><dc:Bounds x="1175" y="95" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Report_di" bpmnElement="Task_Report"><dc:Bounds x="1280" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Monitor_di" bpmnElement="Task_Monitor"><dc:Bounds x="870" y="260" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Alert_di" bpmnElement="Task_Alert"><dc:Bounds x="1020" y="260" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AND1_Merge_di" bpmnElement="AND1_Merge"><dc:Bounds x="1435" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_MergeData_di" bpmnElement="Task_MergeData"><dc:Bounds x="1540" y="180" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_F1_di" bpmnElement="Task_F1"><dc:Bounds x="655" y="530" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_F2_di" bpmnElement="Task_F2"><dc:Bounds x="805" y="530" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LP2_Merge_di" bpmnElement="LP2_Merge" isMarkerVisible="true"><dc:Bounds x="955" y="545" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Retry_di" bpmnElement="Task_Retry"><dc:Bounds x="1060" y="530" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Check_di" bpmnElement="Task_Check"><dc:Bounds x="1210" y="530" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LP2_Split_di" bpmnElement="LP2_Split" isMarkerVisible="true"><dc:Bounds x="1365" y="545" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Recover_di" bpmnElement="Task_Recover"><dc:Bounds x="1470" y="530" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR1_Merge_di" bpmnElement="XOR1_Merge" isMarkerVisible="true"><dc:Bounds x="1685" y="375" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Finalize_di" bpmnElement="Task_Finalize"><dc:Bounds x="1790" y="360" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Shutdown_di" bpmnElement="Task_Shutdown"><dc:Bounds x="1940" y="360" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1"><dc:Bounds x="2092" y="382" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_s_to_init_di" bpmnElement="Flow_s_to_init"><di:waypoint x="188" y="400" /><di:waypoint x="240" y="400" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_init_to_config_di" bpmnElement="Flow_init_to_config"><di:waypoint x="340" y="400" /><di:waypoint x="390" y="400" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_config_to_xsplit_di" bpmnElement="Flow_config_to_xsplit"><di:waypoint x="490" y="400" /><di:waypoint x="545" y="400" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_x1s_to_asplit_di" bpmnElement="Flow_x1s_to_asplit"><di:waypoint x="570" y="375" /><di:waypoint x="570" y="220" /><di:waypoint x="655" y="220" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_x1s_to_F1_di" bpmnElement="Flow_x1s_to_F1"><di:waypoint x="570" y="425" /><di:waypoint x="570" y="570" /><di:waypoint x="655" y="570" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_a1s_to_lp1merge_di" bpmnElement="Flow_a1s_to_lp1merge"><di:waypoint x="680" y="195" /><di:waypoint x="680" y="120" /><di:waypoint x="765" y="120" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_a1s_to_M1_di" bpmnElement="Flow_a1s_to_M1"><di:waypoint x="680" y="245" /><di:waypoint x="680" y="300" /><di:waypoint x="870" y="300" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_lp1m_to_Scan_di" bpmnElement="Flow_lp1m_to_Scan"><di:waypoint x="815" y="120" /><di:waypoint x="870" y="120" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Scan_to_Analyze_di" bpmnElement="Flow_Scan_to_Analyze"><di:waypoint x="970" y="120" /><di:waypoint x="1020" y="120" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Analyze_to_lp1split_di" bpmnElement="Flow_Analyze_to_lp1split"><di:waypoint x="1120" y="120" /><di:waypoint x="1175" y="120" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_lp1_back_di" bpmnElement="Flow_lp1_back"><di:waypoint x="1200" y="95" /><di:waypoint x="1200" y="40" /><di:waypoint x="790" y="40" /><di:waypoint x="790" y="95" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_lp1_exit_di" bpmnElement="Flow_lp1_exit"><di:waypoint x="1225" y="120" /><di:waypoint x="1280" y="120" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_M1_to_Alert_di" bpmnElement="Flow_M1_to_Alert"><di:waypoint x="970" y="300" /><di:waypoint x="1020" y="300" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Report_to_a1merge_di" bpmnElement="Flow_Report_to_a1merge"><di:waypoint x="1380" y="120" /><di:waypoint x="1460" y="120" /><di:waypoint x="1460" y="195" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Alert_to_a1merge_di" bpmnElement="Flow_Alert_to_a1merge"><di:waypoint x="1120" y="300" /><di:waypoint x="1460" y="300" /><di:waypoint x="1460" y="245" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_a1m_to_MergeData_di" bpmnElement="Flow_a1m_to_MergeData"><di:waypoint x="1485" y="220" /><di:waypoint x="1540" y="220" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_MergeData_to_x1merge_di" bpmnElement="Flow_MergeData_to_x1merge"><di:waypoint x="1640" y="220" /><di:waypoint x="1710" y="220" /><di:waypoint x="1710" y="375" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_F1_to_F2_di" bpmnElement="Flow_F1_to_F2"><di:waypoint x="755" y="570" /><di:waypoint x="805" y="570" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_F2_to_lp2merge_di" bpmnElement="Flow_F2_to_lp2merge"><di:waypoint x="905" y="570" /><di:waypoint x="955" y="570" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_lp2m_to_Retry_di" bpmnElement="Flow_lp2m_to_Retry"><di:waypoint x="1005" y="570" /><di:waypoint x="1060" y="570" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Retry_to_Check_di" bpmnElement="Flow_Retry_to_Check"><di:waypoint x="1160" y="570" /><di:waypoint x="1210" y="570" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Check_to_lp2split_di" bpmnElement="Flow_Check_to_lp2split"><di:waypoint x="1310" y="570" /><di:waypoint x="1365" y="570" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_lp2_back_di" bpmnElement="Flow_lp2_back"><di:waypoint x="1390" y="595" /><di:waypoint x="1390" y="650" /><di:waypoint x="980" y="650" /><di:waypoint x="980" y="595" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_lp2_exit_di" bpmnElement="Flow_lp2_exit"><di:waypoint x="1415" y="570" /><di:waypoint x="1470" y="570" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Recover_to_x1merge_di" bpmnElement="Flow_Recover_to_x1merge"><di:waypoint x="1570" y="570" /><di:waypoint x="1710" y="570" /><di:waypoint x="1710" y="425" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_x1m_to_Finalize_di" bpmnElement="Flow_x1m_to_Finalize"><di:waypoint x="1735" y="400" /><di:waypoint x="1790" y="400" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Finalize_to_Shutdown_di" bpmnElement="Flow_Finalize_to_Shutdown"><di:waypoint x="1890" y="400" /><di:waypoint x="1940" y="400" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Shutdown_to_end_di" bpmnElement="Flow_Shutdown_to_end"><di:waypoint x="2040" y="400" /><di:waypoint x="2092" y="400" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

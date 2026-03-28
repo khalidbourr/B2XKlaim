@@ -1,0 +1,14 @@
+package xklaim
+
+import xklaim.processes.ReceiverProc
+import xklaim.processes.SenderProc
+
+net Collab_EB1 physical "localhost:9999" {
+
+	node Receiver {
+		eval(new ReceiverProc())@self
+	}
+	node Sender {
+		eval(new SenderProc(Receiver))@self
+	}
+}

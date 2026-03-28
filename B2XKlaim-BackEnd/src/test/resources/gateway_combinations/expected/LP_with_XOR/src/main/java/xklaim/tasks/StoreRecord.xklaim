@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc StoreRecord(String edge){
+
+ /* Placeholder implementation for Script Task 'StoreRecord' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

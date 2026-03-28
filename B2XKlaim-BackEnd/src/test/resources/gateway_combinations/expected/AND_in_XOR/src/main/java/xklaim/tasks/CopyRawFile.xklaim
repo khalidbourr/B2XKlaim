@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc CopyRawFile(String edge){
+
+ /* Placeholder implementation for Script Task 'CopyRawFile' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

@@ -1,0 +1,19 @@
+package xklaim.branches
+
+import klava.Locality
+
+proc AND_AND1_Split_Branch0() {
+
+  while(areasRemaining > 0){
+    eval(new ScanArea('Flow_Scan_to_Analyze'/* TODO: Pass other necessary args */))@self
+    in('Flow_Scan_to_Analyze')@self
+
+    eval(new AnalyzeData('Flow_Analyze_to_lp1split'/* TODO: Pass other necessary args */))@self
+    in('Flow_Analyze_to_lp1split')@self
+
+  }
+
+
+  eval(new GenerateReport('Flow_Report_to_a1merge'/* TODO: Pass other necessary args */))@self
+  in('Flow_Report_to_a1merge')@self
+}

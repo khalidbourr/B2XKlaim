@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_eb1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.28.0">
+  <bpmn:collaboration id="Collab_EB1">
+    <bpmn:participant id="Part_Sender" name="Sender" processRef="Proc_Sender" />
+    <bpmn:participant id="Part_Receiver" name="Receiver" processRef="Proc_Receiver" />
+    <bpmn:messageFlow id="MF_Notify" name="notification" sourceRef="Evt_SendNotify" targetRef="Evt_CatchNotify" />
+  </bpmn:collaboration>
+
+  <!-- Sender: Start → Prepare(ST) → SendNotification(MIT) → Done(ST) → End -->
+  <bpmn:process id="Proc_Sender" name="SenderProc" isExecutable="false">
+    <bpmn:startEvent id="Start_S" name="start">
+      <bpmn:outgoing>Fs_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Task_Prepare" name="Prepare">
+      <bpmn:incoming>Fs_1</bpmn:incoming>
+      <bpmn:outgoing>Fs_2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:intermediateThrowEvent id="Evt_SendNotify" name="sendNotify">
+      <bpmn:incoming>Fs_2</bpmn:incoming>
+      <bpmn:outgoing>Fs_3</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_Send" messageRef="Msg_Notify" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:scriptTask id="Task_Done" name="Done">
+      <bpmn:incoming>Fs_3</bpmn:incoming>
+      <bpmn:outgoing>Fs_4</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_S" name="end">
+      <bpmn:incoming>Fs_4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Fs_1" sourceRef="Start_S" targetRef="Task_Prepare" />
+    <bpmn:sequenceFlow id="Fs_2" sourceRef="Task_Prepare" targetRef="Evt_SendNotify" />
+    <bpmn:sequenceFlow id="Fs_3" sourceRef="Evt_SendNotify" targetRef="Task_Done" />
+    <bpmn:sequenceFlow id="Fs_4" sourceRef="Task_Done" targetRef="End_S" />
+  </bpmn:process>
+
+  <!-- Receiver: Start → Init(ST) → EB Gateway → (MsgCatch → HandleMsg(ST)) / (Timer15s → HandleTimeout(ST)) → XOR merge → Report(ST) → End -->
+  <bpmn:process id="Proc_Receiver" name="ReceiverProc" isExecutable="false">
+    <bpmn:startEvent id="Start_R" name="start">
+      <bpmn:outgoing>Fr_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Task_Init" name="Init">
+      <bpmn:incoming>Fr_1</bpmn:incoming>
+      <bpmn:outgoing>Fr_2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:eventBasedGateway id="EB_Gate">
+      <bpmn:incoming>Fr_2</bpmn:incoming>
+      <bpmn:outgoing>Fr_to_msg</bpmn:outgoing>
+      <bpmn:outgoing>Fr_to_timer</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <!-- Path 1: message catch -->
+    <bpmn:intermediateCatchEvent id="Evt_CatchNotify" name="getNotify">
+      <bpmn:incoming>Fr_to_msg</bpmn:incoming>
+      <bpmn:outgoing>Fr_msg1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_Catch" messageRef="Msg_Notify" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:scriptTask id="Task_HandleMsg" name="HandleMsg">
+      <bpmn:incoming>Fr_msg1</bpmn:incoming>
+      <bpmn:outgoing>Fr_msg2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <!-- Path 2: timer 15s -->
+    <bpmn:intermediateCatchEvent id="Evt_Timer" name="15sec">
+      <bpmn:incoming>Fr_to_timer</bpmn:incoming>
+      <bpmn:outgoing>Fr_t1</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TED_Timer">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">15</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:scriptTask id="Task_HandleTimeout" name="HandleTimeout">
+      <bpmn:incoming>Fr_t1</bpmn:incoming>
+      <bpmn:outgoing>Fr_t2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <!-- XOR merge -->
+    <bpmn:exclusiveGateway id="XOR_Merge">
+      <bpmn:incoming>Fr_msg2</bpmn:incoming>
+      <bpmn:incoming>Fr_t2</bpmn:incoming>
+      <bpmn:outgoing>Fr_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_Report" name="Report">
+      <bpmn:incoming>Fr_end</bpmn:incoming>
+      <bpmn:outgoing>Fr_final</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_R" name="end">
+      <bpmn:incoming>Fr_final</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Fr_1" sourceRef="Start_R" targetRef="Task_Init" />
+    <bpmn:sequenceFlow id="Fr_2" sourceRef="Task_Init" targetRef="EB_Gate" />
+    <bpmn:sequenceFlow id="Fr_to_msg" sourceRef="EB_Gate" targetRef="Evt_CatchNotify" />
+    <bpmn:sequenceFlow id="Fr_to_timer" sourceRef="EB_Gate" targetRef="Evt_Timer" />
+    <bpmn:sequenceFlow id="Fr_msg1" sourceRef="Evt_CatchNotify" targetRef="Task_HandleMsg" />
+    <bpmn:sequenceFlow id="Fr_msg2" sourceRef="Task_HandleMsg" targetRef="XOR_Merge" />
+    <bpmn:sequenceFlow id="Fr_t1" sourceRef="Evt_Timer" targetRef="Task_HandleTimeout" />
+    <bpmn:sequenceFlow id="Fr_t2" sourceRef="Task_HandleTimeout" targetRef="XOR_Merge" />
+    <bpmn:sequenceFlow id="Fr_end" sourceRef="XOR_Merge" targetRef="Task_Report" />
+    <bpmn:sequenceFlow id="Fr_final" sourceRef="Task_Report" targetRef="End_R" />
+  </bpmn:process>
+
+  <bpmn:message id="Msg_Notify" name="Msg_Notify" />
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_EB1">
+      <bpmndi:BPMNShape id="Part_Sender_di" bpmnElement="Part_Sender" isHorizontal="true"><dc:Bounds x="160" y="60" width="700" height="160" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Part_Receiver_di" bpmnElement="Part_Receiver" isHorizontal="true"><dc:Bounds x="160" y="290" width="700" height="310" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_S_di" bpmnElement="Start_S"><dc:Bounds x="222" y="122" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Prepare_di" bpmnElement="Task_Prepare"><dc:Bounds x="310" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_SendNotify_di" bpmnElement="Evt_SendNotify"><dc:Bounds x="462" y="122" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Done_di" bpmnElement="Task_Done"><dc:Bounds x="550" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_S_di" bpmnElement="End_S"><dc:Bounds x="702" y="122" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_R_di" bpmnElement="Start_R"><dc:Bounds x="222" y="422" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Init_di" bpmnElement="Task_Init"><dc:Bounds x="290" y="400" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EB_Gate_di" bpmnElement="EB_Gate"><dc:Bounds x="425" y="415" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_CatchNotify_di" bpmnElement="Evt_CatchNotify"><dc:Bounds x="512" y="352" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_HandleMsg_di" bpmnElement="Task_HandleMsg"><dc:Bounds x="580" y="330" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_Timer_di" bpmnElement="Evt_Timer"><dc:Bounds x="512" y="492" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_HandleTimeout_di" bpmnElement="Task_HandleTimeout"><dc:Bounds x="580" y="470" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Merge_di" bpmnElement="XOR_Merge" isMarkerVisible="true"><dc:Bounds x="715" y="415" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Report_di" bpmnElement="Task_Report"><dc:Bounds x="790" y="400" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_R_di" bpmnElement="End_R"><dc:Bounds x="922" y="422" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Fs_1_di" bpmnElement="Fs_1"><di:waypoint x="258" y="140" /><di:waypoint x="310" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fs_2_di" bpmnElement="Fs_2"><di:waypoint x="410" y="140" /><di:waypoint x="462" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fs_3_di" bpmnElement="Fs_3"><di:waypoint x="498" y="140" /><di:waypoint x="550" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fs_4_di" bpmnElement="Fs_4"><di:waypoint x="650" y="140" /><di:waypoint x="702" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_1_di" bpmnElement="Fr_1"><di:waypoint x="258" y="440" /><di:waypoint x="290" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_2_di" bpmnElement="Fr_2"><di:waypoint x="390" y="440" /><di:waypoint x="425" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_to_msg_di" bpmnElement="Fr_to_msg"><di:waypoint x="450" y="415" /><di:waypoint x="450" y="370" /><di:waypoint x="512" y="370" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_to_timer_di" bpmnElement="Fr_to_timer"><di:waypoint x="450" y="465" /><di:waypoint x="450" y="510" /><di:waypoint x="512" y="510" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_msg1_di" bpmnElement="Fr_msg1"><di:waypoint x="548" y="370" /><di:waypoint x="580" y="370" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_msg2_di" bpmnElement="Fr_msg2"><di:waypoint x="680" y="370" /><di:waypoint x="740" y="370" /><di:waypoint x="740" y="415" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_t1_di" bpmnElement="Fr_t1"><di:waypoint x="548" y="510" /><di:waypoint x="580" y="510" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_t2_di" bpmnElement="Fr_t2"><di:waypoint x="680" y="510" /><di:waypoint x="740" y="510" /><di:waypoint x="740" y="465" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_end_di" bpmnElement="Fr_end"><di:waypoint x="765" y="440" /><di:waypoint x="790" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fr_final_di" bpmnElement="Fr_final"><di:waypoint x="890" y="440" /><di:waypoint x="922" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MF_Notify_di" bpmnElement="MF_Notify"><di:waypoint x="480" y="158" /><di:waypoint x="530" y="352" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

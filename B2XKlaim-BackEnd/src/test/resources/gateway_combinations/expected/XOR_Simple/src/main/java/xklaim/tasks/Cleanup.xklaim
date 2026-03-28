@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc Cleanup(String edge){
+
+ /* Placeholder implementation for Script Task 'Cleanup' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

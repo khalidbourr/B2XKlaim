@@ -1,0 +1,44 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.FormatOutput
+import xklaim.tasks.CheckResponse
+import xklaim.tasks.HandleSuccess
+import xklaim.tasks.UseCache
+import xklaim.tasks.PollService
+import xklaim.tasks.ReadInput
+import xklaim.tasks.ReturnCached
+
+proc XOR_in_LP() {
+
+
+  eval(new ReadInput('Flow_pre_to_xsplit'/* TODO: Pass other necessary args */))@self
+  in('Flow_pre_to_xsplit')@self
+
+  if (cacheExpired == true){
+    while(responseCode != 200){
+      eval(new PollService('Flow_L1_to_L2'/* TODO: Pass other necessary args */))@self
+      in('Flow_L1_to_L2')@self
+
+      eval(new CheckResponse('Flow_L2_to_lsplit'/* TODO: Pass other necessary args */))@self
+      in('Flow_L2_to_lsplit')@self
+
+    }
+
+
+    eval(new HandleSuccess('Flow_A1_to_xmerge'/* TODO: Pass other necessary args */))@self
+    in('Flow_A1_to_xmerge')@self
+
+  } else {
+    eval(new UseCache('Flow_B1_to_B2'/* TODO: Pass other necessary args */))@self
+    in('Flow_B1_to_B2')@self
+
+    eval(new ReturnCached('Flow_B2_to_xmerge'/* TODO: Pass other necessary args */))@self
+    in('Flow_B2_to_xmerge')@self
+
+  }
+
+
+  eval(new FormatOutput('Flow_post_to_end'/* TODO: Pass other necessary args */))@self
+  in('Flow_post_to_end')@self
+}

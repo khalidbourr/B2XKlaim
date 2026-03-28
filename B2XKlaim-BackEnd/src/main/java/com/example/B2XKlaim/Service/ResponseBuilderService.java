@@ -44,13 +44,20 @@ public class ResponseBuilderService {
         // Handle processes
         List<Map<String, String>> processList = buildProcessList(generationResult, fullGeneratedCode);
 
+        // Format call activity code with proper indentation
+        Map<String, List<String>> formattedCallActivities = formatCallActivities(generationResult.getCallActivities());
+
+        // Format AND branch proc code with proper indentation
+        Map<String, List<String>> formattedAndBranchProcs = formatCallActivities(generationResult.getAndBranchProcs());
+
         // Build response using ResponseBuilder
         Map<String, Object> response = ResponseBuilder.create()
                 .withCollaboration(collaborationCode)
                 .withProcessList(processList)
-                .withCallActivities(generationResult.getCallActivities())
+                .withCallActivities(formattedCallActivities)
                 .withScriptTaskProcs(generationResult.getScriptTasks())
                 .withEventSubProcesses(generationResult.getEventSubProcesses())
+                .withAndBranchProcs(formattedAndBranchProcs)
                 .withParticipants(generationResult.getParticipants())
                 .build();
 
@@ -104,6 +111,21 @@ public class ResponseBuilderService {
         }
 
         return processList;
+    }
+
+    /**
+     * Formats call activity code blocks with proper indentation.
+     */
+    private Map<String, List<String>> formatCallActivities(Map<String, List<String>> callActivities) {
+        Map<String, List<String>> formatted = new HashMap<>();
+        for (Map.Entry<String, List<String>> entry : callActivities.entrySet()) {
+            List<String> formattedCodes = new ArrayList<>();
+            for (String code : entry.getValue()) {
+                formattedCodes.add(codeFormattingService.formatProcessCode(code, "  "));
+            }
+            formatted.put(entry.getKey(), formattedCodes);
+        }
+        return formatted;
     }
 
     /**

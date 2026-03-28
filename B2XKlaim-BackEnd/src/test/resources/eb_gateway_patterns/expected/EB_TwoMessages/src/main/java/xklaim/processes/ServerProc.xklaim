@@ -1,0 +1,25 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.LogDecision
+import xklaim.tasks.Evaluate
+
+proc ServerProc(Locality client_loc) {
+
+
+  eval(new Evaluate('Fsv_2'/* TODO: Pass other necessary args */))@self
+  in('Fsv_2')@self
+
+  if (score > 50){
+    out('Msg_Accept')@client_loc
+
+  } else {
+    out('Msg_Reject')@client_loc
+
+  }
+
+
+  eval(new LogDecision('Fsv_final'/* TODO: Pass other necessary args */))@self
+  in('Fsv_final')@self
+
+}

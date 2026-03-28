@@ -1,0 +1,12 @@
+package xklaim.branches
+
+import klava.Locality
+
+proc AND_AND_Split_W_Branch0() {
+
+  eval(new AuditStart('Fw_a1'/* TODO: Pass other necessary args */))@self
+  in('Fw_a1')@self
+
+  eval(new NotifyTeam('Fw_a2'/* TODO: Pass other necessary args */))@self
+  in('Fw_a2')@self
+}

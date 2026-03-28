@@ -295,9 +295,11 @@ public class BPMNTranslatorTest {
 
         String result = translator.visit(and);
 
-        // Should contain both task eval calls and the outgoing flow
-        assertTrue(result.contains("eval(new TaskA("));
-        assertTrue(result.contains("eval(new TaskB("));
+        // Should contain eval calls for branch procs, in() waits, and outgoing flow
+        assertTrue(result.contains("eval(new AND_and1_Branch0())@self"));
+        assertTrue(result.contains("eval(new AND_and1_Branch1())@self"));
+        assertTrue(result.contains("in('flowA')@self"));
+        assertTrue(result.contains("in('flowB')@self"));
         assertTrue(result.contains("out('flowOut')@self"));
     }
 

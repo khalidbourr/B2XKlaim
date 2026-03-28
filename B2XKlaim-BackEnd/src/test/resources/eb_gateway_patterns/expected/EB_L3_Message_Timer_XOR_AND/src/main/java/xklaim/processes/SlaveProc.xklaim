@@ -1,0 +1,57 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.HandleTimeout
+import xklaim.tasks.Escalate
+import xklaim.tasks.CommitResult
+import xklaim.tasks.RejectJob
+import xklaim.tasks.NotifySkip
+import xklaim.tasks.Ready
+import xklaim.tasks.SendAck
+import xklaim.tasks.Finish
+import xklaim.branches.AND_AND_Process_Branch0
+import xklaim.branches.AND_AND_Process_Branch1
+
+proc SlaveProc() {
+
+
+  eval(new Ready('Fs_2'/* TODO: Pass other necessary args */))@self
+  in('Fs_2')@self
+
+  if (in('Msg_Job')@self within 20){
+    if (canProcess == true){
+      eval(new AND_AND_Process_Branch0())@self
+      eval(new AND_AND_Process_Branch1())@self
+      in('Fs_a2')@self
+      in('Fs_f2')@self
+
+      eval(new CommitResult('Fs_commit_to_xmerge'/* TODO: Pass other necessary args */))@self
+      in('Fs_commit_to_xmerge')@self
+
+    } else {
+      eval(new RejectJob('Fs_rej1'/* TODO: Pass other necessary args */))@self
+      in('Fs_rej1')@self
+
+      eval(new NotifySkip('Fs_rej_to_xmerge'/* TODO: Pass other necessary args */))@self
+      in('Fs_rej_to_xmerge')@self
+
+    }
+
+
+    eval(new SendAck('Fs_ack_to_ebmerge'/* TODO: Pass other necessary args */))@self
+    in('Fs_ack_to_ebmerge')@self
+
+  } else {
+    eval(new HandleTimeout('Fs_t2'/* TODO: Pass other necessary args */))@self
+    in('Fs_t2')@self
+
+    eval(new Escalate('Fs_timer_to_ebmerge'/* TODO: Pass other necessary args */))@self
+    in('Fs_timer_to_ebmerge')@self
+
+  }
+
+
+  eval(new Finish('Fs_final'/* TODO: Pass other necessary args */))@self
+  in('Fs_final')@self
+
+}

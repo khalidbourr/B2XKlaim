@@ -296,6 +296,10 @@ public class Generator {
     }
     
 
+    public Map<String, List<String>> translateAndBranchProcs() {
+        return visitor.getAllAndBranchProcs();
+    }
+
     private static List<BpmnElement> getCollaboration(BpmnElements bpmnElements) {
         List<Collab> collaborationElements = bpmnElements.getElementsByType(Collab.class);
         return new ArrayList<>(collaborationElements);

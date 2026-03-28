@@ -1,0 +1,14 @@
+package xklaim
+
+import xklaim.processes.MasterProc
+import xklaim.processes.SlaveProc
+
+net Collab_L3 physical "localhost:9999" {
+
+	node Master {
+		eval(new MasterProc(Slave))@self
+	}
+	node Slave {
+		eval(new SlaveProc())@self
+	}
+}

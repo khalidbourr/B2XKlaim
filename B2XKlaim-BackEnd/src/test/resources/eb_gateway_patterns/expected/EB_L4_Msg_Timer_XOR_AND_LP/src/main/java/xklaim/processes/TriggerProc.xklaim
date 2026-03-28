@@ -1,0 +1,18 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.PrepareSignal
+import xklaim.tasks.TriggerDone
+
+proc TriggerProc(Locality engine_loc) {
+
+
+  eval(new PrepareSignal('Ft_2'/* TODO: Pass other necessary args */))@self
+  in('Ft_2')@self
+
+  out('Msg_Signal')@engine_loc
+
+  eval(new TriggerDone('Ft_4'/* TODO: Pass other necessary args */))@self
+  in('Ft_4')@self
+
+}

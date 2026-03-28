@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc Finish(String edge){
+
+ /* Placeholder implementation for Script Task 'Finish' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

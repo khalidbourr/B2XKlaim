@@ -1,0 +1,29 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.HandleTimeout
+import xklaim.tasks.Init
+import xklaim.tasks.Report
+import xklaim.tasks.HandleMsg
+
+proc ReceiverProc() {
+
+
+  eval(new Init('Fr_2'/* TODO: Pass other necessary args */))@self
+  in('Fr_2')@self
+
+  if (in('Msg_Notify')@self within 15){
+    eval(new HandleMsg('Fr_msg2'/* TODO: Pass other necessary args */))@self
+    in('Fr_msg2')@self
+
+  } else {
+    eval(new HandleTimeout('Fr_t2'/* TODO: Pass other necessary args */))@self
+    in('Fr_t2')@self
+
+  }
+
+
+  eval(new Report('Fr_final'/* TODO: Pass other necessary args */))@self
+  in('Fr_final')@self
+
+}

@@ -1,0 +1,14 @@
+package xklaim
+
+import xklaim.processes.ClientProc
+import xklaim.processes.ServerProc
+
+net Collab_EB2 physical "localhost:9999" {
+
+	node Client {
+		eval(new ClientProc())@self
+	}
+	node Server {
+		eval(new ServerProc(Client))@self
+	}
+}

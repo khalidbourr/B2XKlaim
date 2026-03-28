@@ -1,0 +1,14 @@
+package xklaim
+
+import xklaim.processes.EngineProc
+import xklaim.processes.TriggerProc
+
+net Collab_L4 physical "localhost:9999" {
+
+	node Engine {
+		eval(new EngineProc())@self
+	}
+	node Trigger {
+		eval(new TriggerProc(Engine))@self
+	}
+}

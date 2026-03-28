@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc HandleMsg(String edge){
+
+ /* Placeholder implementation for Script Task 'HandleMsg' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

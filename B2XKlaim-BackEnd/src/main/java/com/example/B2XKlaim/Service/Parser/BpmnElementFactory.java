@@ -452,7 +452,16 @@ public class BpmnElementFactory {
                  Element ElementFromFirstIncomingFlow= getElementByFlowId(firstIncomingFlow);
                  Element sourceElement = getElementById(ElementFromFirstIncomingFlow.getAttribute("sourceRef"));
 
-                if (isXORSplit(element) && !isXORMerge(sourceElement)) {
+                if (isXORSplit(element)) {
+                    // Check if this split XOR is actually part of a loop pattern
+                    // by looking for a back-edge from this split to a preceding merge
+                    if (isXORMerge(sourceElement) && hasDirectBackEdgeTo(element, sourceElement.getAttribute("id"))) {
+                        LP xor = processLoop(outgoings, xorid);
+                        if (xor != null) {
+                            return xor;
+                        }
+                    }
+                    // Regular diverging XOR (if/else)
                     XOR xor = processXORGateway(outgoings, xorid);
                     return xor;
                 }
@@ -723,6 +732,9 @@ public class BpmnElementFactory {
         Map<String, List<String>> conditionElementMap = new HashMap<>();
         String outgoing = null;
         String caOutgoing = null;
+        // Track merge gateways found by each branch to verify convergence
+        Element commonMerge = null;
+        boolean allBranchesConverge = true;
 
         List<Element> outgoingFlows = new ArrayList<>();
         for (int j = 0; j < outgoings.getLength(); j++) {
@@ -741,22 +753,49 @@ public class BpmnElementFactory {
             Element mergeExclusiveGateway = null;
             while (nextElement != null) {
                 if (isXORMerge(nextElement)) {
-                    mergeExclusiveGateway = nextElement;
-                    break;
+                    // Check if this XOR merge is a loop entry point rather than the closing merge
+                    String mergeId = nextElement.getAttribute("id");
+                    Element loopSplit = findLoopSplit(mergeId);
+                    if (loopSplit != null) {
+                        // It's a loop entry - add it and jump past the loop
+                        elementList.add(mergeId);
+                        Map<String, Element> loopFlows = findLoopOutgoingFlows(loopSplit);
+                        if (loopFlows.containsKey("withoutCondition")) {
+                            nextElementId = loopFlows.get("withoutCondition").getAttribute("targetRef");
+                            nextElement = getElementById(nextElementId);
+                        } else {
+                            break;
+                        }
+                    } else {
+                        mergeExclusiveGateway = nextElement;
+                        break;
+                    }
                 } else if (nextElement.getTagName().equals("bpmn:endEvent")) {
                     break;
                 } else if (isXORSplit(nextElement)) {
                     elementList.add(nextElement.getAttribute("id"));
                     NodeList nestedOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
                     XOR nestedXOR = processXORGateway(nestedOutgoings, nextElement.getAttribute("id"));
+                    if (nestedXOR.getOutgoingEdge() == null) {
+                        break; // nested XOR doesn't converge, branch ends here
+                    }
                     Element mergeGateway = getElementById(nestedXOR.getOutgoingEdge());
+                    if (mergeGateway == null) {
+                        break;
+                    }
                     nextElementId = mergeGateway.getAttribute("targetRef");
                     nextElement = getElementById(nextElementId);
                 } else if (isANDSplit(nextElement)) {
                     elementList.add(nextElement.getAttribute("id"));
                     NodeList nestedOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
                     AND nestedAND = processANDGateway(nestedOutgoings, nextElement.getAttribute("id"));
+                    if (nestedAND == null || nestedAND.getOutgoingEdge() == null) {
+                        break;
+                    }
                     Element mergeGateway = getElementById(nestedAND.getOutgoingEdge());
+                    if (mergeGateway == null) {
+                        break;
+                    }
                     nextElementId = mergeGateway.getAttribute("targetRef");
                     nextElement = getElementById(nextElementId);
                 }
@@ -773,8 +812,15 @@ public class BpmnElementFactory {
                 }
             }
 
+            // Track whether all branches converge to the same merge gateway
             if (mergeExclusiveGateway != null) {
-                caOutgoing = mergeExclusiveGateway.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
+                if (commonMerge == null) {
+                    commonMerge = mergeExclusiveGateway;
+                } else if (!commonMerge.getAttribute("id").equals(mergeExclusiveGateway.getAttribute("id"))) {
+                    allBranchesConverge = false;
+                }
+            } else {
+                allBranchesConverge = false;
             }
 
             Element conditionExpression = (Element) outgoingFlow.getElementsByTagName("bpmn:conditionExpression").item(0);
@@ -788,6 +834,11 @@ public class BpmnElementFactory {
             if (outgoings.getLength() == 1) {
                 caOutgoing = outgoing;
             }
+        }
+
+        // Only set outgoing edge if all branches converge to the same merge
+        if (allBranchesConverge && commonMerge != null) {
+            caOutgoing = commonMerge.getElementsByTagName("bpmn:outgoing").item(0).getTextContent();
         }
 
         return new XOR(xorId, conditionElementMap, caOutgoing);
@@ -892,17 +943,42 @@ public class BpmnElementFactory {
                     elementList.add(nextElement.getAttribute("id"));
                     NodeList nestedOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
                     AND nestedAND = processANDGateway(nestedOutgoings, nextElement.getAttribute("id"));
+                    if (nestedAND == null || nestedAND.getOutgoingEdge() == null) break;
                     Element mergeGateway = getElementById(nestedAND.getOutgoingEdge());
+                    if (mergeGateway == null) break;
                     nextElementId = mergeGateway.getAttribute("targetRef");
                     nextElement = getElementById(nextElementId);
                 } else if (isXORSplit(nextElement)) {
                     elementList.add(nextElement.getAttribute("id"));
                     NodeList nestedOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
                     XOR nestedXOR = processXORGateway(nestedOutgoings, nextElement.getAttribute("id"));
+                    if (nestedXOR.getOutgoingEdge() == null) break;
                     Element mergeGateway = getElementById(nestedXOR.getOutgoingEdge());
+                    if (mergeGateway == null) break;
                     nextElementId = mergeGateway.getAttribute("targetRef");
                     nextElement = getElementById(nextElementId);
-                }else {
+                } else if (isXORMerge(nextElement)) {
+                    // Check if this XOR merge is a loop entry point
+                    String mergeId = nextElement.getAttribute("id");
+                    Element loopSplit = findLoopSplit(mergeId);
+                    if (loopSplit != null) {
+                        elementList.add(mergeId);
+                        Map<String, Element> loopFlows = findLoopOutgoingFlows(loopSplit);
+                        if (loopFlows.containsKey("withoutCondition")) {
+                            nextElementId = loopFlows.get("withoutCondition").getAttribute("targetRef");
+                            nextElement = getElementById(nextElementId);
+                        } else {
+                            break;
+                        }
+                    } else {
+                        elementList.add(nextElementId);
+                        NodeList nextElementOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
+                        if (nextElementOutgoings.getLength() == 0) break;
+                        Element outgoingFlow2 = getElementByFlowId(nextElementOutgoings.item(0).getTextContent());
+                        nextElementId = outgoingFlow2.getAttribute("targetRef");
+                        nextElement = getElementById(nextElementId);
+                    }
+                } else {
                     elementList.add(nextElementId);
                     NodeList nextElementOutgoings = nextElement.getElementsByTagName("bpmn:outgoing");
                     if (nextElementOutgoings.getLength() == 0) {
@@ -966,16 +1042,61 @@ public class BpmnElementFactory {
 
     /**
      * Search all XOR splits in the document for one with a direct back-edge to loopMergeId.
+     * The split must also be reachable from the merge (downstream) to confirm it's a genuine
+     * loop back-edge and not a forward edge from an outer gateway.
      */
     private Element findLoopSplit(String loopMergeId) {
         NodeList allGateways = document.getElementsByTagName("bpmn:exclusiveGateway");
         for (int i = 0; i < allGateways.getLength(); i++) {
             Element gw = (Element) allGateways.item(i);
-            if (isXORSplit(gw) && hasDirectBackEdgeTo(gw, loopMergeId)) {
+            if (isXORSplit(gw) && hasDirectBackEdgeTo(gw, loopMergeId)
+                    && isReachableForward(loopMergeId, gw.getAttribute("id"))) {
                 return gw;
             }
         }
         return null;
+    }
+
+    /**
+     * Check if targetId is reachable from sourceId by walking forward through outgoing flows.
+     * Used to verify a loop split is downstream of its merge (not an upstream forward edge).
+     */
+    private boolean isReachableForward(String sourceId, String targetId) {
+        Set<String> visited = new HashSet<>();
+        java.util.LinkedList<String> queue = new java.util.LinkedList<>();
+
+        Element source = getElementById(sourceId);
+        if (source == null) return false;
+
+        NodeList outgoings = source.getElementsByTagName("bpmn:outgoing");
+        for (int i = 0; i < outgoings.getLength(); i++) {
+            Element flow = getElementByFlowId(outgoings.item(i).getTextContent());
+            if (flow != null) {
+                String ref = flow.getAttribute("targetRef");
+                if (ref.equals(targetId)) return true;
+                queue.add(ref);
+            }
+        }
+
+        while (!queue.isEmpty()) {
+            String currentId = queue.poll();
+            if (currentId.equals(targetId)) return true;
+            if (visited.contains(currentId) || currentId.equals(sourceId)) continue;
+            visited.add(currentId);
+
+            Element current = getElementById(currentId);
+            if (current == null) continue;
+
+            NodeList currentOutgoings = current.getElementsByTagName("bpmn:outgoing");
+            for (int i = 0; i < currentOutgoings.getLength(); i++) {
+                Element flow = getElementByFlowId(currentOutgoings.item(i).getTextContent());
+                if (flow != null) {
+                    queue.add(flow.getAttribute("targetRef"));
+                }
+            }
+        }
+
+        return false;
     }
 
     private boolean hasDirectBackEdgeTo(Element xorSplit, String targetId) {
@@ -1124,28 +1245,41 @@ public class BpmnElementFactory {
                     pathEndElements.add(currentElement);
                     break;
                 }
-                
+
                 Element currentOutgoingFlow = getElementByFlowId(currentOutgoings.item(0).getTextContent());
                 if (currentOutgoingFlow == null) {
                     System.out.println("Could not find flow from element: " + currentElement.getAttribute("id"));
                     break;
                 }
-                
+
                 String nextElementId = currentOutgoingFlow.getAttribute("targetRef");
                 Element nextElement = getElementById(nextElementId);
-                
-                // If we've reached an exclusive gateway, check if it's a merge point
-                if (nextElement != null && isXORMerge(nextElement)) {
+
+                if (nextElement == null) {
+                    System.out.println("Could not find next element from: " + currentElement.getAttribute("id"));
+                    break;
+                }
+
+                // Check if we've reached the EB's closing XOR merge
+                if (isXORMerge(nextElement)) {
+                    // First check if this is a loop entry (not a closing merge)
+                    Element loopSplit = findLoopSplit(nextElement.getAttribute("id"));
+                    if (loopSplit != null) {
+                        // It's a loop entry — add it and jump past
+                        pathElements.add(nextElement.getAttribute("id"));
+                        Map<String, Element> loopFlows = findLoopOutgoingFlows(loopSplit);
+                        if (loopFlows.containsKey("withoutCondition")) {
+                            nextElementId = loopFlows.get("withoutCondition").getAttribute("targetRef");
+                            currentElement = getElementById(nextElementId);
+                            continue;
+                        } else { break; }
+                    }
+
+                    // It's a genuine closing merge for this EB
                     System.out.println("Found potential XOR merge at: " + nextElement.getAttribute("id"));
-                    
-                    // Store it as a path end element
                     pathEndElements.add(nextElement);
-                    
-                    // If we haven't set a merge gateway yet, use this one
                     if (mergeGateway == null) {
                         mergeGateway = nextElement;
-                        
-                        // Get the outgoing edge of the merge gateway
                         NodeList mergeOutgoings = mergeGateway.getElementsByTagName("bpmn:outgoing");
                         if (mergeOutgoings.getLength() > 0) {
                             gatewayOutgoing = mergeOutgoings.item(0).getTextContent();
@@ -1154,16 +1288,39 @@ public class BpmnElementFactory {
                     }
                     break;
                 }
-                
-                // Otherwise, add this element to the path and continue
-                if (nextElement != null) {
+
+                // Jump over nested XOR split/merge
+                if (isXORSplit(nextElement)) {
                     pathElements.add(nextElementId);
-                    lastElement = currentElement;
-                    currentElement = nextElement;
-                } else {
-                    System.out.println("Could not find next element from: " + currentElement.getAttribute("id"));
-                    break;
+                    NodeList nestedOut = nextElement.getElementsByTagName("bpmn:outgoing");
+                    XOR nestedXOR = processXORGateway(nestedOut, nextElementId);
+                    if (nestedXOR == null || nestedXOR.getOutgoingEdge() == null) break;
+                    // Resolve: outgoingEdge is a flow id → sourceRef is the merge gateway
+                    Element mergeFlow = getElementByFlowId(nestedXOR.getOutgoingEdge());
+                    if (mergeFlow == null) break;
+                    currentElement = getElementById(mergeFlow.getAttribute("sourceRef"));
+                    if (currentElement == null) break;
+                    continue;
                 }
+
+                // Jump over nested AND split/merge
+                if (isANDSplit(nextElement)) {
+                    pathElements.add(nextElementId);
+                    NodeList nestedOut = nextElement.getElementsByTagName("bpmn:outgoing");
+                    AND nestedAND = processANDGateway(nestedOut, nextElementId);
+                    if (nestedAND == null || nestedAND.getOutgoingEdge() == null) break;
+                    // Resolve: outgoingEdge is a flow id → sourceRef is the merge gateway
+                    Element mergeFlow = getElementByFlowId(nestedAND.getOutgoingEdge());
+                    if (mergeFlow == null) break;
+                    currentElement = getElementById(mergeFlow.getAttribute("sourceRef"));
+                    if (currentElement == null) break;
+                    continue;
+                }
+
+                // Regular element — add to path and continue
+                pathElements.add(nextElementId);
+                lastElement = currentElement;
+                currentElement = nextElement;
             }
             
             // Determine the event type for this path

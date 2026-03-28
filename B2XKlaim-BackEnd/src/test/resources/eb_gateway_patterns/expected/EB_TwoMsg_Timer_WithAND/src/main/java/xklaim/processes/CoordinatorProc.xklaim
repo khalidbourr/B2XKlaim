@@ -1,0 +1,25 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.LogResult
+import xklaim.tasks.Plan
+
+proc CoordinatorProc(Locality worker_loc) {
+
+
+  eval(new Plan('Fco_2'/* TODO: Pass other necessary args */))@self
+  in('Fco_2')@self
+
+  if (approved == true){
+    out('Msg_Start')@worker_loc
+
+  } else {
+    out('Msg_Cancel')@worker_loc
+
+  }
+
+
+  eval(new LogResult('Fco_final'/* TODO: Pass other necessary args */))@self
+  in('Fco_final')@self
+
+}

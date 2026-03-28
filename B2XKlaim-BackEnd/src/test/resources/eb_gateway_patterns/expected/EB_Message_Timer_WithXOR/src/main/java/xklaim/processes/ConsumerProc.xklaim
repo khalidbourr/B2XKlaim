@@ -1,0 +1,50 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.Init
+import xklaim.tasks.Validate
+import xklaim.tasks.Report
+import xklaim.tasks.LogTimeout
+import xklaim.tasks.LogInvalid
+import xklaim.tasks.Discard
+import xklaim.tasks.Store
+import xklaim.tasks.UseDefault
+
+proc ConsumerProc() {
+
+
+  eval(new Init('Fc_2'/* TODO: Pass other necessary args */))@self
+  in('Fc_2')@self
+
+  if (in('Msg_Data')@self within 10){
+    if (isValid == true){
+      eval(new Validate('Fc_v1'/* TODO: Pass other necessary args */))@self
+      in('Fc_v1')@self
+
+      eval(new Store('Fc_v2'/* TODO: Pass other necessary args */))@self
+      in('Fc_v2')@self
+
+    } else {
+      eval(new LogInvalid('Fc_i1'/* TODO: Pass other necessary args */))@self
+      in('Fc_i1')@self
+
+      eval(new Discard('Fc_i2'/* TODO: Pass other necessary args */))@self
+      in('Fc_i2')@self
+
+    }
+
+
+  } else {
+    eval(new UseDefault('Fc_t2'/* TODO: Pass other necessary args */))@self
+    in('Fc_t2')@self
+
+    eval(new LogTimeout('Fc_timer_done'/* TODO: Pass other necessary args */))@self
+    in('Fc_timer_done')@self
+
+  }
+
+
+  eval(new Report('Fc_final'/* TODO: Pass other necessary args */))@self
+  in('Fc_final')@self
+
+}

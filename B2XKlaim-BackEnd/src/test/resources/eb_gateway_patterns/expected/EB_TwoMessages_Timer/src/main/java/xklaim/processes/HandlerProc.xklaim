@@ -1,0 +1,41 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.RunHighPriority
+import xklaim.tasks.GoIdle
+import xklaim.tasks.Setup
+import xklaim.tasks.RunLowPriority
+import xklaim.tasks.Cleanup
+
+proc HandlerProc() {
+
+
+  eval(new Setup('Fh_2'/* TODO: Pass other necessary args */))@self
+  in('Fh_2')@self
+
+  var boolean eventOccured = false
+  var long startTime = System.currentTimeMillis()
+  while(!eventOccured){
+    if (in('Msg_TaskB')@self within 1000){
+      eventOccured = true
+      eval(new RunLowPriority('Fh_b2'/* TODO: Pass other necessary args */))@self
+      in('Fh_b2')@self
+
+    } else if (in('Msg_TaskA')@self within 1000){
+      eventOccured = true
+      eval(new RunHighPriority('Fh_a2'/* TODO: Pass other necessary args */))@self
+      in('Fh_a2')@self
+
+    } else if (System.currentTimeMillis() - startTime >= 20){
+      eventOccured = true
+      eval(new GoIdle('Fh_t2'/* TODO: Pass other necessary args */))@self
+      in('Fh_t2')@self
+
+    }
+  }
+
+
+  eval(new Cleanup('Fh_final'/* TODO: Pass other necessary args */))@self
+  in('Fh_final')@self
+
+}

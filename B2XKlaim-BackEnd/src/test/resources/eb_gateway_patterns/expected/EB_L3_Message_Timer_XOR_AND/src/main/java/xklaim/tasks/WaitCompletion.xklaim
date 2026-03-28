@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc WaitCompletion(String edge){
+
+ /* Placeholder implementation for Script Task 'WaitCompletion' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

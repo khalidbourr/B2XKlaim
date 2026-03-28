@@ -1,0 +1,19 @@
+package xklaim.branches
+
+import klava.Locality
+
+proc AND_AND_Split_Branch0() {
+
+  while(isAlive == true){
+    eval(new SendHeartbeat('Flow_L1_to_L2'/* TODO: Pass other necessary args */))@self
+    in('Flow_L1_to_L2')@self
+
+    eval(new WaitInterval('Flow_L2_to_lsplit'/* TODO: Pass other necessary args */))@self
+    in('Flow_L2_to_lsplit')@self
+
+  }
+
+
+  eval(new ConfirmAlive('Flow_A1_to_amerge'/* TODO: Pass other necessary args */))@self
+  in('Flow_A1_to_amerge')@self
+}

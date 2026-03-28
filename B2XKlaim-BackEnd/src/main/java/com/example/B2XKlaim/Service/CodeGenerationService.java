@@ -35,22 +35,25 @@ public class CodeGenerationService {
      */
     public static class GenerationResult {
         private final String collaborationCode;
-        private final String fullGeneratedCode; // Added for backward compatibility
+        private final String fullGeneratedCode;
         private final List<ProcessCode> processes;
         private final Map<String, List<String>> callActivities;
         private final Map<String, List<String>> scriptTasks;
         private final Map<String, List<String>> eventSubProcesses;
+        private final Map<String, List<String>> andBranchProcs;
         private final Set<String> participants;
 
         public GenerationResult(String collaborationCode, String fullGeneratedCode, List<ProcessCode> processes,
                               Map<String, List<String>> callActivities, Map<String, List<String>> scriptTasks,
-                              Map<String, List<String>> eventSubProcesses, Set<String> participants) {
+                              Map<String, List<String>> eventSubProcesses, Map<String, List<String>> andBranchProcs,
+                              Set<String> participants) {
             this.collaborationCode = collaborationCode;
             this.fullGeneratedCode = fullGeneratedCode;
             this.processes = processes;
             this.callActivities = callActivities;
             this.scriptTasks = scriptTasks;
             this.eventSubProcesses = eventSubProcesses;
+            this.andBranchProcs = andBranchProcs;
             this.participants = participants;
         }
 
@@ -60,6 +63,7 @@ public class CodeGenerationService {
         public Map<String, List<String>> getCallActivities() { return callActivities; }
         public Map<String, List<String>> getScriptTasks() { return scriptTasks; }
         public Map<String, List<String>> getEventSubProcesses() { return eventSubProcesses; }
+        public Map<String, List<String>> getAndBranchProcs() { return andBranchProcs; }
         public Set<String> getParticipants() { return participants; }
     }
 
@@ -105,6 +109,7 @@ public class CodeGenerationService {
             Map<String, List<String>> callActivities = codeGenerator.translateCallActivity();
             Map<String, List<String>> scriptTasks = codeGenerator.translateST();
             Map<String, List<String>> eventSubProcesses = codeGenerator.translateEventSubProcesses();
+            Map<String, List<String>> andBranchProcs = codeGenerator.translateAndBranchProcs();
 
             log.info("Code generation completed successfully using {}", strategy.getStrategyName());
             
@@ -115,6 +120,7 @@ public class CodeGenerationService {
                     .withCallActivities(callActivities)
                     .withScriptTasks(scriptTasks)
                     .withEventSubProcesses(eventSubProcesses)
+                    .withAndBranchProcs(andBranchProcs)
                     .withParticipants(participants)
                     .build();
 
