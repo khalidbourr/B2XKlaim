@@ -1,17 +1,51 @@
 # B2XKlaim
 
-<img src="https://github.com/PROSLab/B2XKlaim/blob/main/b2xklaim.jpg" width="500" height="auto">
+<p align="center">
+  <img src="https://github.com/PROSLab/B2XKlaim/blob/main/b2xklaim.jpg" width="500" height="auto">
+</p>
 
-Translates BPMN Collaboration diagrams into [Xklaim](https://github.com/LorenzoBettwordsini/Xklaim) skeleton code.
+**B2XKlaim** translates BPMN Collaboration diagrams into [X-Klaim](https://github.com/LorenzoBettini/Xklaim) skeleton code for developing multi-robot missions. It bridges the gap between high-level process modeling and executable multi-robot coordination by automatically generating X-Klaim programs from visual BPMN specifications.
 
-![B2XKlaim Screenshot](https://github.com/khalidbourr/B2XKlaim/blob/main/Screenshot%20from%202025-02-26%2022-10-16.png)
+## How It Works
+
+B2XKlaim follows a **model-driven development** pipeline:
+
+1. **Design** — Model your multi-robot mission as a BPMN Collaboration diagram using the built-in web editor (powered by [bpmn-js](https://github.com/bpmn-io/bpmn-js)). Each pool represents a robot or participant, and message flows capture inter-robot communication via tuple spaces.
+
+2. **Parse** — The backend parses the `.bpmn` XML, extracting pools, tasks, gateways, events, and message flows into an intermediate representation.
+
+3. **Translate** — A set of mapping rules transforms each BPMN element into its X-Klaim counterpart: pools become `net` declarations, message flows map to `out`/`in` operations on tuple spaces, XOR gateways translate to conditionals, AND gateways to parallel constructs, EB gateways to timeout-based routing (`if … within`), LP gateways to `while` loops, and tasks become `proc` bodies.
+
+4. **Generate** — The tool outputs a structured `.xklaim` package:
+
+```
+src/main/java/xklaim/
+├── Collaboration.xklaim        # net definition
+├── processes/                   # one proc per pool
+├── tasks/                       # script task stubs
+└── branches/                    # AND gateway branches
+```
+
+The generated code is downloadable as a ready-to-compile project for the X-Klaim runtime with ROS 2 integration.
+
+<p align="center">
+  <img src="https://github.com/khalidbourr/B2XKlaim/blob/development/Screenshot%20from%202026-03-31%2021-00-59.png" width="90%">
+  <br><em>BPMN Collaboration diagram designed in the B2XKlaim editor</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/khalidbourr/B2XKlaim/blob/development/Screenshot%20from%202026-03-31%2021-02-08.png" width="90%">
+  <br><em>Generated X-Klaim code output</em>
+</p>
 
 ## Supported BPMN Elements
 
-- Gateways: XOR, AND
-- Events: Start, Intermediate, End (None, Message, Signal)
-- Tasks: Script Task, Call Activity
-- Pools, Message Flow, Event Subprocess
+| Category | Elements |
+|----------|----------|
+| **Gateways** | XOR (Exclusive), AND (Parallel), EB (Event-Based), LP (Loop) |
+| **Events** | Start, Intermediate, End — None, Message, Signal, Timer variants |
+| **Tasks** | Script Task, Call Activity |
+| **Structure** | Pools, Message Flow, Event Subprocess |
 
 ## Setup
 
@@ -39,10 +73,47 @@ cd B2XKlaim
 npm start
 ```
 
-Draw a BPMN Collaboration diagram in the editor, hit translate, and download the generated Xklaim code.
+Draw a BPMN Collaboration diagram in the editor, hit **Translate**, and download the generated X-Klaim code.
 
 ## How to Use
 
 See the full guide: [How to use B2XKlaim](https://kbourr.com/how-to-use-b2xkaim-tool/)
 
 A hosted version is available at [kbourr.com/bxklaim](https://kbourr.com/bxklaim) — a new release will be deployed soon.
+
+## References
+
+If you use B2XKlaim in your research, please cite:
+
+> K. Bourr, F. Tiezzi, L. Bettini, and S. Seriani, "Translating BPMN models into X-KLAIM programs for developing multi-robot missions," *International Journal on Software Tools for Technology Transfer*, pp. 1–19, 2026, Springer.
+
+> K. Bourr, F. Tiezzi, and L. Bettini, "Model-driven development of multi-robot systems: from BPMN models to X-Klaim code," in *International Symposium on Leveraging Applications of Formal Methods (ISoLA)*, pp. 224–242, 2024, Springer.
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@article{bourr2026translating,
+  title     = {Translating BPMN models into X-KLAIM programs for developing multi-robot missions},
+  author    = {Bourr, Khalid and Tiezzi, Francesco and Bettini, Lorenzo and Seriani, Stefano},
+  journal   = {International Journal on Software Tools for Technology Transfer},
+  pages     = {1--19},
+  year      = {2026},
+  publisher = {Springer}
+}
+
+@inproceedings{bourr2024model,
+  title        = {Model-driven development of multi-robot systems: from BPMN models to X-Klaim code},
+  author       = {Bourr, Khalid and Tiezzi, Francesco and Bettini, Lorenzo},
+  booktitle    = {International Symposium on Leveraging Applications of Formal Methods},
+  pages        = {224--242},
+  year         = {2024},
+  organization = {Springer}
+}
+```
+
+</details>
+
+## License
+
+See [LICENSE](LICENSE) for details.
