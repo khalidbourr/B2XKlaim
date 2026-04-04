@@ -29,12 +29,12 @@ src/main/java/xklaim/
 The generated code is downloadable as a ready-to-compile project for the X-Klaim runtime with ROS 2 integration.
 
 <p align="center">
-  <img src="https://github.com/khalidbourr/B2XKlaim/blob/development/Screenshot%20from%202026-03-31%2021-00-59.png" width="90%">
+  <img src="https://github.com/khalidbourr/B2XKlaim/blob/development/media/rover_drone_example.png" width="90%">
   <br><em>BPMN Collaboration diagram designed in the B2XKlaim editor</em>
 </p>
 
 <p align="center">
-  <img src="https://github.com/khalidbourr/B2XKlaim/blob/development/Screenshot%20from%202026-03-31%2021-02-08.png" width="90%">
+  <img src="https://github.com/khalidbourr/B2XKlaim/blob/development/media/generated_rover_drone.png" width="90%">
   <br><em>Generated X-Klaim code output</em>
 </p>
 
