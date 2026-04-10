@@ -98,6 +98,14 @@ import java.util.Map;
          return new HashMap<>(allAndBranchProcs);
      }
 
+     /**
+      * Merges AND branch procs harvested from another translator
+      */
+     public void mergeAndBranchProcs(Map<String, List<String>> other) {
+         if (other == null || other.isEmpty()) return;
+         this.allAndBranchProcs.putAll(other);
+     }
+
      // --- Constructor ---
  
      public BPMNTranslator(BpmnElements bpmnElements) {

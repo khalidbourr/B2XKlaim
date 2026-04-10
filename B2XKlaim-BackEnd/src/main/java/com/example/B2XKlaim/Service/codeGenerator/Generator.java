@@ -259,6 +259,9 @@ public class Generator {
                     processBody.append(body);
                 }
 
+                // Merge AND-gateway branch generated into the main visitor
+                visitor.mergeAndBranchProcs(translator.getAllAndBranchProcs());
+
                 // Apply optimizer to the generated body
                 List<String> bodyLines = Arrays.asList(processBody.toString().split("\\r?\\n"));
                 List<String> optimizedBodyLines = Optimizer.optimize(bodyLines);
