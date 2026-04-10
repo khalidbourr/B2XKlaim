@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Mock dependencies imported by CustomPropertiesProvider
+vi.mock('@bpmn-io/properties-panel', () => ({
+  TextFieldEntry: vi.fn(),
+}));
+vi.mock('bpmn-js-properties-panel', () => ({
+  useService: vi.fn(),
+}));
+
 // ─── CustomReplaceMenuProvider ───
 
 // Shared variable so tests can control what the mock parent returns
@@ -184,20 +192,28 @@ describe('CustomPropertiesProvider', () => {
       expect(result[0].id).toBe('general');
     });
 
-    it('shows ExtensionProperties for DataObjectReference', () => {
+    it('shows ExtensionProperties for DataObjectReference with relabeled group', () => {
       const element = { type: 'bpmn:DataObjectReference' };
       const filterFn = provider.getGroups(element);
 
       const groups = [
         { id: 'general' },
-        { id: 'CamundaPlatform__ExtensionProperties' },
+        { id: 'CamundaPlatform__ExtensionProperties', label: 'Extension properties',
+          items: [
+            { id: 'el-extensionProperty-0', entries: [
+              { id: 'el-extensionProperty-0-name', component: function(){} },
+              { id: 'el-extensionProperty-0-value', component: function(){} },
+            ]}
+          ]},
       ];
 
       const result = filterFn(groups);
       expect(result).toHaveLength(2);
+      const extGroup = result.find(g => g.id === 'CamundaPlatform__ExtensionProperties');
+      expect(extGroup.label).toBe('Data Object Fields');
     });
 
-    it('shows ExtensionProperties for message events', () => {
+    it('shows ExtensionProperties for message events with relabeled group', () => {
       const element = {
         type: 'bpmn:IntermediateThrowEvent',
         businessObject: {
@@ -208,11 +224,39 @@ describe('CustomPropertiesProvider', () => {
 
       const groups = [
         { id: 'general' },
-        { id: 'CamundaPlatform__ExtensionProperties' },
+        { id: 'CamundaPlatform__ExtensionProperties', label: 'Extension properties',
+          items: [
+            { id: 'el-extensionProperty-0', entries: [
+              { id: 'el-extensionProperty-0-name', component: function(){} },
+              { id: 'el-extensionProperty-0-value', component: function(){} },
+            ]}
+          ]},
       ];
 
       const result = filterFn(groups);
       expect(result).toHaveLength(2);
+      const extGroup = result.find(g => g.id === 'CamundaPlatform__ExtensionProperties');
+      expect(extGroup.label).toBe('Message Payload');
+    });
+
+    it('keeps default label for signal events', () => {
+      const element = {
+        type: 'bpmn:IntermediateThrowEvent',
+        businessObject: {
+          eventDefinitions: [{ $type: 'bpmn:SignalEventDefinition' }]
+        }
+      };
+      const filterFn = provider.getGroups(element);
+
+      const groups = [
+        { id: 'general' },
+        { id: 'CamundaPlatform__ExtensionProperties', label: 'Extension properties',
+          items: [] },
+      ];
+
+      const result = filterFn(groups);
+      const extGroup = result.find(g => g.id === 'CamundaPlatform__ExtensionProperties');
+      expect(extGroup.label).toBe('Extension properties');
     });
 
     it('hides ExtensionProperties for non-event elements', () => {

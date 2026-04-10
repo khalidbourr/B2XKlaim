@@ -7,6 +7,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    server: {
+      deps: {
+        inline: ['bpmn-js', 'diagram-js', 'bpmn-js-properties-panel', 'camunda-bpmn-js'],
+      },
+    },
   },
   resolve: {
     alias: {

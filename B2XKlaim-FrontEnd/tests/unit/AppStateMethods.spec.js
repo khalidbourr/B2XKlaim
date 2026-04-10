@@ -43,6 +43,11 @@ vi.mock('camunda-bpmn-js/lib/camunda-platform/Modeler', () => {
 });
 vi.mock('camunda-bpmn-js/dist/assets/camunda-platform-modeler.css', () => ({}));
 vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
+vi.mock('@/CustomPaletteProvider.js', () => ({ default: class {} }));
+vi.mock('@/CustomReplaceMenuProvider.js', () => ({ default: class {} }));
+vi.mock('@/CustomCreateAppendProvider.js', () => ({ CustomCreateMenuProvider: class {}, CustomAppendMenuProvider: class {} }));
+vi.mock('@/CustomPropertiesProvider.js', () => ({ default: class {} }));
+vi.mock('@/CallActivityDrilldownProvider.js', () => ({ default: class {} }));
 
 import App from '@/App.vue';
 

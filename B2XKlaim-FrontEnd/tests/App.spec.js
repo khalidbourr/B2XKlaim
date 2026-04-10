@@ -23,6 +23,11 @@ vi.mock('jszip', () => ({
   }
 }));
 vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
+vi.mock('@/CustomPaletteProvider.js', () => ({ default: class {} }));
+vi.mock('@/CustomReplaceMenuProvider.js', () => ({ default: class {} }));
+vi.mock('@/CustomCreateAppendProvider.js', () => ({ CustomCreateMenuProvider: class {}, CustomAppendMenuProvider: class {} }));
+vi.mock('@/CustomPropertiesProvider.js', () => ({ default: class {} }));
+vi.mock('@/CallActivityDrilldownProvider.js', () => ({ default: class {} }));
 
 // Now we can safely import
 import App from '@/App.vue';
