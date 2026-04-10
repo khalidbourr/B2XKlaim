@@ -1118,8 +1118,54 @@ export default {
             imports.add(`import ${elementLocations.get(otherActivity)}`);
           }
         });
-        
+
+        // Check for AND branch procs
+        Object.keys(this.andBranchProcs).forEach(branchName => {
+          if (activityCode.includes(`${branchName}(`)) {
+            imports.add(`import ${elementLocations.get(branchName)}`);
+          }
+        });
+
         callActivityImports.set(activityName, imports);
+      });
+
+      // For each AND branch proc check :
+      const andBranchProcImports = new Map();
+      Object.keys(this.andBranchProcs).forEach(branchName => {
+        const imports = new Set();
+        const branchData = this.andBranchProcs[branchName];
+        const branchCode = Array.isArray(branchData) ? branchData.join('\n') :
+                           (typeof branchData === 'object' ? (branchData.code || '') : branchData);
+
+        // Script tasks
+        Object.keys(this.scriptTaskProcs).forEach(taskName => {
+          if (branchCode.includes(`${taskName}(`)) {
+            imports.add(`import ${elementLocations.get(taskName)}`);
+          }
+        });
+
+        // Event sub-processes
+        Object.keys(this.eventSubProcesses).forEach(espId => {
+          if (branchCode.includes(espId)) {
+            imports.add(`import ${elementLocations.get(espId)}`);
+          }
+        });
+
+        // Call activities
+        Object.keys(this.callActivities).forEach(activityName => {
+          if (branchCode.includes(`${activityName}(`)) {
+            imports.add(`import ${elementLocations.get(activityName)}`);
+          }
+        });
+
+        // Other AND branch procs (nested parallels)
+        Object.keys(this.andBranchProcs).forEach(otherBranch => {
+          if (otherBranch !== branchName && branchCode.includes(`${otherBranch}(`)) {
+            imports.add(`import ${elementLocations.get(otherBranch)}`);
+          }
+        });
+
+        andBranchProcImports.set(branchName, imports);
       });
 
       // --- Collaboration File ---
@@ -1205,9 +1251,11 @@ export default {
                            (typeof branchData === 'object' ? (branchData.code || '') : branchData);
 
         const packageDeclaration = `package xklaim.branches\n\n`;
-        const imports = `import klava.Locality\n`;
+        const baseImports = ['import klava.Locality'];
+        const specificImports = Array.from(andBranchProcImports.get(branchName) || []);
+        const allImports = [...baseImports, ...specificImports].join('\n');
 
-        const branchWithPackage = packageDeclaration + imports + "\n" + branchCode;
+        const branchWithPackage = packageDeclaration + allImports + "\n\n" + branchCode;
         const branchFilePath = `${srcMainJavaXklaimPath}branches/${branchName}.xklaim`;
         zip.file(branchFilePath, branchWithPackage);
       });
