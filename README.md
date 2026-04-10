@@ -28,13 +28,6 @@ src/main/java/xklaim/
 
 The generated code is downloadable as a ready-to-compile project for the X-Klaim runtime with ROS 2 integration.
 
-### X-Klaim
-
-To compile and run the generated code, you need [X-Klaim](https://github.com/LorenzoBettini/xklaim):
-
-- **Eclipse update site**: https://lorenzobettini.github.io/xklaim-releases/
-- **Eclipse distributions with X-Klaim pre-installed**: https://sourceforge.net/projects/xklaim/files/products/
-
 <p align="center">
   <img src="https://github.com/khalidbourr/B2XKlaim/blob/development/media/rover_drone_example.png" width="90%">
   <br><em>BPMN Collaboration diagram designed in the B2XKlaim editor</em>
@@ -44,6 +37,16 @@ To compile and run the generated code, you need [X-Klaim](https://github.com/Lor
   <img src="https://github.com/khalidbourr/B2XKlaim/blob/development/media/generated_rover_drone.png" width="90%">
   <br><em>Generated X-Klaim code output</em>
 </p>
+
+
+### X-Klaim
+
+To compile and run the generated code, you need [X-Klaim](https://github.com/LorenzoBettini/xklaim):
+
+- **Eclipse update site**: https://lorenzobettini.github.io/xklaim-releases/
+
+- **Eclipse distributions with X-Klaim pre-installed**: https://sourceforge.net/projects/xklaim/files/products/
+
 
 ## Supported BPMN Elements
 
