@@ -1293,13 +1293,6 @@ export default {
       <maven.compiler.target>21</maven.compiler.target>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-    </repositories>
-
     <dependencies>
       <dependency>
         <groupId>io.github.lorenzobettini.klaim</groupId>
@@ -1307,14 +1300,9 @@ export default {
         <version>2.5.0</version>
       </dependency>
       <dependency>
-          <groupId>org.codeberg.kbourr</groupId>
-          <artifactId>common-ros-msgs</artifactId>
-          <version>v1.0.0</version> 
-      </dependency>
-      <dependency>
         <groupId>us.ihmc</groupId>
         <artifactId>jros2</artifactId>
-        <version>1.0.1</version>
+        <version>1.1.6</version>
       </dependency>
     </dependencies>
     
