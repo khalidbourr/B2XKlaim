@@ -1,0 +1,56 @@
+name: Build
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  backend:
+    name: Backend (Maven)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: B2XKlaim-BackEnd
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B verify
+
+  frontend:
+    name: Frontend (Vue / Vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: B2XKlaim-FrontEnd
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: B2XKlaim-FrontEnd/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint -- --no-fix
+        continue-on-error: true
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
