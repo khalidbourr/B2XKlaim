@@ -1,5 +1,7 @@
 # B2XKlaim
 
+[![Build](https://github.com/khalidbourr/B2XKlaim/actions/workflows/build.yml/badge.svg)](https://github.com/khalidbourr/B2XKlaim/actions/workflows/build.yml)
+
 <p align="center">
   <img src="https://github.com/PROSLab/B2XKlaim/blob/main/b2xklaim.jpg" width="500" height="auto">
 </p>
