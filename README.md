@@ -12,13 +12,13 @@
 
 B2XKlaim follows a **model-driven development** pipeline:
 
-1. **Design** — Model your multi-robot mission as a BPMN Collaboration diagram using the built-in web editor (powered by [bpmn-js](https://github.com/bpmn-io/bpmn-js)). Each pool represents a robot or participant, and message flows capture inter-robot communication via tuple spaces.
+1. **Design.** Model your multi-robot mission as a BPMN Collaboration diagram using the built-in web editor (powered by [bpmn-js](https://github.com/bpmn-io/bpmn-js)). Each pool represents a robot or participant, and message flows capture inter-robot communication via tuple spaces.
 
-2. **Parse** — The backend parses the `.bpmn` XML, extracting pools, tasks, gateways, events, and message flows into an intermediate representation.
+2. **Parse.** The backend parses the `.bpmn` XML, extracting pools, tasks, gateways, events, and message flows into an intermediate representation.
 
-3. **Translate** — A set of mapping rules transforms each BPMN element into its X-Klaim counterpart: pools become `net` declarations, message flows map to `out`/`in` operations on tuple spaces, XOR gateways translate to conditionals, AND gateways to parallel constructs, EB gateways to timeout-based routing (`if … within`), LP gateways to `while` loops, and tasks become `proc` bodies.
+3. **Translate.** A set of mapping rules transforms each BPMN element into its X-Klaim counterpart: pools become `net` declarations, message flows map to `out`/`in` operations on tuple spaces, XOR gateways translate to conditionals, AND gateways to parallel constructs, EB gateways to timeout-based routing (`if ... within`), LP gateways to `while` loops, and tasks become `proc` bodies. See [docs/translation.md](docs/translation.md) for the full rule set.
 
-4. **Generate** — The tool outputs a structured `.xklaim` package:
+4. **Generate.** The tool outputs a structured `.xklaim` package:
 
 ```
 src/main/java/xklaim/
@@ -55,7 +55,7 @@ To compile and run the generated code, you need [X-Klaim](https://github.com/Lor
 | Category | Elements |
 |----------|----------|
 | **Gateways** | XOR (Exclusive), AND (Parallel), EB (Event-Based), LP (Loop) |
-| **Events** | Start, Intermediate, End — None, Message, Signal, Timer variants |
+| **Events** | Start, Intermediate, End (None, Message, Signal, Timer variants) |
 | **Tasks** | Script Task, Call Activity |
 | **Structure** | Pools, Message Flow, Event Subprocess |
 
@@ -91,7 +91,7 @@ Draw a BPMN Collaboration diagram in the editor, hit **Translate**, and download
 
 See the full guide: [How to use B2XKlaim](https://kbourr.com/how-to-use-b2xkaim-tool/)
 
-A hosted version is available at [kbourr.com/bxklaim](https://kbourr.com/bxklaim) — a new release will be deployed soon.
+A hosted version is available at [kbourr.com/bxklaim](https://kbourr.com/bxklaim); a new release will be deployed soon.
 
 ## References
 
