@@ -6,7 +6,7 @@
   <img src="https://github.com/PROSLab/B2XKlaim/blob/main/b2xklaim.jpg" width="500" height="auto">
 </p>
 
-**B2XKlaim** translates BPMN Collaboration diagrams into [X-Klaim](https://github.com/LorenzoBettini/Xklaim) skeleton code for developing multi-robot missions. It bridges the gap between high-level process modeling and executable multi-robot coordination by automatically generating X-Klaim programs from visual BPMN specifications.
+**B2XKlaim** combines two complementary roles. First, it provides an **intuitive visual modeling language** based on BPMN that lets multidisciplinary teams (roboticists, software engineers, and non-technical stakeholders) specify multi-robot missions with minimal learning curve, using a notation readable at a glance. Second, it acts as a **code generator** that transforms these diagrams into executable [X-Klaim](https://github.com/LorenzoBettini/Xklaim) skeletons, abstracting the low-level tuple-space coordination so developers focus on task logic rather than synchronization plumbing. Together, these capabilities close the gap between high-level mission design and executable robot coordination.
 
 ## How It Works
 
