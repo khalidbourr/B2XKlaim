@@ -11,7 +11,7 @@ A sequence flow between two elements `P1` and `P2` is rendered as a rendezvous o
 <table>
 <tr><th>BPMN Element</th><th>X-Klaim Translation</th></tr>
 <tr>
-<td><img src="../media/translation/sequence_flow.png" width="180"></td>
+<td><img src="../media/translation/sequence_flow.png" width="200"></td>
 <td>
 
 ```
@@ -38,7 +38,7 @@ Events mainly handle communication. In X-Klaim, message and signal exchanges are
 
 <tr>
 <td>None Start</td>
-<td><img src="../media/translation/event_start.png" width="60"></td>
+<td><img src="../media/translation/event_start.png" width="200"></td>
 <td>
 
 ```
@@ -51,7 +51,7 @@ out(e)@self
 
 <tr>
 <td>Message Start</td>
-<td><img src="../media/translation/event_start_msg.png" width="60"></td>
+<td><img src="../media/translation/event_start_msg.png" width="200"></td>
 <td>
 
 ```
@@ -65,7 +65,7 @@ out(e)@self
 
 <tr>
 <td>Timer Start</td>
-<td><img src="../media/translation/event_start_timer2.png" width="60"></td>
+<td><img src="../media/translation/event_start_timer2.png" width="200"></td>
 <td>
 
 ```
@@ -79,7 +79,7 @@ out(e)@self
 
 <tr>
 <td>Signal Start</td>
-<td><img src="../media/translation/event_start_signal.png" width="60"></td>
+<td><img src="../media/translation/event_start_signal.png" width="200"></td>
 <td>
 
 ```
@@ -93,7 +93,7 @@ out(e)@self
 
 <tr>
 <td>Message Intermediate Catching</td>
-<td><img src="../media/translation/event_int_msg_rcv.png" width="60"></td>
+<td><img src="../media/translation/event_int_msg_rcv.png" width="200"></td>
 <td>
 
 ```
@@ -107,7 +107,7 @@ out(e)@self
 
 <tr>
 <td>Timer Intermediate Catching</td>
-<td><img src="../media/translation/event_int_timer.png" width="60"></td>
+<td><img src="../media/translation/event_int_timer.png" width="200"></td>
 <td>
 
 ```
@@ -121,7 +121,7 @@ out(e)@self
 
 <tr>
 <td>Signal Intermediate Catching</td>
-<td><img src="../media/translation/event_int_signal_rcv.png" width="60"></td>
+<td><img src="../media/translation/event_int_signal_rcv.png" width="200"></td>
 <td>
 
 ```
@@ -135,7 +135,7 @@ out(e)@self
 
 <tr>
 <td>Message Intermediate Throwing</td>
-<td><img src="../media/translation/event_int_msg_snd.png" width="60"></td>
+<td><img src="../media/translation/event_int_msg_snd.png" width="200"></td>
 <td>
 
 ```
@@ -149,7 +149,7 @@ out(e)@self
 
 <tr>
 <td>Signal Intermediate Throwing</td>
-<td><img src="../media/translation/event_int_signal_snd.png" width="60"></td>
+<td><img src="../media/translation/event_int_signal_snd.png" width="200"></td>
 <td>
 
 ```
@@ -165,14 +165,14 @@ out(e)@self
 
 <tr>
 <td>None End</td>
-<td><img src="../media/translation/event_end.png" width="60"></td>
+<td><img src="../media/translation/event_end.png" width="200"></td>
 <td><em>(no emission)</em></td>
 <td>Normal task termination. The robot's branch simply ends.</td>
 </tr>
 
 <tr>
 <td>Message End</td>
-<td><img src="../media/translation/event_end_msg.png" width="60"></td>
+<td><img src="../media/translation/event_end_msg.png" width="200"></td>
 <td>
 
 ```
@@ -185,7 +185,7 @@ out(m, payload)@receiverLoc
 
 <tr>
 <td>Signal End</td>
-<td><img src="../media/translation/event_end_signal.png" width="60"></td>
+<td><img src="../media/translation/event_end_signal.png" width="200"></td>
 <td>
 
 ```
@@ -214,7 +214,7 @@ in(s, payload)@self
 
 <tr>
 <td>XOR (exclusive)</td>
-<td><img src="../media/translation/xor.png" width="120"></td>
+<td><img src="../media/translation/xor.png" width="300"></td>
 <td>
 
 ```
@@ -234,7 +234,7 @@ out(e3)@self
 
 <tr>
 <td>Loop</td>
-<td><img src="../media/translation/loop.png" width="120"></td>
+<td><img src="../media/translation/loop.png" width="300"></td>
 <td>
 
 ```
