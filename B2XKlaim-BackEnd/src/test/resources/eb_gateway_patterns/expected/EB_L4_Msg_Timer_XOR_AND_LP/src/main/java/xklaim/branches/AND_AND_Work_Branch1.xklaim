@@ -8,5 +8,4 @@ proc AND_AND_Work_Branch1() {
   in('Fe_mon1')@self
 
   eval(new RecordMetrics('Fe_rec_to_andmerge'/* TODO: Pass other necessary args */))@self
-  in('Fe_rec_to_andmerge')@self
 }

@@ -15,5 +15,4 @@ proc AND_AND_Split_Branch0() {
 
 
   eval(new ConfirmAlive('Flow_A1_to_amerge'/* TODO: Pass other necessary args */))@self
-  in('Flow_A1_to_amerge')@self
 }

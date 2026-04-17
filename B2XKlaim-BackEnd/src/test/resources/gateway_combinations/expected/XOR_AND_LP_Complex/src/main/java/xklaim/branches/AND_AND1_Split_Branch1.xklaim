@@ -8,5 +8,4 @@ proc AND_AND1_Split_Branch1() {
   in('Flow_M1_to_Alert')@self
 
   eval(new SendAlert('Flow_Alert_to_a1merge'/* TODO: Pass other necessary args */))@self
-  in('Flow_Alert_to_a1merge')@self
 }

@@ -8,5 +8,4 @@ proc AND_AND_Split_Branch0() {
   in('Flow_C1_to_C2')@self
 
   eval(new CacheResult('Flow_C2_to_amerge'/* TODO: Pass other necessary args */))@self
-  in('Flow_C2_to_amerge')@self
 }

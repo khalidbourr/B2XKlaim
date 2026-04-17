@@ -15,5 +15,4 @@ proc AND_AND1_Split_Branch0() {
 
 
   eval(new GenerateReport('Flow_Report_to_a1merge'/* TODO: Pass other necessary args */))@self
-  in('Flow_Report_to_a1merge')@self
 }

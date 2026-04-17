@@ -304,6 +304,37 @@ public class BPMNTranslatorTest {
     }
 
     @Test
+    public void test_AND_branch_does_not_consume_its_terminal_edge() throws Exception {
+        // Invariant: each AND branch proc must NOT end with in('<lastEdge>')@self.
+        ST taskA = ST.builder().name("TaskA").id("taskA").outgoingEdge("flowA").build();
+        SQ flowA = SQ.builder().id("flowA").source("taskA").target("merge").build();
+        ST taskB = ST.builder().name("TaskB").id("taskB").outgoingEdge("flowB").build();
+        SQ flowB = SQ.builder().id("flowB").source("taskB").target("merge").build();
+
+        Map<Integer, List<String>> flowMap = new LinkedHashMap<>();
+        flowMap.put(0, Arrays.asList("taskA"));
+        flowMap.put(1, Arrays.asList("taskB"));
+
+        AND and = AND.builder().id("and1").outgoingEdge("flowOut").flowElementMap(flowMap).build();
+
+        BpmnElements elements = buildElements(and, taskA, flowA, taskB, flowB);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        translator.visit(and);
+
+        List<String> branchProcs = translator.getAuxiliaryProcs();
+        assertEquals(2, branchProcs.size(), "Expected one auxiliary proc per AND branch");
+
+        for (String procDef : branchProcs) {
+            assertFalse(procDef.contains("in('flowA')@self"),
+                "Branch proc must not consume its terminal edge 'flowA': " + procDef);
+            assertFalse(procDef.contains("in('flowB')@self"),
+                "Branch proc must not consume its terminal edge 'flowB': " + procDef);
+        }
+    }
+
+    @Test
     public void test_XOR_gateway_translation() throws Exception {
         // True branch with condition, false branch is default
         ST taskTrue = ST.builder().name("TrueTask").id("taskTrue").outgoingEdge("flowTrue").build();

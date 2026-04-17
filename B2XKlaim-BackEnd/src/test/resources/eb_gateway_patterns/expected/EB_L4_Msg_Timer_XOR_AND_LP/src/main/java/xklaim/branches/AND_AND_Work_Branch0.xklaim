@@ -15,5 +15,4 @@ proc AND_AND_Work_Branch0() {
 
 
   eval(new ValidateAll('Fe_val_to_andmerge'/* TODO: Pass other necessary args */))@self
-  in('Fe_val_to_andmerge')@self
 }

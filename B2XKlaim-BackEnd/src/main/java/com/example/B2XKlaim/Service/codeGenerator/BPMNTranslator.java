@@ -650,14 +650,7 @@ import java.util.Map;
                     lastEdge = element.getOutgoingEdge();
                 }
             }
-
-            // Add the final sequence flow within the branch proc if it's not the AND merge edge
-            if (lastEdge != null && !lastEdge.equals(and.getOutgoingEdge())) {
-                BpmnElement sequence = bpmnElements.getElementById(lastEdge);
-                if (sequence != null) {
-                    branchBody.append("  ").append(sequence.accept(this));
-                }
-            }
+            
 
             branchLastEdges.add(lastEdge);
 

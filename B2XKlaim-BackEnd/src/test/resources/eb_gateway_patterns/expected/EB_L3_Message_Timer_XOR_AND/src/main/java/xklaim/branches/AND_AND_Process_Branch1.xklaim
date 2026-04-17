@@ -8,5 +8,4 @@ proc AND_AND_Process_Branch1() {
   in('Fs_f1')@self
 
   eval(new TransformData('Fs_f2'/* TODO: Pass other necessary args */))@self
-  in('Fs_f2')@self
 }

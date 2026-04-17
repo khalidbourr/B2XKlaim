@@ -8,5 +8,4 @@ proc AND_AND_Split_W_Branch1() {
   in('Fw_f1')@self
 
   eval(new Transform('Fw_f2'/* TODO: Pass other necessary args */))@self
-  in('Fw_f2')@self
 }

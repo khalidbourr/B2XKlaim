@@ -19,4 +19,6 @@ proc AND_AND_Split_Branch1() {
     in('Flow_B2_to_xmerge')@self
 
   }
+
+  out('Flow_xm_to_amerge')@self
 }
