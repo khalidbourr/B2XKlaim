@@ -166,6 +166,7 @@ import CustomReplaceMenuProvider from './CustomReplaceMenuProvider.js';
 import { CustomCreateMenuProvider, CustomAppendMenuProvider } from './CustomCreateAppendProvider.js';
 import CustomPropertiesProvider from './CustomPropertiesProvider.js';
 import CallActivityDrilldownProvider from './CallActivityDrilldownProvider.js';
+import b2xModdleDescriptor from './b2xModdle.json';
 
 // Store modeler outside Vue's reactivity system to prevent infinite recursion
 // when bpmn-js internally traverses model elements (e.g. auto-resize)
@@ -238,7 +239,10 @@ export default {
           customPropertiesProvider: ['type', CustomPropertiesProvider],
           callActivityDrilldownProvider: ['type', CallActivityDrilldownProvider]
         },
-      ]
+      ],
+      moddleExtensions: {
+        b2x: b2xModdleDescriptor
+      }
     });
 
     // Restore previous session from localStorage, or load empty diagram
