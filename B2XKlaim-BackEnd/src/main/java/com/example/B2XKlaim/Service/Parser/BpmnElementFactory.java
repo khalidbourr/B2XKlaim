@@ -174,7 +174,12 @@ public class BpmnElementFactory {
 
                         if ("bpmn:messageEventDefinition".equals(childTagName)) {
                             String messageId = childElement.getAttribute("messageRef");
-                            MSE mse = new MSE(name, id, outgoing, messageId, processId, processName);
+                            MSE mse = MSE.builder()
+                                    .name(name).id(id).outgoingEdge(outgoing)
+                                    .messageId(messageId)
+                                    .ProcessId(processId).ProcessName(processName)
+                                    .targetDataRef(extractTargetDataRef(element))
+                                    .build();
                             return mse;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
                             String signalId = childElement.getAttribute("signalRef");
@@ -237,7 +242,12 @@ public class BpmnElementFactory {
 
                         if ("bpmn:messageEventDefinition".equals(childTagName)) {
                             String messageId = childElement.getAttribute("messageRef");
-                            MIC mic = new MIC(name, id, incoming, outgoing, messageId);
+                            MIC mic = MIC.builder()
+                                    .name(name).id(id)
+                                    .incomingEdge(incoming).outgoingEdge(outgoing)
+                                    .messageId(messageId)
+                                    .targetDataRef(extractTargetDataRef(element))
+                                    .build();
                             return mic;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
                             String signalId = childElement.getAttribute("signalRef");
@@ -299,7 +309,14 @@ public class BpmnElementFactory {
                             if (correspondingMessageFlow == null) {
                                 throw new IllegalArgumentException("Message flow is required.");
                             }
-                            MIT mit = new MIT(name, id, incoming, outgoing, messageId, correspondingMessageFlow);
+                            MIT mit = MIT.builder()
+                                    .name(name).id(id)
+                                    .incomingEdge(incoming).outgoingEdge(outgoing)
+                                    .messageId(messageId)
+                                    .messageFlow(correspondingMessageFlow)
+                                    .sourceDataRefs(extractSourceDataRefs(element))
+                                    .payload(extractPayloadFields(element))
+                                    .build();
                             return mit;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
                             String signalId = childElement.getAttribute("signalRef");
@@ -329,7 +346,14 @@ public class BpmnElementFactory {
                             if (correspondingMessageFlow == null) {
                                 throw new IllegalArgumentException("Message flow is required.");
                             }
-                            MEE mee = new MEE(name, id, incoming, messageId, correspondingMessageFlow);
+                            MEE mee = MEE.builder()
+                                    .name(name).id(id)
+                                    .incomingEdge(incoming)
+                                    .messageId(messageId)
+                                    .messageFlow(correspondingMessageFlow)
+                                    .sourceDataRefs(extractSourceDataRefs(element))
+                                    .payload(extractPayloadFields(element))
+                                    .build();
                             return mee;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
                             String signalId = childElement.getAttribute("signalRef");
@@ -671,6 +695,63 @@ public class BpmnElementFactory {
         return null;
     }
 
+
+    /**
+     * Extracts the list of bpmn:dataInputAssociation/bpmn:sourceRef ids from an
+     * event element (one entry per association). Preserves XML order so the
+     * generated `read` statements run in the same order the user drew them.
+     */
+    private List<String> extractSourceDataRefs(Element eventElement) {
+        List<String> refs = new ArrayList<>();
+        NodeList assocs = eventElement.getElementsByTagName("bpmn:dataInputAssociation");
+        for (int i = 0; i < assocs.getLength(); i++) {
+            Element assoc = (Element) assocs.item(i);
+            NodeList sourceRefs = assoc.getElementsByTagName("bpmn:sourceRef");
+            if (sourceRefs.getLength() > 0) {
+                String ref = sourceRefs.item(0).getTextContent();
+                if (ref != null && !ref.isEmpty()) refs.add(ref);
+            }
+        }
+        return refs;
+    }
+
+    /**
+     * Extracts the b2x:field entries from an event's bpmn:extensionElements.
+     * Used to capture the message payload composition on throw events.
+     */
+    private List<Field> extractPayloadFields(Element eventElement) {
+        List<Field> fields = new ArrayList<>();
+        NodeList fieldNodes = eventElement.getElementsByTagName("b2x:field");
+        for (int i = 0; i < fieldNodes.getLength(); i++) {
+            Element fieldEl = (Element) fieldNodes.item(i);
+            String fieldName = fieldEl.getAttribute("name");
+            String fieldType = fieldEl.getAttribute("type");
+            String fieldValue = fieldEl.hasAttribute("value") ? fieldEl.getAttribute("value") : null;
+            fields.add(Field.builder()
+                    .name(fieldName)
+                    .type(fieldType.isEmpty() ? null : fieldType)
+                    .initialValue(fieldValue)
+                    .build());
+        }
+        return fields;
+    }
+
+    /**
+     * Extracts the bpmn:dataOutputAssociation/bpmn:targetRef from an event element.
+     * Returns the id of the dataObjectReference the event writes to, or null if none.
+     */
+    private String extractTargetDataRef(Element eventElement) {
+        NodeList assocs = eventElement.getElementsByTagName("bpmn:dataOutputAssociation");
+        for (int i = 0; i < assocs.getLength(); i++) {
+            Element assoc = (Element) assocs.item(i);
+            NodeList targetRefs = assoc.getElementsByTagName("bpmn:targetRef");
+            if (targetRefs.getLength() > 0) {
+                String ref = targetRefs.item(0).getTextContent();
+                if (ref != null && !ref.isEmpty()) return ref;
+            }
+        }
+        return null;
+    }
 
     public MessageFLow findMessageFlowBySourceRef(String sourceRefId) {
         for (MessageFLow messageFlow : messageFlows) {

@@ -509,6 +509,113 @@ public class BPMNTranslatorTest {
     }
 
     @Test
+    public void test_MIC_translation_with_target_data_object() throws Exception {
+        DO target = DO.builder()
+                .id("DataObjectReference_pose")
+                .name("pose")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        MIC mic = MIC.builder()
+                .id("mic1").messageId("PoseUpdate").outgoingEdge("flow1")
+                .targetDataRef("DataObjectReference_pose")
+                .build();
+        BPMNTranslator translator = translatorFor(target, mic);
+
+        String result = translator.visit(mic);
+
+        String expected =
+                "in('PoseUpdate', var Double pose_x, var Double pose_y)@self\n" +
+                "in('pose', var Double dummy_x, var Double dummy_y)@self\n" +
+                "out('pose', pose_x, pose_y)@self\n" +
+                "out('flow1')@self\n";
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void test_MSE_translation_with_target_data_object() throws Exception {
+        DO target = DO.builder()
+                .id("DataObjectReference_cmd")
+                .name("command")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("action").type("String").build()))
+                .build();
+        MSE mse = MSE.builder()
+                .id("mse1").messageId("Start").outgoingEdge("flow1")
+                .targetDataRef("DataObjectReference_cmd")
+                .build();
+        BPMNTranslator translator = translatorFor(target, mse);
+
+        String result = translator.visit(mse);
+
+        String expected =
+                "in('Start', var String command_action)@self\n" +
+                "in('command', var String dummy_action)@self\n" +
+                "out('command', command_action)@self\n" +
+                "out('flow1')@self\n";
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void test_MIT_translation_with_source_data_object() throws Exception {
+        DO source = DO.builder()
+                .id("DataObjectReference_pose")
+                .name("pose")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        MessageFLow flow = MessageFLow.builder().id("mf1").senderId("p1").receiverName("Server").build();
+        MIT mit = MIT.builder()
+                .id("mit1").messageId("ReportPose").outgoingEdge("flow1")
+                .messageFlow(flow)
+                .sourceDataRefs(List.of("DataObjectReference_pose"))
+                .payload(List.of(
+                        Field.builder().name("pose_x").build(),
+                        Field.builder().name("pose_y").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(source, mit);
+
+        String result = translator.visit(mit);
+
+        String expected =
+                "read('pose', var Double pose_x, var Double pose_y)@self\n" +
+                "out('ReportPose', pose_x, pose_y)@Server\n" +
+                "out('flow1')@self\n";
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void test_MIT_translation_no_payload_falls_back() throws Exception {
+        MessageFLow flow = MessageFLow.builder().id("mf1").senderId("p1").receiverName("Server").build();
+        MIT mit = MIT.builder()
+                .id("mit1").messageId("Ping").outgoingEdge("flow1")
+                .messageFlow(flow)
+                .build();
+        BPMNTranslator translator = translatorFor(mit);
+
+        String result = translator.visit(mit);
+
+        assertEquals("out('Ping')@Server\nout('flow1')@self\n", result);
+    }
+
+    @Test
+    public void test_MIC_translation_no_target_falls_back() throws Exception {
+        MIC mic = MIC.builder()
+                .id("mic1").messageId("Ping").outgoingEdge("flow1")
+                .build();
+        BPMNTranslator translator = translatorFor(mic);
+
+        String result = translator.visit(mic);
+
+        assertEquals("in('Ping')@self\nout('flow1')@self\n", result);
+    }
+
+    @Test
     public void test_PL_translation_includes_data_objects() throws Exception {
         PL pool = new PL("Robot", "pool1", "proc1", "RobotBehavior");
         DO data = DO.builder()

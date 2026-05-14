@@ -19,6 +19,7 @@ public class MIC extends BpmnElement implements Visitable {
     private String incomingEdge;
     private String outgoingEdge;
     private String messageId;
+    private String targetDataRef;
 
     @Override
     public String accept(Visitor v) throws FileNotFoundException, UnsupportedEncodingException {

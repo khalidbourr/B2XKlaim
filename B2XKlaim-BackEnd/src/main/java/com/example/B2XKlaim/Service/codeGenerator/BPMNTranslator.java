@@ -432,8 +432,7 @@ import java.util.Map;
      @Override
      public String visit(MSE mse) {
          log.trace("Visiting MSE: {} (Msg: {})", mse.getId(), mse.getMessageId());
-         return String.format("in('%s' %s)@self\nout('%s')@self\n",
-                  mse.getMessageId(), "", mse.getOutgoingEdge());
+         return formatMessageCatch(mse.getMessageId(), mse.getTargetDataRef(), mse.getOutgoingEdge());
      }
  
      @Override
@@ -456,8 +455,50 @@ import java.util.Map;
      @Override
      public String visit(MIC mic) {
          log.trace("Visiting MIC: {} (Msg: {})", mic.getId(), mic.getMessageId());
-         return String.format("in('%s' %s)@self\nout('%s')@self\n",
-                 mic.getMessageId(), "", mic.getOutgoingEdge());
+         return formatMessageCatch(mic.getMessageId(), mic.getTargetDataRef(), mic.getOutgoingEdge());
+     }
+
+
+     private String formatMessageCatch(String messageId, String targetDataRef, String outgoingEdge) {
+         DO target = (targetDataRef == null) ? null
+                 : (DO) bpmnElements.getElementById(targetDataRef);
+         if (target == null || target.getFields() == null || target.getFields().isEmpty()) {
+             return String.format("in('%s')@self\nout('%s')@self\n", messageId, outgoingEdge);
+         }
+         String dataName = target.getName();
+         List<Field> fields = target.getFields();
+
+         StringBuilder sb = new StringBuilder();
+         sb.append("in('").append(messageId).append("'");
+         for (Field f : fields) {
+             sb.append(", var ").append(typeOrObject(f.getType()))
+               .append(" ").append(varName(dataName, f.getName()));
+         }
+         sb.append(")@self\n");
+
+         sb.append("in('").append(dataName).append("'");
+         for (Field f : fields) {
+             sb.append(", var ").append(typeOrObject(f.getType()))
+               .append(" ").append("dummy_").append(f.getName());
+         }
+         sb.append(")@self\n");
+
+         sb.append("out('").append(dataName).append("'");
+         for (Field f : fields) {
+             sb.append(", ").append(varName(dataName, f.getName()));
+         }
+         sb.append(")@self\n");
+
+         sb.append("out('").append(outgoingEdge).append("')@self\n");
+         return sb.toString();
+     }
+
+     private static String varName(String dataName, String fieldName) {
+         return dataName + "_" + fieldName;
+     }
+
+     private static String typeOrObject(String type) {
+         return (type == null || type.isEmpty()) ? "Object" : type;
      }
  
      @Override
@@ -480,19 +521,9 @@ import java.util.Map;
      @Override
      public String visit(MIT mit) {
          log.trace("Visiting MIT: {} (Msg: {})", mit.getId(), mit.getMessageId());
-         MessageFLow flow = mit.getMessageFlow();
-         String receiverName = (flow != null) ? flow.getReceiverName() : null;
-         String targetLocation = "null";
- 
-         if (receiverName != null && currentParamMap.containsKey(receiverName)) {
-              targetLocation = currentParamMap.get(receiverName);
-         } else if (receiverName != null) {
-              log.warn("MIT {}: Sending to receiver '{}' but no Local param found. Using raw name.", mit.getId(), receiverName);
-              targetLocation = receiverName;
-         } else { log.warn("MIT {}: Cannot determine receiver. Target set to 'null'.", mit.getId()); targetLocation = "null"; }
- 
-         return String.format("out('%s')@%s\nout('%s')@self\n",
-                 mit.getMessageId(), targetLocation, mit.getOutgoingEdge());
+         String targetLocation = resolveReceiverLocation(mit.getMessageFlow(), mit.getId(), "MIT");
+         return formatMessageThrow(mit.getMessageId(), mit.getSourceDataRefs(),
+                 mit.getPayload(), targetLocation, mit.getOutgoingEdge());
      }
  
      @Override
@@ -511,18 +542,56 @@ import java.util.Map;
      @Override
      public String visit(MEE mee) {
           log.trace("Visiting MEE: {} (Msg: {})", mee.getId(), mee.getMessageId());
-          MessageFLow flow = mee.getMessageFlow();
-          String receiverName = (flow != null) ? flow.getReceiverName() : null;
-          String targetLocation = "null";
- 
-          if (receiverName != null && currentParamMap.containsKey(receiverName)) {
-              targetLocation = currentParamMap.get(receiverName);
-          } else if (receiverName != null) {
-              log.warn("MEE {}: Sending to receiver '{}' but no Local param found. Using raw name.", mee.getId(), receiverName);
-              targetLocation = receiverName;
-          } else { log.warn("MEE {}: Cannot determine receiver. Target set to 'null'.", mee.getId()); targetLocation = "null"; }
- 
-          return String.format("out('%s')@%s\n\n", mee.getMessageId(), targetLocation);
+          String targetLocation = resolveReceiverLocation(mee.getMessageFlow(), mee.getId(), "MEE");
+          return formatMessageThrow(mee.getMessageId(), mee.getSourceDataRefs(),
+                  mee.getPayload(), targetLocation, null) + "\n";
+     }
+
+     private String resolveReceiverLocation(MessageFLow flow, String eventId, String eventKind) {
+         String receiverName = (flow != null) ? flow.getReceiverName() : null;
+         if (receiverName == null) {
+             log.warn("{} {}: Cannot determine receiver. Target set to 'null'.", eventKind, eventId);
+             return "null";
+         }
+         if (currentParamMap.containsKey(receiverName)) {
+             return currentParamMap.get(receiverName);
+         }
+         log.warn("{} {}: Sending to receiver '{}' but no Local param found. Using raw name.",
+                 eventKind, eventId, receiverName);
+         return receiverName;
+     }
+
+     private String formatMessageThrow(String messageId, List<String> sourceDataRefs,
+                                       List<Field> payload, String target, String outgoingEdge) {
+         StringBuilder sb = new StringBuilder();
+
+         if (sourceDataRefs != null) {
+             for (String ref : sourceDataRefs) {
+                 DO source = (DO) bpmnElements.getElementById(ref);
+                 if (source == null) continue;
+                 sb.append("read('").append(source.getName()).append("'");
+                 if (source.getFields() != null) {
+                     for (Field f : source.getFields()) {
+                         sb.append(", var ").append(typeOrObject(f.getType()))
+                           .append(" ").append(varName(source.getName(), f.getName()));
+                     }
+                 }
+                 sb.append(")@self\n");
+             }
+         }
+
+         sb.append("out('").append(messageId).append("'");
+         if (payload != null) {
+             for (Field f : payload) {
+                 sb.append(", ").append(f.getName());
+             }
+         }
+         sb.append(")@").append(target).append("\n");
+
+         if (outgoingEdge != null && !outgoingEdge.isEmpty()) {
+             sb.append("out('").append(outgoingEdge).append("')@self\n");
+         }
+         return sb.toString();
      }
  
       @Override

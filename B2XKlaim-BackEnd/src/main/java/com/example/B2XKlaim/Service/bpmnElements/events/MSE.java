@@ -20,6 +20,7 @@ public class MSE extends BpmnElement implements Visitable {
     private String messageId;
     private String ProcessId;
     private String ProcessName;
+    private String targetDataRef;
 
 
     @Override
