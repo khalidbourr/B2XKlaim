@@ -11,6 +11,8 @@ import com.example.B2XKlaim.Service.bpmnElements.flows.SQ;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.AND;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
+import com.example.B2XKlaim.Service.bpmnElements.objects.DO;
+import com.example.B2XKlaim.Service.bpmnElements.objects.Field;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
 import com.example.B2XKlaim.Service.codeGenerator.BPMNTranslator;
@@ -448,5 +450,89 @@ public class BPMNTranslatorTest {
         // Verify message passing
         assertTrue(result.contains("out('msg1')@"), "Robot1 should send message");
         assertTrue(result.contains("in('msg1'"), "Robot2 should receive message");
+    }
+
+    // ── Data Objects ──
+
+    @Test
+    public void test_DO_translation_typed_defaults() throws Exception {
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("position")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(data);
+
+        String result = translator.visit(data);
+
+        assertEquals("out(\"position\", 0.0, 0.0)@self\n", result);
+    }
+
+    @Test
+    public void test_DO_translation_mixed_types() throws Exception {
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("state")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("counter").type("Integer").build(),
+                        Field.builder().name("active").type("Boolean").build(),
+                        Field.builder().name("label").type("String").build(),
+                        Field.builder().name("payload").type("CustomType").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(data);
+
+        String result = translator.visit(data);
+
+        assertEquals("out(\"state\", 0, false, \"\", null)@self\n", result);
+    }
+
+    @Test
+    public void test_DO_translation_data_input_initial_values() throws Exception {
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("target")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").initialValue("30.0").build(),
+                        Field.builder().name("y").type("Double").initialValue("12.0").build(),
+                        Field.builder().name("label").type("String").initialValue("home").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(data);
+
+        String result = translator.visit(data);
+
+        assertEquals("out(\"target\", 30.0, 12.0, \"home\")@self\n", result);
+    }
+
+    @Test
+    public void test_PL_translation_includes_data_objects() throws Exception {
+        PL pool = new PL("Robot", "pool1", "proc1", "RobotBehavior");
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("position")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        Collab collab = new Collab("collab1", List.of(pool));
+        BpmnElements elements = buildElements(collab, pool, data);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(pool);
+
+        assertTrue(result.contains("out(\"position\", 0.0, 0.0)@self"),
+                "Pool node body should contain data object emission: " + result);
+        assertTrue(result.contains("eval(new RobotBehavior"),
+                "Pool node should still contain eval of process: " + result);
+        // Data object line should come before eval
+        int doIdx = result.indexOf("out(\"position\"");
+        int evalIdx = result.indexOf("eval(new RobotBehavior");
+        assertTrue(doIdx < evalIdx, "Data object emission should precede eval");
     }
 }

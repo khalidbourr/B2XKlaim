@@ -56,6 +56,7 @@ import com.example.B2XKlaim.Service.bpmnElements.gateways.EB;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
 import com.example.B2XKlaim.Service.bpmnElements.objects.DO;
+import com.example.B2XKlaim.Service.bpmnElements.objects.Field;
 import java.util.Arrays;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.MIPL;
@@ -408,12 +409,15 @@ import java.util.Map;
               return "/* ERROR: Participant Name or Process Name missing for "+pl.getId()+" */\n";
          }
  
+         String dataObjectsBlock = translateDataObjectsForProcess(pl.getProcessId());
+
          // Updated nodeTemplate always includes parentheses for eval
          String nodeTemplate = "\tnode %s {\n" +
+                 "%s" +
                  "\t\teval(new %s(%s))@self\n" +
                  "\t}\n";
          // Format using the inner arguments string
-         String result = String.format(nodeTemplate, participantName, processName, argsString);
+         String result = String.format(nodeTemplate, participantName, dataObjectsBlock, processName, argsString);
  
          log.info(">>> visit(PL) Returning: [\n{}]", result);
          return result;
@@ -902,8 +906,62 @@ import java.util.Map;
  
      @Override
      public String visit(DO data) throws FileNotFoundException, UnsupportedEncodingException {
-          log.warn("Visiting Data Object (DO) - Translation not implemented: {}", data.getId());
-         return String.format("// Data Object %s translation not implemented\n", data.getId());
+         String dataName = data.getName();
+         List<Field> fields = data.getFields();
+         StringBuilder sb = new StringBuilder();
+         sb.append("out(\"").append(dataName).append("\"");
+         if (fields != null) {
+             for (Field f : fields) {
+                 sb.append(", ").append(initialOrDefault(f));
+             }
+         }
+         sb.append(")@self\n");
+         return sb.toString();
+     }
+
+     private static String initialOrDefault(Field f) {
+         String initial = f.getInitialValue();
+         if (initial != null && !initial.isEmpty()) {
+             return formatLiteral(initial, f.getType());
+         }
+         return defaultForType(f.getType());
+     }
+
+     private static String formatLiteral(String value, String type) {
+         if ("String".equals(type)) {
+             String trimmed = value.trim();
+             if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+                 return trimmed;
+             }
+             return "\"" + value + "\"";
+         }
+         return value;
+     }
+
+     private String translateDataObjectsForProcess(String processId) throws FileNotFoundException, UnsupportedEncodingException {
+         if (processId == null) return "";
+         List<DO> dataObjects = bpmnElements.getElementsByType(DO.class).stream()
+                 .filter(d -> processId.equals(d.getProcessId()))
+                 .sorted(Comparator.comparing(d -> d.getName() == null ? "" : d.getName()))
+                 .collect(Collectors.toList());
+         StringBuilder sb = new StringBuilder();
+         for (DO d : dataObjects) {
+             sb.append("\t\t").append(visit(d));
+         }
+         return sb.toString();
+     }
+
+     private static String defaultForType(String type) {
+         if (type == null) return "null";
+         switch (type.trim()) {
+             case "Integer": case "int":     return "0";
+             case "Long":    case "long":    return "0L";
+             case "Double":  case "double":  return "0.0";
+             case "Float":   case "float":   return "0.0f";
+             case "Boolean": case "boolean": return "false";
+             case "String":                  return "\"\"";
+             default:                        return "null";
+         }
      }
  
  } 

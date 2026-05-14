@@ -63,6 +63,8 @@ import com.example.B2XKlaim.Service.bpmnElements.gateways.AND;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.EB;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
+import com.example.B2XKlaim.Service.bpmnElements.objects.DO;
+import com.example.B2XKlaim.Service.bpmnElements.objects.Field;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
 
@@ -414,6 +416,48 @@ public class BpmnElementFactory {
                     return esp;
                 }
                 break;
+
+
+            case "bpmn:dataObjectReference":
+                String doName = element.getAttribute("name");
+                String doRefId = element.getAttribute("id");
+                String dataObjectRef = element.getAttribute("dataObjectRef");
+
+                String doProcessId = null;
+                String doProcessName = null;
+                Node doParent = element.getParentNode();
+                while (doParent != null) {
+                    if (doParent.getNodeType() == Node.ELEMENT_NODE
+                            && "bpmn:process".equals(doParent.getNodeName())) {
+                        doProcessId = ((Element) doParent).getAttribute("id");
+                        doProcessName = ((Element) doParent).getAttribute("name");
+                        break;
+                    }
+                    doParent = doParent.getParentNode();
+                }
+
+                List<Field> doFields = new ArrayList<>();
+                NodeList fieldNodes = element.getElementsByTagName("b2x:field");
+                for (int k = 0; k < fieldNodes.getLength(); k++) {
+                    Element fieldEl = (Element) fieldNodes.item(k);
+                    String fieldName = fieldEl.getAttribute("name");
+                    String fieldType = fieldEl.getAttribute("type");
+                    String fieldValue = fieldEl.hasAttribute("value") ? fieldEl.getAttribute("value") : null;
+                    doFields.add(Field.builder()
+                            .name(fieldName)
+                            .type(fieldType)
+                            .initialValue(fieldValue)
+                            .build());
+                }
+
+                return DO.builder()
+                        .id(doRefId)
+                        .name(doName)
+                        .processId(doProcessId)
+                        .processName(doProcessName)
+                        .dataObjectRef(dataObjectRef)
+                        .fields(doFields)
+                        .build();
 
 
             case "bpmn:sequenceFlow":
