@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc RecoverState(String edge){
-
- /* Placeholder implementation for Script Task 'RecoverState' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc RecoverState(String edge) {
+  /* Script body for 'RecoverState': assign output variables here */
+  out(edge)@self
 }

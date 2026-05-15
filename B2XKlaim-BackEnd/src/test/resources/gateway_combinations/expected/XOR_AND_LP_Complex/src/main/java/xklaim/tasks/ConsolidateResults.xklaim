@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc ConsolidateResults(String edge){
-
- /* Placeholder implementation for Script Task 'ConsolidateResults' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc ConsolidateResults(String edge) {
+  /* Script body for 'ConsolidateResults': assign output variables here */
+  out(edge)@self
 }

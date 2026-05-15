@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc InitCounter(String edge){
-
- /* Placeholder implementation for Script Task 'InitCounter' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc InitCounter(String edge) {
+  /* Script body for 'InitCounter': assign output variables here */
+  out(edge)@self
 }

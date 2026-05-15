@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc DownloadData(String edge){
-
- /* Placeholder implementation for Script Task 'DownloadData' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc DownloadData(String edge) {
+  /* Script body for 'DownloadData': assign output variables here */
+  out(edge)@self
 }

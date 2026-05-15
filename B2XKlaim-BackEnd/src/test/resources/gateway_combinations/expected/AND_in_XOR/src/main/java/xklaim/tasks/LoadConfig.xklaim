@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc LoadConfig(String edge){
-
- /* Placeholder implementation for Script Task 'LoadConfig' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc LoadConfig(String edge) {
+  /* Script body for 'LoadConfig': assign output variables here */
+  out(edge)@self
 }

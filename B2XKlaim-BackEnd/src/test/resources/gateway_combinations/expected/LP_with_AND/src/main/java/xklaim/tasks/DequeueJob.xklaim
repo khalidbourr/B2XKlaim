@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc DequeueJob(String edge){
-
- /* Placeholder implementation for Script Task 'DequeueJob' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc DequeueJob(String edge) {
+  /* Script body for 'DequeueJob': assign output variables here */
+  out(edge)@self
 }

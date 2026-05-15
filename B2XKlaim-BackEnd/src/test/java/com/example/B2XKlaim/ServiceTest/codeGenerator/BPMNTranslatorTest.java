@@ -229,6 +229,102 @@ public class BPMNTranslatorTest {
     }
 
     @Test
+    public void test_ST_proc_no_data() {
+        ST st = ST.builder().name("Scan").id("st1").outgoingEdge("flow1").build();
+        BPMNTranslator translator = translatorFor(st);
+
+        String proc = translator.generateScriptTaskProc(st);
+
+        assertTrue(proc.startsWith("proc Scan(String edge) {"), "Header missing");
+        assertTrue(proc.contains("out(edge)@self"), "Outgoing edge emission missing");
+        assertFalse(proc.contains("read("), "Should not emit reads without inputs");
+        assertFalse(proc.contains("= null"), "Should not declare locals without outputs");
+    }
+
+    @Test
+    public void test_ST_proc_with_inputs() {
+        DO sensor = DO.builder()
+                .id("sensorDoRef").name("sensor")
+                .fields(Arrays.asList(
+                        Field.builder().name("reading").type("Double").build(),
+                        Field.builder().name("ts").type("Long").build()))
+                .build();
+        ST st = ST.builder()
+                .name("Analyze").id("st1").outgoingEdge("flow1")
+                .dataInputRefs(new ArrayList<>(Arrays.asList("sensorDoRef")))
+                .build();
+        BPMNTranslator translator = translatorFor(st, sensor);
+
+        String proc = translator.generateScriptTaskProc(st);
+
+        assertTrue(proc.contains("read('sensor', var Double sensor_reading, var Long sensor_ts)@self"),
+                "Input read missing");
+        assertFalse(proc.contains("dummy_"), "No output dummies expected when no outputs");
+        assertTrue(proc.contains("out(edge)@self"));
+    }
+
+    @Test
+    public void test_ST_proc_with_outputs() {
+        DO scanResult = DO.builder()
+                .id("scanDoRef").name("scan")
+                .fields(Arrays.asList(
+                        Field.builder().name("count").type("Integer").build(),
+                        Field.builder().name("label").type("String").build()))
+                .build();
+        ST st = ST.builder()
+                .name("Detect").id("st1").outgoingEdge("flow1")
+                .dataOutputRefs(new ArrayList<>(Arrays.asList("scanDoRef")))
+                .build();
+        BPMNTranslator translator = translatorFor(st, scanResult);
+
+        String proc = translator.generateScriptTaskProc(st);
+
+        assertTrue(proc.contains("var Integer scan_count = null"), "Output local init missing");
+        assertTrue(proc.contains("var String scan_label = null"), "Output local init missing");
+        assertTrue(proc.contains("in('scan', var Integer dummy_count, var String dummy_label)@self"),
+                "Dummy consumption missing");
+        assertTrue(proc.contains("out('scan', scan_count, scan_label)@self"),
+                "Updated output emission missing");
+
+        // Ordering: null-init must precede sigma placeholder, which must precede in/out update.
+        int initIdx = proc.indexOf("var Integer scan_count = null");
+        int sigmaIdx = proc.indexOf("Script body");
+        int inIdx = proc.indexOf("in('scan'");
+        assertTrue(initIdx < sigmaIdx && sigmaIdx < inIdx,
+                "Order must be: null-init → script body → in/out update");
+    }
+
+    @Test
+    public void test_ST_proc_with_inputs_and_outputs() {
+        DO sensor = DO.builder()
+                .id("sensorDoRef").name("sensor")
+                .fields(Arrays.asList(Field.builder().name("v").type("Double").build()))
+                .build();
+        DO result = DO.builder()
+                .id("resultDoRef").name("result")
+                .fields(Arrays.asList(Field.builder().name("ok").type("Boolean").build()))
+                .build();
+        ST st = ST.builder()
+                .name("Process").id("st1").outgoingEdge("flow1")
+                .dataInputRefs(new ArrayList<>(Arrays.asList("sensorDoRef")))
+                .dataOutputRefs(new ArrayList<>(Arrays.asList("resultDoRef")))
+                .build();
+        BPMNTranslator translator = translatorFor(st, sensor, result);
+
+        String proc = translator.generateScriptTaskProc(st);
+
+        int readIdx = proc.indexOf("read('sensor'");
+        int initIdx = proc.indexOf("var Boolean result_ok = null");
+        int sigmaIdx = proc.indexOf("Script body");
+        int inIdx = proc.indexOf("in('result'");
+        int outIdx = proc.indexOf("out('result'");
+        int edgeOutIdx = proc.indexOf("out(edge)@self");
+        assertTrue(readIdx >= 0 && initIdx > readIdx && sigmaIdx > initIdx
+                        && inIdx > sigmaIdx && outIdx > inIdx && edgeOutIdx > outIdx,
+                "Order must be: read inputs → null-init outputs → script body → in/out update → out(edge)");
+    }
+
+    @Test
     public void test_CLA_translation() throws Exception {
         CLA cla = CLA.builder().name("call1").id("cla1").calledProcess("SubProcess").outgoingEdge("flow1").build();
         BPMNTranslator translator = translatorFor(cla);

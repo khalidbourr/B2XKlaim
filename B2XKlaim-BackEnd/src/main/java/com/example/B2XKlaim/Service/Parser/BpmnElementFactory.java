@@ -394,7 +394,12 @@ public class BpmnElementFactory {
                 if (name == null || name.isEmpty()) {
                     throw new IllegalArgumentException("Name is required.");
                 }
-                return new ST(name, id, incoming, outgoing);
+                return ST.builder()
+                        .id(id).name(name)
+                        .incoming(incoming).outgoingEdge(outgoing)
+                        .dataInputRefs(extractSourceDataRefs(element))
+                        .dataOutputRefs(extractTargetDataRefs(element))
+                        .build();
 
 
                 case "bpmn:subProcess":
@@ -751,6 +756,25 @@ public class BpmnElementFactory {
             }
         }
         return null;
+    }
+
+    /**
+     * Extracts the list of bpmn:dataOutputAssociation/bpmn:targetRef ids from an
+     * element. Used by activities (e.g. script tasks) that may write to multiple
+     * data objects. Preserves XML order.
+     */
+    private List<String> extractTargetDataRefs(Element element) {
+        List<String> refs = new ArrayList<>();
+        NodeList assocs = element.getElementsByTagName("bpmn:dataOutputAssociation");
+        for (int i = 0; i < assocs.getLength(); i++) {
+            Element assoc = (Element) assocs.item(i);
+            NodeList targetRefs = assoc.getElementsByTagName("bpmn:targetRef");
+            if (targetRefs.getLength() > 0) {
+                String ref = targetRefs.item(0).getTextContent();
+                if (ref != null && !ref.isEmpty()) refs.add(ref);
+            }
+        }
+        return refs;
     }
 
     public MessageFLow findMessageFlowBySourceRef(String sourceRefId) {

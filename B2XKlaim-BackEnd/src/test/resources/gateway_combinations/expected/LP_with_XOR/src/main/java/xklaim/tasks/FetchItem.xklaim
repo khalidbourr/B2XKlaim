@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc FetchItem(String edge){
-
- /* Placeholder implementation for Script Task 'FetchItem' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc FetchItem(String edge) {
+  /* Script body for 'FetchItem': assign output variables here */
+  out(edge)@self
 }

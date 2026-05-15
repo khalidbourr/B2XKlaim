@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc Discard(String edge){
-
- /* Placeholder implementation for Script Task 'Discard' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc Discard(String edge) {
+  /* Script body for 'Discard': assign output variables here */
+  out(edge)@self
 }

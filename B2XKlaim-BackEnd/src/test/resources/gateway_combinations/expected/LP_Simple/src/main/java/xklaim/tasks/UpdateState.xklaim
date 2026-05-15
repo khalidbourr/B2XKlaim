@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc UpdateState(String edge){
-
- /* Placeholder implementation for Script Task 'UpdateState' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc UpdateState(String edge) {
+  /* Script body for 'UpdateState': assign output variables here */
+  out(edge)@self
 }

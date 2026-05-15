@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc CompressVideo(String edge){
-
- /* Placeholder implementation for Script Task 'CompressVideo' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc CompressVideo(String edge) {
+  /* Script body for 'CompressVideo': assign output variables here */
+  out(edge)@self
 }

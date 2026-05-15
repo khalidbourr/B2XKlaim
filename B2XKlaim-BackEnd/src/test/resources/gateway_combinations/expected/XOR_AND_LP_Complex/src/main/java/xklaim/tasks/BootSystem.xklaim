@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc BootSystem(String edge){
-
- /* Placeholder implementation for Script Task 'BootSystem' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc BootSystem(String edge) {
+  /* Script body for 'BootSystem': assign output variables here */
+  out(edge)@self
 }

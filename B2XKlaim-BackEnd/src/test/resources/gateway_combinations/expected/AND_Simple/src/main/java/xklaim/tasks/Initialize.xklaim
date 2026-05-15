@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc Initialize(String edge){
-
- /* Placeholder implementation for Script Task 'Initialize' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc Initialize(String edge) {
+  /* Script body for 'Initialize': assign output variables here */
+  out(edge)@self
 }

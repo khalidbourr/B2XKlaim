@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc DrainComplete(String edge){
-
- /* Placeholder implementation for Script Task 'DrainComplete' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc DrainComplete(String edge) {
+  /* Script body for 'DrainComplete': assign output variables here */
+  out(edge)@self
 }

@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc LogError(String edge){
-
- /* Placeholder implementation for Script Task 'LogError' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc LogError(String edge) {
+  /* Script body for 'LogError': assign output variables here */
+  out(edge)@self
 }

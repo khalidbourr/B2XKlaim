@@ -952,8 +952,78 @@ import java.util.Map;
                               processToEval,
                               outgoingEdge);
      }
- 
- 
+
+     /**
+      * Generates the data-aware proc definition for a script task per the paper:
+      * read inputs, null-init output locals, sigma(t) placeholder, in/out update
+      * for each output, then out(edge)@self.
+      */
+     public String generateScriptTaskProc(ST st) {
+         String name = st.getName();
+         if (name == null || name.isEmpty()) return "";
+
+         StringBuilder sb = new StringBuilder();
+         sb.append("proc ").append(name).append("(String edge) {\n");
+
+         if (st.getDataInputRefs() != null) {
+             for (String inputId : st.getDataInputRefs()) {
+                 DO input = (DO) bpmnElements.getElementById(inputId);
+                 if (input == null) continue;
+                 sb.append("  read('").append(input.getName()).append("'");
+                 if (input.getFields() != null) {
+                     for (Field f : input.getFields()) {
+                         sb.append(", var ").append(typeOrObject(f.getType()))
+                           .append(" ").append(varName(input.getName(), f.getName()));
+                     }
+                 }
+                 sb.append(")@self\n");
+             }
+         }
+
+         if (st.getDataOutputRefs() != null) {
+             for (String outputId : st.getDataOutputRefs()) {
+                 DO output = (DO) bpmnElements.getElementById(outputId);
+                 if (output == null || output.getFields() == null) continue;
+                 for (Field f : output.getFields()) {
+                     sb.append("  var ").append(typeOrObject(f.getType()))
+                       .append(" ").append(varName(output.getName(), f.getName()))
+                       .append(" = null\n");
+                 }
+             }
+         }
+
+         sb.append("  /* Script body for '").append(name).append("': assign output variables here */\n");
+
+         if (st.getDataOutputRefs() != null) {
+             for (String outputId : st.getDataOutputRefs()) {
+                 DO output = (DO) bpmnElements.getElementById(outputId);
+                 if (output == null) continue;
+                 String doName = output.getName();
+                 List<Field> fields = output.getFields();
+                 sb.append("  in('").append(doName).append("'");
+                 if (fields != null) {
+                     for (Field f : fields) {
+                         sb.append(", var ").append(typeOrObject(f.getType()))
+                           .append(" dummy_").append(f.getName());
+                     }
+                 }
+                 sb.append(")@self\n");
+                 sb.append("  out('").append(doName).append("'");
+                 if (fields != null) {
+                     for (Field f : fields) {
+                         sb.append(", ").append(varName(doName, f.getName()));
+                     }
+                 }
+                 sb.append(")@self\n");
+             }
+         }
+
+         sb.append("  out(edge)@self\n");
+         sb.append("}\n");
+         return sb.toString();
+     }
+
+
      @Override
      public String visit(MIPL mipl) throws FileNotFoundException, UnsupportedEncodingException {
          log.warn("Visiting Multi-Instance Pool (MIPL) - Translation not implemented: {}", mipl.getId());

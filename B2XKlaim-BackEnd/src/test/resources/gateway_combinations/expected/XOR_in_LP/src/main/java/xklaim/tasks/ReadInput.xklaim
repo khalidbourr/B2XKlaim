@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc ReadInput(String edge){
-
- /* Placeholder implementation for Script Task 'ReadInput' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc ReadInput(String edge) {
+  /* Script body for 'ReadInput': assign output variables here */
+  out(edge)@self
 }

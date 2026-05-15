@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc LogDecision(String edge){
-
- /* Placeholder implementation for Script Task 'LogDecision' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc LogDecision(String edge) {
+  /* Script body for 'LogDecision': assign output variables here */
+  out(edge)@self
 }

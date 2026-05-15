@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc AckJob(String edge){
-
- /* Placeholder implementation for Script Task 'AckJob' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc AckJob(String edge) {
+  /* Script body for 'AckJob': assign output variables here */
+  out(edge)@self
 }

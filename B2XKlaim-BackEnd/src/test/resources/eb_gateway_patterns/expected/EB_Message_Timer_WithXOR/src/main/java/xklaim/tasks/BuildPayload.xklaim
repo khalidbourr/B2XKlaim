@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc BuildPayload(String edge){
-
- /* Placeholder implementation for Script Task 'BuildPayload' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc BuildPayload(String edge) {
+  /* Script body for 'BuildPayload': assign output variables here */
+  out(edge)@self
 }

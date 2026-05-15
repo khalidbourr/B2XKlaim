@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc ProcessData(String edge){
-
- /* Placeholder implementation for Script Task 'ProcessData' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc ProcessData(String edge) {
+  /* Script body for 'ProcessData': assign output variables here */
+  out(edge)@self
 }

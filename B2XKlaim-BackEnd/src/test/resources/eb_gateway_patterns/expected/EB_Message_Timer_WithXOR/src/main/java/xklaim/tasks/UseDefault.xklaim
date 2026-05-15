@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc UseDefault(String edge){
-
- /* Placeholder implementation for Script Task 'UseDefault' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc UseDefault(String edge) {
+  /* Script body for 'UseDefault': assign output variables here */
+  out(edge)@self
 }

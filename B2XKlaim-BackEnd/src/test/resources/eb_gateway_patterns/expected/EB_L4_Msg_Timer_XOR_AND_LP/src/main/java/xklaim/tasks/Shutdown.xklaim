@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc Shutdown(String edge){
-
- /* Placeholder implementation for Script Task 'Shutdown' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc Shutdown(String edge) {
+  /* Script body for 'Shutdown': assign output variables here */
+  out(edge)@self
 }

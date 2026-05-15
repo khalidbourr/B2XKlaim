@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc Dispatch(String edge){
-
- /* Placeholder implementation for Script Task 'Dispatch' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc Dispatch(String edge) {
+  /* Script body for 'Dispatch': assign output variables here */
+  out(edge)@self
 }
