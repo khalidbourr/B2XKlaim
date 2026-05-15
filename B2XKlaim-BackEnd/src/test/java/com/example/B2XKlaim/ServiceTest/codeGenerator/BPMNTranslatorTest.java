@@ -275,6 +275,46 @@ public class BPMNTranslatorTest {
         assertTrue(result.contains("out('espFlow1')@self"));
     }
 
+    @Test
+    public void test_ESP_with_message_start_and_payload() throws Exception {
+        DO alarm = DO.builder()
+                .id("alarmDoRef").name("alarm")
+                .fields(Arrays.asList(
+                        Field.builder().name("level").type("Integer").build(),
+                        Field.builder().name("source").type("String").build()))
+                .build();
+
+        MSE trigger = MSE.builder()
+                .name("AlarmReceived").id("espStart")
+                .messageId("alarm_msg")
+                .outgoingEdge("espFlow1")
+                .targetDataRef("alarmDoRef")
+                .build();
+        SQ espFlow = SQ.builder().id("espFlow1").source("espStart").target("espEnd").build();
+        NEE internalEnd = NEE.builder().id("espEnd").build();
+
+        ESP esp = ESP.builder()
+                .name("AlarmHandler")
+                .id("esp1")
+                .internalElements(new ArrayList<>(Arrays.asList(trigger, espFlow, internalEnd)))
+                .build();
+
+        BpmnElements elements = buildElements(esp, trigger, espFlow, internalEnd, alarm);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(esp);
+
+        assertTrue(result.contains("proc AlarmHandler()"), "ESP proc header missing");
+        assertTrue(result.contains("in('alarm_msg', var Integer alarm_level, var String alarm_source)@self"),
+                "Catch with payload binding missing");
+        assertTrue(result.contains("in('alarm', var Integer dummy_level, var String dummy_source)@self"),
+                "Dummy DO consumption missing");
+        assertTrue(result.contains("out('alarm', alarm_level, alarm_source)@self"),
+                "DO refresh missing");
+        assertTrue(result.contains("out('espFlow1')@self"), "Outgoing edge emission missing");
+    }
+
     // ── Gateways ──
 
     @Test
