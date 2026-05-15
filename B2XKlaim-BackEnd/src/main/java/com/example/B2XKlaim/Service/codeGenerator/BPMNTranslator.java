@@ -337,17 +337,6 @@ import java.util.Map;
                     participant.getProcessName(),
                     procParamsString));
 
-            log.debug("Looking for Event Sub-Processes in process {}", participant.getProcessId());
-            List<ESP> eventSubProcesses = bpmnElements.getEventSubProcessesForProcess(participant.getProcessId());
-            if (eventSubProcesses != null && !eventSubProcesses.isEmpty()) {
-                log.debug("Found {} ESPs for process {}. Generating eval calls.", eventSubProcesses.size(), participant.getProcessId());
-                for (ESP esp : eventSubProcesses) {
-                    // Instead of including full ESP code, just add an eval call
-                    String espName = esp.getName() != null && !esp.getName().isEmpty() ? esp.getName() : esp.getId();
-                    collabCode.append(String.format("  eval(new %s())@self\n\n", espName));
-                }
-            }
-
             // Generate the main process body using the traversal helper method
             List<BpmnElement> startEvents = bpmnElements.findStartEventsForProcess(participant.getProcessId());
 
@@ -410,14 +399,15 @@ import java.util.Map;
          }
  
          String dataObjectsBlock = translateDataObjectsForProcess(pl.getProcessId());
+         String espEvalsBlock = translateEspEvalsForProcess(pl.getProcessId());
 
-         // Updated nodeTemplate always includes parentheses for eval
          String nodeTemplate = "\tnode %s {\n" +
+                 "%s" +
                  "%s" +
                  "\t\teval(new %s(%s))@self\n" +
                  "\t}\n";
-         // Format using the inner arguments string
-         String result = String.format(nodeTemplate, participantName, dataObjectsBlock, processName, argsString);
+         String result = String.format(nodeTemplate, participantName, dataObjectsBlock,
+                 espEvalsBlock, processName, argsString);
  
          log.info(">>> visit(PL) Returning: [\n{}]", result);
          return result;
@@ -652,12 +642,10 @@ import java.util.Map;
      @Override
      public String visit(ESP esp) throws FileNotFoundException, UnsupportedEncodingException {
          StringBuilder sb = new StringBuilder();
-         
-         // Create a proc with the ESP ID or name
+
          String espName = esp.getName() != null && !esp.getName().isEmpty() ? esp.getName() : esp.getId();
          sb.append(String.format("proc %s() {\n", espName));
-         
-         // Find the start event among internal elements
+
          BpmnElement startEvent = null;
          for (BpmnElement element : esp.getInternalElements()) {
              if (element instanceof com.example.B2XKlaim.Service.bpmnElements.events.NSE ||
@@ -668,22 +656,21 @@ import java.util.Map;
                  break;
              }
          }
-         
+
          if (startEvent != null) {
-             // Generate process body starting from the start event, following sequence flows
              String processBody = translateProcessBody(startEvent);
-             
-             // Add indentation to each line
              String[] lines = processBody.split("\\r?\\n");
              for (String line : lines) {
                  if (!line.trim().isEmpty()) {
                      sb.append("  ").append(line).append("\n");
                  }
              }
+             // Re-arm the ESP so it can handle the next trigger.
+             sb.append(String.format("  eval(new %s())@self\n", espName));
          } else {
              log.warn("No start event found for Event Sub-Process {}", espName);
          }
-         
+
          sb.append("}\n");
          return sb.toString();
      }
@@ -1016,6 +1003,18 @@ import java.util.Map;
          StringBuilder sb = new StringBuilder();
          for (DO d : dataObjects) {
              sb.append("\t\t").append(visit(d));
+         }
+         return sb.toString();
+     }
+
+     private String translateEspEvalsForProcess(String processId) {
+         if (processId == null) return "";
+         List<ESP> esps = bpmnElements.getEventSubProcessesForProcess(processId);
+         if (esps == null || esps.isEmpty()) return "";
+         StringBuilder sb = new StringBuilder();
+         for (ESP esp : esps) {
+             String espName = esp.getName() != null && !esp.getName().isEmpty() ? esp.getName() : esp.getId();
+             sb.append("\t\teval(new ").append(espName).append("())@self\n");
          }
          return sb.toString();
      }

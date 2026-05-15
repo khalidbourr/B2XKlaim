@@ -273,6 +273,9 @@ public class BPMNTranslatorTest {
 
         assertTrue(result.contains("proc ErrorHandler()"));
         assertTrue(result.contains("out('espFlow1')@self"));
+        assertTrue(result.contains("eval(new ErrorHandler())@self"),
+                "ESP body must end with recursive eval to re-arm itself");
+        assertFalse(result.contains("while"), "ESP must not use a while loop");
     }
 
     @Test
@@ -313,6 +316,44 @@ public class BPMNTranslatorTest {
         assertTrue(result.contains("out('alarm', alarm_level, alarm_source)@self"),
                 "DO refresh missing");
         assertTrue(result.contains("out('espFlow1')@self"), "Outgoing edge emission missing");
+        assertTrue(result.contains("eval(new AlarmHandler())@self"),
+                "ESP body must end with recursive eval to re-arm itself");
+    }
+
+    @Test
+    public void test_ESP_eval_lives_inside_node_block() throws Exception {
+        NSE espStart = NSE.builder().id("espStart").outgoingEdge("espFlow").build();
+        SQ espFlow = SQ.builder().id("espFlow").source("espStart").target("espEnd").build();
+        NEE espEnd = NEE.builder().id("espEnd").build();
+        ESP esp = ESP.builder()
+                .name("Recovery").id("esp1")
+                .processId("process1")
+                .internalElements(new ArrayList<>(Arrays.asList(espStart, espFlow, espEnd)))
+                .build();
+
+        PL pool = PL.builder()
+                .id("pool1").name("Robot1")
+                .ProcessId("process1").ProcessName("RobotMain")
+                .build();
+
+        BpmnElements elements = buildElements(pool, esp, espStart, espFlow, espEnd);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(pool);
+
+        assertTrue(result.contains("node Robot1"), "Node header missing");
+        assertTrue(result.contains("eval(new RobotMain())@self"), "Main proc eval missing");
+        assertTrue(result.contains("eval(new Recovery())@self"), "ESP eval missing from node block");
+
+        int nodeOpenIdx = result.indexOf("node Robot1");
+        int nodeCloseIdx = result.indexOf("\t}", nodeOpenIdx);
+        int espEvalIdx = result.indexOf("eval(new Recovery())@self");
+        int mainEvalIdx = result.indexOf("eval(new RobotMain())@self");
+        assertTrue(nodeOpenIdx < espEvalIdx && espEvalIdx < nodeCloseIdx,
+                "ESP eval must sit inside the node {} block");
+        assertTrue(espEvalIdx < mainEvalIdx,
+                "ESP eval must come before the main proc eval");
     }
 
     // ── Gateways ──
