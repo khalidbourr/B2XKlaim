@@ -97,6 +97,8 @@ A hosted version is available at [kbourr.com/bxklaim](https://kbourr.com/bxklaim
 
 If you use B2XKlaim in your research, please cite:
 
+> K. Bourr, F. Tiezzi, L. Bettini, and S. Seriani, "Low-Code Data-Aware Programming for Multi-Robot Missions: From BPMN to X-Klaim and ROS," in *International Symposium on Leveraging Applications of Formal Methods (ISoLA)*, pp. 224–242, 2024, Springer.
+
 > K. Bourr, F. Tiezzi, L. Bettini, and S. Seriani, "Translating BPMN models into X-KLAIM programs for developing multi-robot missions," *International Journal on Software Tools for Technology Transfer*, pp. 1–19, 2026, Springer.
 
 > K. Bourr, F. Tiezzi, and L. Bettini, "Model-driven development of multi-robot systems: from BPMN models to X-Klaim code," in *International Symposium on Leveraging Applications of Formal Methods (ISoLA)*, pp. 224–242, 2024, Springer.
