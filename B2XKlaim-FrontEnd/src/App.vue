@@ -165,6 +165,7 @@ import CustomPaletteProvider from './CustomPaletteProvider.js';
 import CustomReplaceMenuProvider from './CustomReplaceMenuProvider.js';
 import { CustomCreateMenuProvider, CustomAppendMenuProvider } from './CustomCreateAppendProvider.js';
 import CustomPropertiesProvider from './CustomPropertiesProvider.js';
+import CustomRenderer from './CustomRenderer.js';
 import CallActivityDrilldownProvider from './CallActivityDrilldownProvider.js';
 import b2xModdleDescriptor from './b2xModdle.json';
 
@@ -231,12 +232,13 @@ export default {
       },
       additionalModules: [
         {
-          __init__: ['paletteProvider', 'customPropertiesProvider', 'callActivityDrilldownProvider'],
+          __init__: ['paletteProvider', 'customPropertiesProvider', 'callActivityDrilldownProvider', 'customRenderer'],
           paletteProvider: ['type', CustomPaletteProvider],
           replaceMenuProvider: ['type', CustomReplaceMenuProvider],
           createMenuProvider: ['type', CustomCreateMenuProvider],
           appendMenuProvider: ['type', CustomAppendMenuProvider],
           customPropertiesProvider: ['type', CustomPropertiesProvider],
+          customRenderer: ['type', CustomRenderer],
           callActivityDrilldownProvider: ['type', CallActivityDrilldownProvider]
         },
       ],
@@ -272,6 +274,28 @@ export default {
     // Listen for drill-down into Call Activities
     eventBus.on('callActivity.drilldown', (event) => {
       this.openCallActivityProcess(event.element);
+    });
+
+    // Update properties panel header type for data input elements
+    function isDataInputEl(el) {
+      if (!el || el.type !== 'bpmn:DataObjectReference') return false;
+      var bo = el.businessObject;
+      if (!bo) return false;
+      var ext = bo.get('extensionElements');
+      if (!ext || !ext.get('values')) return false;
+      return ext.get('values').some(function(v) { return v.$type === 'b2x:DataInput'; });
+    }
+    eventBus.on('selection.changed', function() {
+      setTimeout(function() {
+        var el = _bpmnModeler.get('selection').get();
+        var typeEl = document.querySelector('.bio-properties-panel-header-type');
+        if (!typeEl) return;
+        if (!el || el.length !== 1) {
+          typeEl.textContent = 'Data Object Reference';
+          return;
+        }
+        typeEl.textContent = isDataInputEl(el[0]) ? 'Data Input Reference' : 'Data Object Reference';
+      }, 0);
     });
 
     // Auto-sync participant name to its process and auto-save to localStorage

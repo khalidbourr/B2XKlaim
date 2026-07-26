@@ -34,7 +34,7 @@ CustomCreateMenuProvider.prototype.getPopupMenuEntries = function() {
   const CREATE_OPTIONS = getSupportedCreateOptions();
 
   CREATE_OPTIONS.forEach(option => {
-    const { actionName, className, label, target, description, group, search, rank } = option;
+    const { actionName, className, label, target, description, group, search, rank, isDataInput } = option;
 
     const createAction = (event) => {
       popupMenu.close();
@@ -43,6 +43,9 @@ CustomCreateMenuProvider.prototype.getPopupMenuEntries = function() {
         newElement = elementFactory.createParticipantShape(target);
       } else {
         newElement = elementFactory.create('shape', target);
+      }
+      if (isDataInput) {
+        newElement.__dataInput = true;
       }
       if (event instanceof KeyboardEvent) {
         event = mouse.getLastMoveEvent();
@@ -112,11 +115,17 @@ CustomAppendMenuProvider.prototype.getPopupMenuEntries = function(element) {
   });
 
   APPEND_OPTIONS.forEach(option => {
-    const { actionName, className, label, target, description, group, search, rank } = option;
+    const { actionName, className, label, target, description, group, search, rank, isDataInput } = option;
+
+    function createDataElement() {
+      const el = elementFactory.create('shape', target);
+      if (isDataInput) el.__dataInput = true;
+      return el;
+    }
 
     const appendAction = (event) => {
       popupMenu.close();
-      const newElement = elementFactory.create('shape', target);
+      const newElement = createDataElement();
       if (event instanceof KeyboardEvent) {
         event = mouse.getLastMoveEvent();
       }
@@ -134,8 +143,7 @@ CustomAppendMenuProvider.prototype.getPopupMenuEntries = function(element) {
       search,
       rank,
       action: { click: appendAction, dragstart: (event) => {
-        popupMenu.close();
-        const newElement = elementFactory.create('shape', target);
+        const newElement = createDataElement();
         return create.start(event, newElement, { source: element });
       }}
     };
@@ -189,6 +197,7 @@ function getSupportedCreateOptions() {
 
     // Data
     { label: 'Data object', actionName: 'data-object', className: 'bpmn-icon-data-object', target: { type: 'bpmn:DataObjectReference' }, group: { id: 'data', name: 'Data' } },
+    { label: 'Data input', actionName: 'data-input', className: 'bpmn-icon-data-input', target: { type: 'bpmn:DataObjectReference' }, group: { id: 'data', name: 'Data' }, isDataInput: true },
 
     // Participants
     { label: 'Expanded pool/participant', search: 'Non-empty pool/participant', actionName: 'expanded-pool', className: 'bpmn-icon-participant', target: { type: 'bpmn:Participant', isExpanded: true }, group: PARTICIPANT_GROUP },

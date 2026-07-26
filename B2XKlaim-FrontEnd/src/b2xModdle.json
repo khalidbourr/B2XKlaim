@@ -15,6 +15,11 @@
         { "name": "type",  "isAttr": true, "type": "String" },
         { "name": "value", "isAttr": true, "type": "String" }
       ]
+    },
+    {
+      "name": "DataInput",
+      "superClass": ["Element"],
+      "properties": []
     }
   ]
 }
