@@ -789,6 +789,36 @@ public class BPMNTranslatorTest {
     }
 
     @Test
+    public void test_MIT_translation_converts_dotted_payload_to_underscore() throws Exception {
+        DO source = DO.builder()
+                .id("DataObjectReference_pose")
+                .name("pose")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        MessageFLow flow = MessageFLow.builder().id("mf1").senderId("p1").receiverName("Server").build();
+        MIT mit = MIT.builder()
+                .id("mit1").messageId("ReportPose").outgoingEdge("flow1")
+                .messageFlow(flow)
+                .sourceDataRefs(List.of("DataObjectReference_pose"))
+                .payload(List.of(
+                        Field.builder().name("pose.x").build(),
+                        Field.builder().name("pose.y").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(source, mit);
+
+        String result = translator.visit(mit);
+
+        String expected =
+                "read('pose', var Double pose_x, var Double pose_y)@self\n" +
+                "out('ReportPose', pose_x, pose_y)@Server\n" +
+                "out('flow1')@self\n";
+        assertEquals(expected, result);
+    }
+
+    @Test
     public void test_MIC_translation_no_target_falls_back() throws Exception {
         MIC mic = MIC.builder()
                 .id("mic1").messageId("Ping").outgoingEdge("flow1")

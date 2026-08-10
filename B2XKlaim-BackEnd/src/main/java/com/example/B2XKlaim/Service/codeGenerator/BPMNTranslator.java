@@ -491,6 +491,14 @@ public String visit(MIC mic) {
          return dataName + "_" + fieldName;
      }
 
+     /**
+      * Converts a model data-element variable reference 'd.x' into the
+      * corresponding X-Klaim variable 'd_x' (paper rule, Table 9).
+      */
+     private static String payloadVarName(String dottedName) {
+         return (dottedName == null) ? "" : dottedName.replace('.', '_');
+     }
+
      private static String typeOrObject(String type) {
          return (type == null || type.isEmpty()) ? "Object" : type;
      }
@@ -577,7 +585,7 @@ public String visit(MIC mic) {
          sb.append("out('").append(messageId).append("'");
          if (payload != null) {
              for (Field f : payload) {
-                 sb.append(", ").append(f.getName());
+                 sb.append(", ").append(payloadVarName(f.getName()));
              }
          }
          sb.append(")@").append(target).append("\n");
