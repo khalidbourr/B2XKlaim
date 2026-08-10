@@ -20,6 +20,13 @@
       "name": "DataInput",
       "superClass": ["Element"],
       "properties": []
+    },
+    {
+      "name": "EventId",
+      "superClass": ["Element"],
+      "properties": [
+        { "name": "value", "isAttr": true, "type": "String" }
+      ]
     }
   ]
 }

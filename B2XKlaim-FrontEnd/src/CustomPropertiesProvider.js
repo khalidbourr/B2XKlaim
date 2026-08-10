@@ -175,46 +175,54 @@ function dataInputFieldEntries({ idPrefix, element, field }) {
   ];
 }
 
+function addB2xField(element, bpmnFactory, commandStack) {
+  const bo = element.businessObject;
+  const commands = [];
+
+  let ext = bo.get('extensionElements');
+  if (!ext) {
+    ext = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
+    ext.$parent = bo;
+    commands.push({
+      cmd: 'element.updateModdleProperties',
+      context: { element, moddleElement: bo, properties: { extensionElements: ext } }
+    });
+  }
+
+  const field = bpmnFactory.create('b2x:Field', { name: '', type: '' });
+  field.$parent = ext;
+  commands.push({
+    cmd: 'element.updateModdleProperties',
+    context: {
+      element,
+      moddleElement: ext,
+      properties: { values: [...ext.get('values'), field] }
+    }
+  });
+
+  commandStack.execute('properties-panel.multi-command-executor', commands);
+}
+
+function removeB2xField(element, field, commandStack) {
+  const ext = element.businessObject.get('extensionElements');
+  if (!ext) return;
+  const values = ext.get('values').filter(function(v) { return v !== field; });
+  commandStack.execute('element.updateModdleProperties', {
+    element, moddleElement: ext, properties: { values }
+  });
+}
+
 function addFieldFactory({ element, bpmnFactory, commandStack }) {
   return function(event) {
     event.stopPropagation();
-    const bo = element.businessObject;
-    const commands = [];
-
-    let ext = bo.get('extensionElements');
-    if (!ext) {
-      ext = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
-      ext.$parent = bo;
-      commands.push({
-        cmd: 'element.updateModdleProperties',
-        context: { element, moddleElement: bo, properties: { extensionElements: ext } }
-      });
-    }
-
-    const field = bpmnFactory.create('b2x:Field', { name: '', type: '' });
-    field.$parent = ext;
-    commands.push({
-      cmd: 'element.updateModdleProperties',
-      context: {
-        element,
-        moddleElement: ext,
-        properties: { values: [...ext.get('values'), field] }
-      }
-    });
-
-    commandStack.execute('properties-panel.multi-command-executor', commands);
+    addB2xField(element, bpmnFactory, commandStack);
   };
 }
 
 function removeFieldFactory({ element, field, commandStack }) {
   return function(event) {
     event.stopPropagation();
-    const ext = element.businessObject.get('extensionElements');
-    if (!ext) return;
-    const values = ext.get('values').filter(function(v) { return v !== field; });
-    commandStack.execute('element.updateModdleProperties', {
-      element, moddleElement: ext, properties: { values }
-    });
+    removeB2xField(element, field, commandStack);
   };
 }
 
@@ -245,24 +253,6 @@ function DataObjectFieldsGroup(element, injector, kind) {
 }
 
 
-function CatchPayloadNameEntry(props) {
-  const { idPrefix, element, field } = props;
-  const commandStack = useService('commandStack');
-  const debounce = useService('debounceInput');
-  return TextFieldEntry({
-    element: field,
-    id: idPrefix + '-name',
-    label: 'Name',
-    getValue: function() { return field.get('name') || ''; },
-    setValue: function(value) {
-      commandStack.execute('element.updateModdleProperties', {
-        element, moddleElement: field, properties: { name: value }
-      });
-    },
-    debounce
-  });
-}
-
 function ThrowPayloadNameEntry(props) {
   const { idPrefix, element, field } = props;
   const commandStack = useService('commandStack');
@@ -281,14 +271,13 @@ function ThrowPayloadNameEntry(props) {
   });
 }
 
-function catchPayloadEntries({ idPrefix, element, field }) {
-  return [
-    { id: idPrefix + '-name', component: CatchPayloadNameEntry, idPrefix, element, field },
-    { id: idPrefix + '-type', component: FieldTypeEntry,        idPrefix, element, field }
-  ];
-}
-
-function throwPayloadEntries({ idPrefix, element, field }) {
+function payloadEntries(kind, { idPrefix, element, field }) {
+  if (kind === 'catch') {
+    return [
+      { id: idPrefix + '-name', component: FieldNameEntry, idPrefix, element, field },
+      { id: idPrefix + '-type', component: FieldTypeEntry, idPrefix, element, field }
+    ];
+  }
   return [
     { id: idPrefix + '-name', component: ThrowPayloadNameEntry, idPrefix, element, field }
   ];
@@ -298,14 +287,13 @@ function MessagePayloadGroup(element, injector, kind) {
   const bpmnFactory = injector.get('bpmnFactory');
   const commandStack = injector.get('commandStack');
   const fields = getB2xFields(element.businessObject);
-  const entriesFor = kind === 'catch' ? catchPayloadEntries : throwPayloadEntries;
 
   const items = fields.map(function(field, index) {
     const id = element.id + '-b2xPayload-' + index;
     return {
       id,
       label: field.get('name') || '<unnamed>',
-      entries: entriesFor({ idPrefix: id, element, field }),
+      entries: payloadEntries(kind, { idPrefix: id, element, field }),
       autoFocusEntry: id + '-name',
       remove: removeFieldFactory({ element, field, commandStack })
     };
@@ -332,6 +320,10 @@ CustomPropertiesProvider.$inject = ['propertiesPanel', 'injector'];
 CustomPropertiesProvider.prototype.getGroups = function(element) {
   const injector = this._injector;
   return function(groups) {
+    const msgKind = isMessageCatchEvent(element) ? 'catch'
+        : isMessageThrowEvent(element) ? 'throw'
+        : null;
+
     const filtered = groups
       .filter(function(group) {
         if (group.id === 'CamundaPlatform__ExtensionProperties') {
@@ -352,10 +344,8 @@ CustomPropertiesProvider.prototype.getGroups = function(element) {
       filtered.push(DataObjectFieldsGroup(element, injector, 'object'));
     } else if (isDataInput(element)) {
       filtered.push(DataObjectFieldsGroup(element, injector, 'input'));
-    } else if (isMessageCatchEvent(element)) {
-      filtered.push(MessagePayloadGroup(element, injector, 'catch'));
-    } else if (isMessageThrowEvent(element)) {
-      filtered.push(MessagePayloadGroup(element, injector, 'throw'));
+    } else if (msgKind) {
+      filtered.push(MessagePayloadGroup(element, injector, msgKind));
     }
 
     return filtered;
