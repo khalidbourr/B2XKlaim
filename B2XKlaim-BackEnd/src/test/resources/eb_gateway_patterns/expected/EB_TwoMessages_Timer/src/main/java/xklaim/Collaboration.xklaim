@@ -1,0 +1,14 @@
+package xklaim
+
+import xklaim.processes.DispatcherProc
+import xklaim.processes.HandlerProc
+
+net Collab_EB3 physical "localhost:9999" {
+
+	node Dispatcher {
+		eval(new DispatcherProc(Handler))@self
+	}
+	node Handler {
+		eval(new HandlerProc())@self
+	}
+}

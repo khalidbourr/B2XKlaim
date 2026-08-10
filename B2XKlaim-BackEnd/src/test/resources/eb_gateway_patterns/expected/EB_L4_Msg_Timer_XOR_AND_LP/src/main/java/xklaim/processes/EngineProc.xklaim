@@ -1,0 +1,57 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.SkipProcessing
+import xklaim.tasks.AbortAll
+import xklaim.tasks.LogSkipped
+import xklaim.tasks.ConfirmDone
+import xklaim.tasks.Boot
+import xklaim.tasks.HandleExpiry
+import xklaim.tasks.PublishResult
+import xklaim.tasks.Shutdown
+import xklaim.branches.AND_AND_Work_Branch0
+import xklaim.branches.AND_AND_Work_Branch1
+
+proc EngineProc() {
+
+
+  eval(new Boot('Fe_2'/* TODO: Pass other necessary args */))@self
+  in('Fe_2')@self
+
+  if (in('Msg_Signal')@self within 25){
+    if (payload != null){
+      eval(new AND_AND_Work_Branch0())@self
+      eval(new AND_AND_Work_Branch1())@self
+      in('Fe_val_to_andmerge')@self
+      in('Fe_rec_to_andmerge')@self
+
+      eval(new PublishResult('Fe_pub_to_xmerge'/* TODO: Pass other necessary args */))@self
+      in('Fe_pub_to_xmerge')@self
+
+    } else {
+      eval(new SkipProcessing('Fe_skip1'/* TODO: Pass other necessary args */))@self
+      in('Fe_skip1')@self
+
+      eval(new LogSkipped('Fe_logskip_to_xmerge'/* TODO: Pass other necessary args */))@self
+      in('Fe_logskip_to_xmerge')@self
+
+    }
+
+
+    eval(new ConfirmDone('Fe_confirm_to_ebmerge'/* TODO: Pass other necessary args */))@self
+    in('Fe_confirm_to_ebmerge')@self
+
+  } else {
+    eval(new HandleExpiry('Fe_tm2'/* TODO: Pass other necessary args */))@self
+    in('Fe_tm2')@self
+
+    eval(new AbortAll('Fe_abort_to_ebmerge'/* TODO: Pass other necessary args */))@self
+    in('Fe_abort_to_ebmerge')@self
+
+  }
+
+
+  eval(new Shutdown('Fe_final'/* TODO: Pass other necessary args */))@self
+  in('Fe_final')@self
+
+}

@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc ProcessReject(String edge){
+
+ /* Placeholder implementation for Script Task 'ProcessReject' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

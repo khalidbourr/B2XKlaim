@@ -1,0 +1,18 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.Prepare
+import xklaim.tasks.Done
+
+proc SenderProc(Locality receiver_loc) {
+
+
+  eval(new Prepare('Fs_2'/* TODO: Pass other necessary args */))@self
+  in('Fs_2')@self
+
+  out('Msg_Notify')@receiver_loc
+
+  eval(new Done('Fs_4'/* TODO: Pass other necessary args */))@self
+  in('Fs_4')@self
+
+}

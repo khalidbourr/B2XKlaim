@@ -5,6 +5,7 @@ import com.example.B2XKlaim.Service.codeGenerator.Visitor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.io.UnsupportedEncodingException;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = false)
 public class ESP extends BpmnElement implements Visitable {
     private String name;
     private String id;

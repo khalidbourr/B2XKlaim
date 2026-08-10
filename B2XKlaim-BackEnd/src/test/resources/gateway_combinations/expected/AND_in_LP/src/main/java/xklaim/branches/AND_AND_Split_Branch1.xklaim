@@ -1,0 +1,11 @@
+package xklaim.branches
+
+import klava.Locality
+
+proc AND_AND_Split_Branch1() {
+
+  eval(new DownloadData('Flow_B1_to_B2'/* TODO: Pass other necessary args */))@self
+  in('Flow_B1_to_B2')@self
+
+  eval(new ValidateData('Flow_B2_to_amerge'/* TODO: Pass other necessary args */))@self
+}

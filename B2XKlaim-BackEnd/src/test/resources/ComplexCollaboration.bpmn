@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1mpw3ap" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.28.0">
+  <bpmn:collaboration id="Collaboration_17a6cz8">
+    <bpmn:participant id="Participant_1470w91" name="Explorer" processRef="Process_0d01xqv" />
+    <bpmn:participant id="Participant_067xgie" name="Worker" processRef="Process_1rsap32" />
+    <bpmn:messageFlow id="Flow_1kpe87j" name="position" sourceRef="Event_04o20gn" targetRef="Event_0crun4h" />
+    <bpmn:messageFlow id="Flow_0p3j4a4" name="notJoin notification" sourceRef="Event_0itf5hm" targetRef="Event_05aylid" />
+    <bpmn:messageFlow id="Flow_01yx1gs" name="join notification" sourceRef="Event_0rmquac" targetRef="Event_13ktkmt" />
+    <bpmn:messageFlow id="Flow_13m79xl" name="arrival&#10;notification" sourceRef="Event_1n26waw" targetRef="Event_0sikuad" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_0d01xqv" name="MissionRobot1" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_08r9k21" name="start">
+      <bpmn:outgoing>Flow_0vqtes0</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:callActivity id="Activity_1j19olv" name="Explore" calledElement="Explore">
+      <bpmn:incoming>Flow_0vqtes0</bpmn:incoming>
+      <bpmn:outgoing>Flow_0v9d5q8</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:intermediateThrowEvent id="Event_04o20gn" name="sendPosition">
+      <bpmn:incoming>Flow_0v9d5q8</bpmn:incoming>
+      <bpmn:outgoing>Flow_1cp64ts</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1tudq1x" messageRef="Message_217d5nt" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:eventBasedGateway id="Gateway_0zji1yf">
+      <bpmn:incoming>Flow_1cp64ts</bpmn:incoming>
+      <bpmn:outgoing>Flow_0iyd47t</bpmn:outgoing>
+      <bpmn:outgoing>Flow_11jixx9</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0gw9w8i</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:sequenceFlow id="Flow_0vqtes0" sourceRef="StartEvent_08r9k21" targetRef="Activity_1j19olv" />
+    <bpmn:sequenceFlow id="Flow_0v9d5q8" sourceRef="Activity_1j19olv" targetRef="Event_04o20gn" />
+    <bpmn:sequenceFlow id="Flow_1cp64ts" sourceRef="Event_04o20gn" targetRef="Gateway_0zji1yf" />
+    <bpmn:sequenceFlow id="Flow_0iyd47t" sourceRef="Gateway_0zji1yf" targetRef="Event_05aylid" />
+    <bpmn:sequenceFlow id="Flow_11jixx9" sourceRef="Gateway_0zji1yf" targetRef="Event_13ktkmt" />
+    <bpmn:sequenceFlow id="Flow_0gw9w8i" sourceRef="Gateway_0zji1yf" targetRef="Event_1jcmge2" />
+    <bpmn:sequenceFlow id="Flow_0s1o050" sourceRef="Event_05aylid" targetRef="Activity_09ps4ej" />
+    <bpmn:sequenceFlow id="Flow_0ivn7ag" sourceRef="Event_1jcmge2" targetRef="Activity_19q7mgm" />
+    <bpmn:intermediateCatchEvent id="Event_05aylid" name="notJoin">
+      <bpmn:incoming>Flow_0iyd47t</bpmn:incoming>
+      <bpmn:outgoing>Flow_0s1o050</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_0kvisbe" messageRef="Message_0rm7e5v" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="Event_1jcmge2" name="30 sec.">
+      <bpmn:incoming>Flow_0gw9w8i</bpmn:incoming>
+      <bpmn:outgoing>Flow_0ivn7ag</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_1ulvwor">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">30</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:callActivity id="Activity_19q7mgm" name="WorkAlone" calledElement="WorkAlone">
+      <bpmn:incoming>Flow_0ivn7ag</bpmn:incoming>
+      <bpmn:outgoing>Flow_08t6qm1</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:callActivity id="Activity_09ps4ej" name="WorkAlone" calledElement="WorkAlone">
+      <bpmn:incoming>Flow_0s1o050</bpmn:incoming>
+      <bpmn:outgoing>Flow_0qs1b5x</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:sequenceFlow id="Flow_0bkoufj" sourceRef="Event_13ktkmt" targetRef="Event_0sikuad" />
+    <bpmn:sequenceFlow id="Flow_1pf5d26" sourceRef="Event_0sikuad" targetRef="Activity_13woxt6" />
+    <bpmn:sequenceFlow id="Flow_08t6qm1" sourceRef="Activity_19q7mgm" targetRef="Gateway_101o1g1" />
+    <bpmn:sequenceFlow id="Flow_0qs1b5x" sourceRef="Activity_09ps4ej" targetRef="Gateway_101o1g1" />
+    <bpmn:sequenceFlow id="Flow_0iov6s6" sourceRef="Activity_13woxt6" targetRef="Gateway_101o1g1" />
+    <bpmn:callActivity id="Activity_13woxt6" name="WorkTogether" calledElement="WorkTogether">
+      <bpmn:incoming>Flow_1pf5d26</bpmn:incoming>
+      <bpmn:outgoing>Flow_0iov6s6</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:intermediateCatchEvent id="Event_0sikuad" name="arrived">
+      <bpmn:incoming>Flow_0bkoufj</bpmn:incoming>
+      <bpmn:outgoing>Flow_1pf5d26</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1gkjmx7" messageRef="Message_0cvmukp" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="Event_13ktkmt" name="join">
+      <bpmn:incoming>Flow_11jixx9</bpmn:incoming>
+      <bpmn:outgoing>Flow_0bkoufj</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_0q5te60" messageRef="Message_2g93ger" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gateway_101o1g1">
+      <bpmn:incoming>Flow_08t6qm1</bpmn:incoming>
+      <bpmn:incoming>Flow_0qs1b5x</bpmn:incoming>
+      <bpmn:incoming>Flow_0iov6s6</bpmn:incoming>
+      <bpmn:outgoing>Flow_0j0sp8j</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0j0sp8j" sourceRef="Gateway_101o1g1" targetRef="Activity_1lj1j6p" />
+    <bpmn:scriptTask id="Activity_1lj1j6p" name="sd">
+      <bpmn:incoming>Flow_0j0sp8j</bpmn:incoming>
+      <bpmn:outgoing>Flow_0aw7z55</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:sequenceFlow id="Flow_0aw7z55" sourceRef="Activity_1lj1j6p" targetRef="Event_0jxbr6q" />
+    <bpmn:endEvent id="Event_0jxbr6q" name="sdc">
+      <bpmn:incoming>Flow_0aw7z55</bpmn:incoming>
+      <bpmn:terminateEventDefinition id="TerminateEventDefinition_0khem6v" />
+    </bpmn:endEvent>
+    <bpmn:subProcess id="Activity_0pwtzak" name="Battery_check" triggeredByEvent="true">
+      <bpmn:startEvent id="Event_1130a0p" name="df">
+        <bpmn:outgoing>Flow_02rkvrf</bpmn:outgoing>
+        <bpmn:timerEventDefinition id="TimerEventDefinition_0ucl63w">
+          <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">50</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+      </bpmn:startEvent>
+      <bpmn:exclusiveGateway id="Gateway_0ehyxd2">
+        <bpmn:incoming>Flow_02rkvrf</bpmn:incoming>
+        <bpmn:outgoing>Flow_0vb47il</bpmn:outgoing>
+        <bpmn:outgoing>Flow_1i3ee20</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:sequenceFlow id="Flow_02rkvrf" sourceRef="Event_1130a0p" targetRef="Gateway_0ehyxd2" />
+      <bpmn:sequenceFlow id="Flow_0vb47il" sourceRef="Gateway_0ehyxd2" targetRef="Activity_0pm3qyn">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">true</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_1i3ee20" sourceRef="Gateway_0ehyxd2" targetRef="Activity_1wnq7ro">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">false</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:scriptTask id="Activity_0pm3qyn" name="wdf">
+        <bpmn:incoming>Flow_0vb47il</bpmn:incoming>
+        <bpmn:outgoing>Flow_0l7zhbf</bpmn:outgoing>
+      </bpmn:scriptTask>
+      <bpmn:scriptTask id="Activity_1wnq7ro" name="xd">
+        <bpmn:incoming>Flow_1i3ee20</bpmn:incoming>
+        <bpmn:outgoing>Flow_1w4cv4i</bpmn:outgoing>
+      </bpmn:scriptTask>
+      <bpmn:exclusiveGateway id="Gateway_1y43s6n">
+        <bpmn:incoming>Flow_0l7zhbf</bpmn:incoming>
+        <bpmn:incoming>Flow_1w4cv4i</bpmn:incoming>
+        <bpmn:outgoing>Flow_0wu87eg</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:sequenceFlow id="Flow_0l7zhbf" sourceRef="Activity_0pm3qyn" targetRef="Gateway_1y43s6n" />
+      <bpmn:sequenceFlow id="Flow_0wu87eg" sourceRef="Gateway_1y43s6n" targetRef="Event_1yj4ji3" />
+      <bpmn:sequenceFlow id="Flow_1w4cv4i" sourceRef="Activity_1wnq7ro" targetRef="Gateway_1y43s6n" />
+      <bpmn:endEvent id="Event_1yj4ji3" name="ereturn to base">
+        <bpmn:incoming>Flow_0wu87eg</bpmn:incoming>
+        <bpmn:signalEventDefinition id="SignalEventDefinition_15ox1qr" signalRef="Signal_35a5fq2" />
+      </bpmn:endEvent>
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmn:process id="Process_1rsap32" name="MissionRobot2" isExecutable="false">
+    <bpmn:startEvent id="Event_0crun4h" name="get&#10;position">
+      <bpmn:outgoing>Flow_09itd21</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1upa7kb" messageRef="Message_217d5nt" />
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Gateway_1i83kec" name="isReachable">
+      <bpmn:incoming>Flow_09itd21</bpmn:incoming>
+      <bpmn:outgoing>Flow_1gnnpw6</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1y3rt26</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_09itd21" sourceRef="Event_0crun4h" targetRef="Gateway_1i83kec" />
+    <bpmn:sequenceFlow id="Flow_1gnnpw6" sourceRef="Gateway_1i83kec" targetRef="Event_0itf5hm">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_1y3rt26" sourceRef="Gateway_1i83kec" targetRef="Event_0rmquac">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:intermediateThrowEvent id="Event_0itf5hm" name="notify&#10;not join">
+      <bpmn:incoming>Flow_1gnnpw6</bpmn:incoming>
+      <bpmn:outgoing>Flow_137fqq8</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_0fal37t" messageRef="Message_0rm7e5v" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:sequenceFlow id="Flow_11y3wdh" sourceRef="Event_0rmquac" targetRef="Activity_1yorylw" />
+    <bpmn:sequenceFlow id="Flow_137fqq8" sourceRef="Event_0itf5hm" targetRef="Gateway_141uiw3" />
+    <bpmn:callActivity id="Activity_1yorylw" name="MoveTo" calledElement="MoveTo">
+      <bpmn:incoming>Flow_11y3wdh</bpmn:incoming>
+      <bpmn:outgoing>Flow_10o3vbp</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:intermediateThrowEvent id="Event_0rmquac" name="notify&#10;join">
+      <bpmn:incoming>Flow_1y3rt26</bpmn:incoming>
+      <bpmn:outgoing>Flow_11y3wdh</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1rqvo0e" messageRef="Message_2g93ger" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:sequenceFlow id="Flow_10o3vbp" sourceRef="Activity_1yorylw" targetRef="Event_1n26waw" />
+    <bpmn:intermediateThrowEvent id="Event_1n26waw" name="notify&#10;arrival">
+      <bpmn:incoming>Flow_10o3vbp</bpmn:incoming>
+      <bpmn:outgoing>Flow_1hy29fo</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_048y9a4" messageRef="Message_0cvmukp" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:sequenceFlow id="Flow_1hy29fo" sourceRef="Event_1n26waw" targetRef="Gateway_141uiw3" />
+    <bpmn:exclusiveGateway id="Gateway_141uiw3">
+      <bpmn:incoming>Flow_137fqq8</bpmn:incoming>
+      <bpmn:incoming>Flow_1hy29fo</bpmn:incoming>
+      <bpmn:outgoing>Flow_1hm6e2u</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:subProcess id="Activity_0wkbiqd" name="Handler2" triggeredByEvent="true">
+      <bpmn:startEvent id="Event_1jntkf8" name="df">
+        <bpmn:outgoing>Flow_0h0nw6p</bpmn:outgoing>
+        <bpmn:signalEventDefinition id="SignalEventDefinition_03nzfh6" signalRef="Signal_15ivpoi" />
+      </bpmn:startEvent>
+      <bpmn:sequenceFlow id="Flow_0h0nw6p" sourceRef="Event_1jntkf8" targetRef="Activity_145j7is" />
+      <bpmn:endEvent id="Event_1z128lu" name="dc">
+        <bpmn:incoming>Flow_0i5y3cu</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_0i5y3cu" sourceRef="Activity_145j7is" targetRef="Event_1z128lu" />
+      <bpmn:scriptTask id="Activity_145j7is" name="Check">
+        <bpmn:incoming>Flow_0h0nw6p</bpmn:incoming>
+        <bpmn:outgoing>Flow_0i5y3cu</bpmn:outgoing>
+      </bpmn:scriptTask>
+    </bpmn:subProcess>
+    <bpmn:sequenceFlow id="Flow_1hm6e2u" sourceRef="Gateway_141uiw3" targetRef="Activity_1mb8713" />
+    <bpmn:sequenceFlow id="Flow_02uur6k" sourceRef="Activity_1mb8713" targetRef="Event_1odtywq" />
+    <bpmn:scriptTask id="Activity_1mb8713" name="Here">
+      <bpmn:incoming>Flow_1hm6e2u</bpmn:incoming>
+      <bpmn:outgoing>Flow_02uur6k</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="Event_1odtywq" name="ffinish">
+      <bpmn:incoming>Flow_02uur6k</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+  <bpmn:message id="Message_2g93ger" name="Message_2g93ger" />
+  <bpmn:message id="Message_217d5nt" name="Message_217d5nt" />
+  <bpmn:message id="Message_0rm7e5v" name="Message_0rm7e5v" />
+  <bpmn:message id="Message_0cvmukp" name="Message_0cvmukp" />
+  <bpmn:signal id="Signal_15ivpoi" name="Signal_15ivpoi" />
+  <bpmn:signal id="Signal_35a5fq2" name="Signal_35a5fq2" />
+</bpmn:definitions>

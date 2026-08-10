@@ -1,0 +1,11 @@
+package xklaim.branches
+
+import klava.Locality
+
+proc AND_AND_Process_Branch0() {
+
+  eval(new AuditJob('Fs_a1'/* TODO: Pass other necessary args */))@self
+  in('Fs_a1')@self
+
+  eval(new LogAudit('Fs_a2'/* TODO: Pass other necessary args */))@self
+}

@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc HandleTimeout(String edge){
+
+ /* Placeholder implementation for Script Task 'HandleTimeout' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

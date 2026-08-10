@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc WaitInterval(String edge){
+
+ /* Placeholder implementation for Script Task 'WaitInterval' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

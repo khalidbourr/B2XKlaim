@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc EncodeVideo(String edge){
+
+ /* Placeholder implementation for Script Task 'EncodeVideo' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

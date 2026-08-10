@@ -20,6 +20,7 @@
 import com.example.B2XKlaim.Service.codeGenerator.Visitable;
 import com.example.B2XKlaim.Service.codeGenerator.Visitor;
  import lombok.Data;
+ import lombok.EqualsAndHashCode;
  
  import java.io.FileNotFoundException;
  import java.io.UnsupportedEncodingException;
@@ -33,6 +34,7 @@ import com.example.B2XKlaim.Service.codeGenerator.Visitor;
   * This gateway routes the process flow based on which event occurs first.
   */
  @Data
+ @EqualsAndHashCode(callSuper = false)
  public class EB extends BpmnElement implements Visitable {
      private String id;
      private String outgoingEdge;

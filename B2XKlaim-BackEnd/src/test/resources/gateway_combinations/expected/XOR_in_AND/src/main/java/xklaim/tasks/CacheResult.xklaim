@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc CacheResult(String edge){
+
+ /* Placeholder implementation for Script Task 'CacheResult' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

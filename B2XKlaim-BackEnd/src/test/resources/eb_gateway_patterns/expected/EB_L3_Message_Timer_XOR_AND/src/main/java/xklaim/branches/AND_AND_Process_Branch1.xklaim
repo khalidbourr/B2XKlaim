@@ -1,0 +1,11 @@
+package xklaim.branches
+
+import klava.Locality
+
+proc AND_AND_Process_Branch1() {
+
+  eval(new FetchData('Fs_f1'/* TODO: Pass other necessary args */))@self
+  in('Fs_f1')@self
+
+  eval(new TransformData('Fs_f2'/* TODO: Pass other necessary args */))@self
+}

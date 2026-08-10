@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc ValidateData(String edge){
+
+ /* Placeholder implementation for Script Task 'ValidateData' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

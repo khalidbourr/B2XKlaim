@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc AuditJob(String edge){
+
+ /* Placeholder implementation for Script Task 'AuditJob' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

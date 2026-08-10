@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc BootSystem(String edge){
+
+ /* Placeholder implementation for Script Task 'BootSystem' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

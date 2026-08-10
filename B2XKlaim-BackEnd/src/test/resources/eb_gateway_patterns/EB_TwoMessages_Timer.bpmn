@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_eb3" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.28.0">
+  <bpmn:collaboration id="Collab_EB3">
+    <bpmn:participant id="Part_Dispatcher" name="Dispatcher" processRef="Proc_Dispatcher" />
+    <bpmn:participant id="Part_Handler" name="Handler" processRef="Proc_Handler" />
+    <bpmn:messageFlow id="MF_TaskA" name="taskA" sourceRef="Evt_SendTaskA" targetRef="Evt_CatchTaskA" />
+    <bpmn:messageFlow id="MF_TaskB" name="taskB" sourceRef="Evt_SendTaskB" targetRef="Evt_CatchTaskB" />
+  </bpmn:collaboration>
+
+  <!-- Dispatcher: Start → Analyze(ST) → XOR → (cond: SendTaskA) / (default: SendTaskB) → XOR merge → Archive(ST) → End -->
+  <bpmn:process id="Proc_Dispatcher" name="DispatcherProc" isExecutable="false">
+    <bpmn:startEvent id="Start_D" name="start">
+      <bpmn:outgoing>Fd_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Task_Analyze" name="Analyze">
+      <bpmn:incoming>Fd_1</bpmn:incoming>
+      <bpmn:outgoing>Fd_2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="XOR_Route" default="Fd_to_b">
+      <bpmn:incoming>Fd_2</bpmn:incoming>
+      <bpmn:outgoing>Fd_to_a</bpmn:outgoing>
+      <bpmn:outgoing>Fd_to_b</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateThrowEvent id="Evt_SendTaskA" name="sendTaskA">
+      <bpmn:incoming>Fd_to_a</bpmn:incoming>
+      <bpmn:outgoing>Fd_a1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_SendA" messageRef="Msg_TaskA" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="Evt_SendTaskB" name="sendTaskB">
+      <bpmn:incoming>Fd_to_b</bpmn:incoming>
+      <bpmn:outgoing>Fd_b1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_SendB" messageRef="Msg_TaskB" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:exclusiveGateway id="XOR_Merge_D">
+      <bpmn:incoming>Fd_a1</bpmn:incoming>
+      <bpmn:incoming>Fd_b1</bpmn:incoming>
+      <bpmn:outgoing>Fd_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_Archive" name="Archive">
+      <bpmn:incoming>Fd_end</bpmn:incoming>
+      <bpmn:outgoing>Fd_final</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_D" name="end">
+      <bpmn:incoming>Fd_final</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Fd_1" sourceRef="Start_D" targetRef="Task_Analyze" />
+    <bpmn:sequenceFlow id="Fd_2" sourceRef="Task_Analyze" targetRef="XOR_Route" />
+    <bpmn:sequenceFlow id="Fd_to_a" sourceRef="XOR_Route" targetRef="Evt_SendTaskA">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">priority == "high"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Fd_to_b" sourceRef="XOR_Route" targetRef="Evt_SendTaskB" />
+    <bpmn:sequenceFlow id="Fd_a1" sourceRef="Evt_SendTaskA" targetRef="XOR_Merge_D" />
+    <bpmn:sequenceFlow id="Fd_b1" sourceRef="Evt_SendTaskB" targetRef="XOR_Merge_D" />
+    <bpmn:sequenceFlow id="Fd_end" sourceRef="XOR_Merge_D" targetRef="Task_Archive" />
+    <bpmn:sequenceFlow id="Fd_final" sourceRef="Task_Archive" targetRef="End_D" />
+  </bpmn:process>
+
+  <!-- Handler: Start → Setup(ST) → EB Gateway → (CatchTaskA → RunA(ST)) / (CatchTaskB → RunB(ST)) / (Timer20s → Idle(ST)) → XOR merge → Cleanup(ST) → End -->
+  <bpmn:process id="Proc_Handler" name="HandlerProc" isExecutable="false">
+    <bpmn:startEvent id="Start_H" name="start">
+      <bpmn:outgoing>Fh_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Task_Setup" name="Setup">
+      <bpmn:incoming>Fh_1</bpmn:incoming>
+      <bpmn:outgoing>Fh_2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:eventBasedGateway id="EB_Dispatch">
+      <bpmn:incoming>Fh_2</bpmn:incoming>
+      <bpmn:outgoing>Fh_to_a</bpmn:outgoing>
+      <bpmn:outgoing>Fh_to_b</bpmn:outgoing>
+      <bpmn:outgoing>Fh_to_timer</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <!-- Path 1: taskA message -->
+    <bpmn:intermediateCatchEvent id="Evt_CatchTaskA" name="getTaskA">
+      <bpmn:incoming>Fh_to_a</bpmn:incoming>
+      <bpmn:outgoing>Fh_a1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_CatchA" messageRef="Msg_TaskA" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:scriptTask id="Task_RunA" name="RunHighPriority">
+      <bpmn:incoming>Fh_a1</bpmn:incoming>
+      <bpmn:outgoing>Fh_a2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <!-- Path 2: taskB message -->
+    <bpmn:intermediateCatchEvent id="Evt_CatchTaskB" name="getTaskB">
+      <bpmn:incoming>Fh_to_b</bpmn:incoming>
+      <bpmn:outgoing>Fh_b1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_CatchB" messageRef="Msg_TaskB" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:scriptTask id="Task_RunB" name="RunLowPriority">
+      <bpmn:incoming>Fh_b1</bpmn:incoming>
+      <bpmn:outgoing>Fh_b2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <!-- Path 3: timer 20s -->
+    <bpmn:intermediateCatchEvent id="Evt_Timer20" name="20sec">
+      <bpmn:incoming>Fh_to_timer</bpmn:incoming>
+      <bpmn:outgoing>Fh_t1</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TED_20">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">20</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:scriptTask id="Task_Idle" name="GoIdle">
+      <bpmn:incoming>Fh_t1</bpmn:incoming>
+      <bpmn:outgoing>Fh_t2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <!-- XOR merge -->
+    <bpmn:exclusiveGateway id="XOR_Merge_H">
+      <bpmn:incoming>Fh_a2</bpmn:incoming>
+      <bpmn:incoming>Fh_b2</bpmn:incoming>
+      <bpmn:incoming>Fh_t2</bpmn:incoming>
+      <bpmn:outgoing>Fh_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_Cleanup" name="Cleanup">
+      <bpmn:incoming>Fh_end</bpmn:incoming>
+      <bpmn:outgoing>Fh_final</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_H" name="end">
+      <bpmn:incoming>Fh_final</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Fh_1" sourceRef="Start_H" targetRef="Task_Setup" />
+    <bpmn:sequenceFlow id="Fh_2" sourceRef="Task_Setup" targetRef="EB_Dispatch" />
+    <bpmn:sequenceFlow id="Fh_to_a" sourceRef="EB_Dispatch" targetRef="Evt_CatchTaskA" />
+    <bpmn:sequenceFlow id="Fh_to_b" sourceRef="EB_Dispatch" targetRef="Evt_CatchTaskB" />
+    <bpmn:sequenceFlow id="Fh_to_timer" sourceRef="EB_Dispatch" targetRef="Evt_Timer20" />
+    <bpmn:sequenceFlow id="Fh_a1" sourceRef="Evt_CatchTaskA" targetRef="Task_RunA" />
+    <bpmn:sequenceFlow id="Fh_a2" sourceRef="Task_RunA" targetRef="XOR_Merge_H" />
+    <bpmn:sequenceFlow id="Fh_b1" sourceRef="Evt_CatchTaskB" targetRef="Task_RunB" />
+    <bpmn:sequenceFlow id="Fh_b2" sourceRef="Task_RunB" targetRef="XOR_Merge_H" />
+    <bpmn:sequenceFlow id="Fh_t1" sourceRef="Evt_Timer20" targetRef="Task_Idle" />
+    <bpmn:sequenceFlow id="Fh_t2" sourceRef="Task_Idle" targetRef="XOR_Merge_H" />
+    <bpmn:sequenceFlow id="Fh_end" sourceRef="XOR_Merge_H" targetRef="Task_Cleanup" />
+    <bpmn:sequenceFlow id="Fh_final" sourceRef="Task_Cleanup" targetRef="End_H" />
+  </bpmn:process>
+
+  <bpmn:message id="Msg_TaskA" name="Msg_TaskA" />
+  <bpmn:message id="Msg_TaskB" name="Msg_TaskB" />
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_EB3">
+      <bpmndi:BPMNShape id="Part_Dispatcher_di" bpmnElement="Part_Dispatcher" isHorizontal="true"><dc:Bounds x="160" y="60" width="850" height="250" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Part_Handler_di" bpmnElement="Part_Handler" isHorizontal="true"><dc:Bounds x="160" y="380" width="850" height="350" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_D_di" bpmnElement="Start_D"><dc:Bounds x="222" y="162" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Analyze_di" bpmnElement="Task_Analyze"><dc:Bounds x="300" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Route_di" bpmnElement="XOR_Route" isMarkerVisible="true"><dc:Bounds x="445" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_SendTaskA_di" bpmnElement="Evt_SendTaskA"><dc:Bounds x="542" y="102" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_SendTaskB_di" bpmnElement="Evt_SendTaskB"><dc:Bounds x="542" y="222" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Merge_D_di" bpmnElement="XOR_Merge_D" isMarkerVisible="true"><dc:Bounds x="625" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Archive_di" bpmnElement="Task_Archive"><dc:Bounds x="720" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_D_di" bpmnElement="End_D"><dc:Bounds x="862" y="162" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_H_di" bpmnElement="Start_H"><dc:Bounds x="222" y="532" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Setup_di" bpmnElement="Task_Setup"><dc:Bounds x="300" y="510" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EB_Dispatch_di" bpmnElement="EB_Dispatch"><dc:Bounds x="445" y="525" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_CatchTaskA_di" bpmnElement="Evt_CatchTaskA"><dc:Bounds x="542" y="432" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RunA_di" bpmnElement="Task_RunA"><dc:Bounds x="610" y="410" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_CatchTaskB_di" bpmnElement="Evt_CatchTaskB"><dc:Bounds x="542" y="532" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RunB_di" bpmnElement="Task_RunB"><dc:Bounds x="610" y="510" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_Timer20_di" bpmnElement="Evt_Timer20"><dc:Bounds x="542" y="632" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Idle_di" bpmnElement="Task_Idle"><dc:Bounds x="610" y="610" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Merge_H_di" bpmnElement="XOR_Merge_H" isMarkerVisible="true"><dc:Bounds x="755" y="525" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Cleanup_di" bpmnElement="Task_Cleanup"><dc:Bounds x="840" y="510" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_H_di" bpmnElement="End_H"><dc:Bounds x="972" y="532" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Fd_1_di" bpmnElement="Fd_1"><di:waypoint x="258" y="180" /><di:waypoint x="300" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fd_2_di" bpmnElement="Fd_2"><di:waypoint x="400" y="180" /><di:waypoint x="445" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fd_to_a_di" bpmnElement="Fd_to_a"><di:waypoint x="470" y="155" /><di:waypoint x="470" y="120" /><di:waypoint x="542" y="120" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fd_to_b_di" bpmnElement="Fd_to_b"><di:waypoint x="470" y="205" /><di:waypoint x="470" y="240" /><di:waypoint x="542" y="240" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fd_a1_di" bpmnElement="Fd_a1"><di:waypoint x="578" y="120" /><di:waypoint x="650" y="120" /><di:waypoint x="650" y="155" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fd_b1_di" bpmnElement="Fd_b1"><di:waypoint x="578" y="240" /><di:waypoint x="650" y="240" /><di:waypoint x="650" y="205" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fd_end_di" bpmnElement="Fd_end"><di:waypoint x="675" y="180" /><di:waypoint x="720" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fd_final_di" bpmnElement="Fd_final"><di:waypoint x="820" y="180" /><di:waypoint x="862" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_1_di" bpmnElement="Fh_1"><di:waypoint x="258" y="550" /><di:waypoint x="300" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_2_di" bpmnElement="Fh_2"><di:waypoint x="400" y="550" /><di:waypoint x="445" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_to_a_di" bpmnElement="Fh_to_a"><di:waypoint x="470" y="525" /><di:waypoint x="470" y="450" /><di:waypoint x="542" y="450" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_to_b_di" bpmnElement="Fh_to_b"><di:waypoint x="495" y="550" /><di:waypoint x="542" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_to_timer_di" bpmnElement="Fh_to_timer"><di:waypoint x="470" y="575" /><di:waypoint x="470" y="650" /><di:waypoint x="542" y="650" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_a1_di" bpmnElement="Fh_a1"><di:waypoint x="578" y="450" /><di:waypoint x="610" y="450" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_a2_di" bpmnElement="Fh_a2"><di:waypoint x="710" y="450" /><di:waypoint x="780" y="450" /><di:waypoint x="780" y="525" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_b1_di" bpmnElement="Fh_b1"><di:waypoint x="578" y="550" /><di:waypoint x="610" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_b2_di" bpmnElement="Fh_b2"><di:waypoint x="710" y="550" /><di:waypoint x="755" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_t1_di" bpmnElement="Fh_t1"><di:waypoint x="578" y="650" /><di:waypoint x="610" y="650" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_t2_di" bpmnElement="Fh_t2"><di:waypoint x="710" y="650" /><di:waypoint x="780" y="650" /><di:waypoint x="780" y="575" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_end_di" bpmnElement="Fh_end"><di:waypoint x="805" y="550" /><di:waypoint x="840" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fh_final_di" bpmnElement="Fh_final"><di:waypoint x="940" y="550" /><di:waypoint x="972" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MF_TaskA_di" bpmnElement="MF_TaskA"><di:waypoint x="560" y="138" /><di:waypoint x="560" y="432" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MF_TaskB_di" bpmnElement="MF_TaskB"><di:waypoint x="560" y="258" /><di:waypoint x="560" y="532" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

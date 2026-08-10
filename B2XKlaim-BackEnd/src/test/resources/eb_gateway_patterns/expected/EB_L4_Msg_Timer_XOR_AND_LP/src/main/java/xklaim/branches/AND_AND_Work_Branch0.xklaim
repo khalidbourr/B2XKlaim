@@ -1,0 +1,18 @@
+package xklaim.branches
+
+import klava.Locality
+
+proc AND_AND_Work_Branch0() {
+
+  while(hasMoreSectors == true){
+    eval(new ScanSector('Fe_scan_to_check'/* TODO: Pass other necessary args */))@self
+    in('Fe_scan_to_check')@self
+
+    eval(new CheckResult('Fe_check_to_lsplit'/* TODO: Pass other necessary args */))@self
+    in('Fe_check_to_lsplit')@self
+
+  }
+
+
+  eval(new ValidateAll('Fe_val_to_andmerge'/* TODO: Pass other necessary args */))@self
+}

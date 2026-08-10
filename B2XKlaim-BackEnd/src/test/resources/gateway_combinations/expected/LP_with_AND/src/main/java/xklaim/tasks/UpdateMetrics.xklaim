@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc UpdateMetrics(String edge){
+
+ /* Placeholder implementation for Script Task 'UpdateMetrics' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

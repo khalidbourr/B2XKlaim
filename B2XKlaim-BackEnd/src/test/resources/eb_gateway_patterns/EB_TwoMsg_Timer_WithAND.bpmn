@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_eb5" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.28.0">
+  <bpmn:collaboration id="Collab_EB5">
+    <bpmn:participant id="Part_Coordinator" name="Coordinator" processRef="Proc_Coordinator" />
+    <bpmn:participant id="Part_Worker" name="Worker" processRef="Proc_Worker" />
+    <bpmn:messageFlow id="MF_Start" name="startSignal" sourceRef="Evt_SendStart" targetRef="Evt_CatchStart" />
+    <bpmn:messageFlow id="MF_Cancel" name="cancelSignal" sourceRef="Evt_SendCancel" targetRef="Evt_CatchCancel" />
+  </bpmn:collaboration>
+
+  <!-- Coordinator: Start → Plan(ST) → XOR → (cond: SendStart) / (default: SendCancel) → XOR merge → Log(ST) → End -->
+  <bpmn:process id="Proc_Coordinator" name="CoordinatorProc" isExecutable="false">
+    <bpmn:startEvent id="Start_Co" name="start">
+      <bpmn:outgoing>Fco_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Task_Plan" name="Plan">
+      <bpmn:incoming>Fco_1</bpmn:incoming>
+      <bpmn:outgoing>Fco_2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="XOR_GoNoGo" default="Fco_to_cancel">
+      <bpmn:incoming>Fco_2</bpmn:incoming>
+      <bpmn:outgoing>Fco_to_start</bpmn:outgoing>
+      <bpmn:outgoing>Fco_to_cancel</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateThrowEvent id="Evt_SendStart" name="sendStart">
+      <bpmn:incoming>Fco_to_start</bpmn:incoming>
+      <bpmn:outgoing>Fco_s1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_SendStart" messageRef="Msg_Start" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="Evt_SendCancel" name="sendCancel">
+      <bpmn:incoming>Fco_to_cancel</bpmn:incoming>
+      <bpmn:outgoing>Fco_c1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_SendCancel" messageRef="Msg_Cancel" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:exclusiveGateway id="XOR_Merge_Co">
+      <bpmn:incoming>Fco_s1</bpmn:incoming>
+      <bpmn:incoming>Fco_c1</bpmn:incoming>
+      <bpmn:outgoing>Fco_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_LogCo" name="LogResult">
+      <bpmn:incoming>Fco_end</bpmn:incoming>
+      <bpmn:outgoing>Fco_final</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_Co" name="end">
+      <bpmn:incoming>Fco_final</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Fco_1" sourceRef="Start_Co" targetRef="Task_Plan" />
+    <bpmn:sequenceFlow id="Fco_2" sourceRef="Task_Plan" targetRef="XOR_GoNoGo" />
+    <bpmn:sequenceFlow id="Fco_to_start" sourceRef="XOR_GoNoGo" targetRef="Evt_SendStart">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">approved == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Fco_to_cancel" sourceRef="XOR_GoNoGo" targetRef="Evt_SendCancel" />
+    <bpmn:sequenceFlow id="Fco_s1" sourceRef="Evt_SendStart" targetRef="XOR_Merge_Co" />
+    <bpmn:sequenceFlow id="Fco_c1" sourceRef="Evt_SendCancel" targetRef="XOR_Merge_Co" />
+    <bpmn:sequenceFlow id="Fco_end" sourceRef="XOR_Merge_Co" targetRef="Task_LogCo" />
+    <bpmn:sequenceFlow id="Fco_final" sourceRef="Task_LogCo" targetRef="End_Co" />
+  </bpmn:process>
+
+  <!-- Worker: Start → Ready(ST) → EB Gateway →
+         Path1 (start msg): CatchStart → AND split → (FetchData(ST)→Transform(ST)) || (AuditStart(ST)→NotifyTeam(ST)) → AND merge → Commit(ST)
+         Path2 (cancel msg): CatchCancel → Rollback(ST) → NotifyAbort(ST)
+         Path3 (timer 30s): Timeout(ST) → Escalate(ST)
+       → XOR merge → Finish(ST) → End -->
+  <bpmn:process id="Proc_Worker" name="WorkerProc" isExecutable="false">
+    <bpmn:startEvent id="Start_W" name="start">
+      <bpmn:outgoing>Fw_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Task_Ready" name="Ready">
+      <bpmn:incoming>Fw_1</bpmn:incoming>
+      <bpmn:outgoing>Fw_2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:eventBasedGateway id="EB_Command">
+      <bpmn:incoming>Fw_2</bpmn:incoming>
+      <bpmn:outgoing>Fw_to_start</bpmn:outgoing>
+      <bpmn:outgoing>Fw_to_cancel</bpmn:outgoing>
+      <bpmn:outgoing>Fw_to_timer</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+
+    <!-- Path 1: start message → AND(FetchData→Transform || AuditStart→NotifyTeam) → Commit -->
+    <bpmn:intermediateCatchEvent id="Evt_CatchStart" name="getStart">
+      <bpmn:incoming>Fw_to_start</bpmn:incoming>
+      <bpmn:outgoing>Fw_start_to_and</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_CatchStart" messageRef="Msg_Start" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:parallelGateway id="AND_Split_W">
+      <bpmn:incoming>Fw_start_to_and</bpmn:incoming>
+      <bpmn:outgoing>Fw_and_to_fetch</bpmn:outgoing>
+      <bpmn:outgoing>Fw_and_to_audit</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:scriptTask id="Task_FetchData" name="FetchData">
+      <bpmn:incoming>Fw_and_to_fetch</bpmn:incoming>
+      <bpmn:outgoing>Fw_f1</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_Transform" name="Transform">
+      <bpmn:incoming>Fw_f1</bpmn:incoming>
+      <bpmn:outgoing>Fw_f2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_AuditStart" name="AuditStart">
+      <bpmn:incoming>Fw_and_to_audit</bpmn:incoming>
+      <bpmn:outgoing>Fw_a1</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_NotifyTeam" name="NotifyTeam">
+      <bpmn:incoming>Fw_a1</bpmn:incoming>
+      <bpmn:outgoing>Fw_a2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:parallelGateway id="AND_Merge_W">
+      <bpmn:incoming>Fw_f2</bpmn:incoming>
+      <bpmn:incoming>Fw_a2</bpmn:incoming>
+      <bpmn:outgoing>Fw_and_done</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:scriptTask id="Task_Commit" name="Commit">
+      <bpmn:incoming>Fw_and_done</bpmn:incoming>
+      <bpmn:outgoing>Fw_start_done</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- Path 2: cancel message → Rollback → NotifyAbort -->
+    <bpmn:intermediateCatchEvent id="Evt_CatchCancel" name="getCancel">
+      <bpmn:incoming>Fw_to_cancel</bpmn:incoming>
+      <bpmn:outgoing>Fw_cancel1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_CatchCancel" messageRef="Msg_Cancel" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:scriptTask id="Task_Rollback" name="Rollback">
+      <bpmn:incoming>Fw_cancel1</bpmn:incoming>
+      <bpmn:outgoing>Fw_cancel2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_NotifyAbort" name="NotifyAbort">
+      <bpmn:incoming>Fw_cancel2</bpmn:incoming>
+      <bpmn:outgoing>Fw_cancel_done</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- Path 3: timer 30s → Timeout → Escalate -->
+    <bpmn:intermediateCatchEvent id="Evt_Timer30" name="30sec">
+      <bpmn:incoming>Fw_to_timer</bpmn:incoming>
+      <bpmn:outgoing>Fw_t1</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TED_30">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">30</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:scriptTask id="Task_Timeout" name="Timeout">
+      <bpmn:incoming>Fw_t1</bpmn:incoming>
+      <bpmn:outgoing>Fw_t2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_Escalate" name="Escalate">
+      <bpmn:incoming>Fw_t2</bpmn:incoming>
+      <bpmn:outgoing>Fw_timer_done</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- XOR merge -->
+    <bpmn:exclusiveGateway id="XOR_Merge_W">
+      <bpmn:incoming>Fw_start_done</bpmn:incoming>
+      <bpmn:incoming>Fw_cancel_done</bpmn:incoming>
+      <bpmn:incoming>Fw_timer_done</bpmn:incoming>
+      <bpmn:outgoing>Fw_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_Finish" name="Finish">
+      <bpmn:incoming>Fw_end</bpmn:incoming>
+      <bpmn:outgoing>Fw_final</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_W" name="end">
+      <bpmn:incoming>Fw_final</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Fw_1" sourceRef="Start_W" targetRef="Task_Ready" />
+    <bpmn:sequenceFlow id="Fw_2" sourceRef="Task_Ready" targetRef="EB_Command" />
+    <bpmn:sequenceFlow id="Fw_to_start" sourceRef="EB_Command" targetRef="Evt_CatchStart" />
+    <bpmn:sequenceFlow id="Fw_to_cancel" sourceRef="EB_Command" targetRef="Evt_CatchCancel" />
+    <bpmn:sequenceFlow id="Fw_to_timer" sourceRef="EB_Command" targetRef="Evt_Timer30" />
+    <bpmn:sequenceFlow id="Fw_start_to_and" sourceRef="Evt_CatchStart" targetRef="AND_Split_W" />
+    <bpmn:sequenceFlow id="Fw_and_to_fetch" sourceRef="AND_Split_W" targetRef="Task_FetchData" />
+    <bpmn:sequenceFlow id="Fw_and_to_audit" sourceRef="AND_Split_W" targetRef="Task_AuditStart" />
+    <bpmn:sequenceFlow id="Fw_f1" sourceRef="Task_FetchData" targetRef="Task_Transform" />
+    <bpmn:sequenceFlow id="Fw_f2" sourceRef="Task_Transform" targetRef="AND_Merge_W" />
+    <bpmn:sequenceFlow id="Fw_a1" sourceRef="Task_AuditStart" targetRef="Task_NotifyTeam" />
+    <bpmn:sequenceFlow id="Fw_a2" sourceRef="Task_NotifyTeam" targetRef="AND_Merge_W" />
+    <bpmn:sequenceFlow id="Fw_and_done" sourceRef="AND_Merge_W" targetRef="Task_Commit" />
+    <bpmn:sequenceFlow id="Fw_start_done" sourceRef="Task_Commit" targetRef="XOR_Merge_W" />
+    <bpmn:sequenceFlow id="Fw_cancel1" sourceRef="Evt_CatchCancel" targetRef="Task_Rollback" />
+    <bpmn:sequenceFlow id="Fw_cancel2" sourceRef="Task_Rollback" targetRef="Task_NotifyAbort" />
+    <bpmn:sequenceFlow id="Fw_cancel_done" sourceRef="Task_NotifyAbort" targetRef="XOR_Merge_W" />
+    <bpmn:sequenceFlow id="Fw_t1" sourceRef="Evt_Timer30" targetRef="Task_Timeout" />
+    <bpmn:sequenceFlow id="Fw_t2" sourceRef="Task_Timeout" targetRef="Task_Escalate" />
+    <bpmn:sequenceFlow id="Fw_timer_done" sourceRef="Task_Escalate" targetRef="XOR_Merge_W" />
+    <bpmn:sequenceFlow id="Fw_end" sourceRef="XOR_Merge_W" targetRef="Task_Finish" />
+    <bpmn:sequenceFlow id="Fw_final" sourceRef="Task_Finish" targetRef="End_W" />
+  </bpmn:process>
+
+  <bpmn:message id="Msg_Start" name="Msg_Start" />
+  <bpmn:message id="Msg_Cancel" name="Msg_Cancel" />
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_EB5">
+      <bpmndi:BPMNShape id="Part_Coordinator_di" bpmnElement="Part_Coordinator" isHorizontal="true"><dc:Bounds x="160" y="60" width="850" height="250" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Part_Worker_di" bpmnElement="Part_Worker" isHorizontal="true"><dc:Bounds x="160" y="380" width="1100" height="450" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Co_di" bpmnElement="Start_Co"><dc:Bounds x="222" y="162" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Plan_di" bpmnElement="Task_Plan"><dc:Bounds x="300" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_GoNoGo_di" bpmnElement="XOR_GoNoGo" isMarkerVisible="true"><dc:Bounds x="445" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_SendStart_di" bpmnElement="Evt_SendStart"><dc:Bounds x="542" y="102" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_SendCancel_di" bpmnElement="Evt_SendCancel"><dc:Bounds x="542" y="222" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Merge_Co_di" bpmnElement="XOR_Merge_Co" isMarkerVisible="true"><dc:Bounds x="625" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_LogCo_di" bpmnElement="Task_LogCo"><dc:Bounds x="720" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Co_di" bpmnElement="End_Co"><dc:Bounds x="862" y="162" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_W_di" bpmnElement="Start_W"><dc:Bounds x="222" y="582" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Ready_di" bpmnElement="Task_Ready"><dc:Bounds x="300" y="560" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EB_Command_di" bpmnElement="EB_Command"><dc:Bounds x="445" y="575" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_CatchStart_di" bpmnElement="Evt_CatchStart"><dc:Bounds x="542" y="442" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AND_Split_W_di" bpmnElement="AND_Split_W"><dc:Bounds x="615" y="435" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FetchData_di" bpmnElement="Task_FetchData"><dc:Bounds x="700" y="400" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Transform_di" bpmnElement="Task_Transform"><dc:Bounds x="830" y="400" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AuditStart_di" bpmnElement="Task_AuditStart"><dc:Bounds x="700" y="500" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_NotifyTeam_di" bpmnElement="Task_NotifyTeam"><dc:Bounds x="830" y="500" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AND_Merge_W_di" bpmnElement="AND_Merge_W"><dc:Bounds x="965" y="435" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Commit_di" bpmnElement="Task_Commit"><dc:Bounds x="1040" y="420" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_CatchCancel_di" bpmnElement="Evt_CatchCancel"><dc:Bounds x="542" y="582" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Rollback_di" bpmnElement="Task_Rollback"><dc:Bounds x="620" y="560" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_NotifyAbort_di" bpmnElement="Task_NotifyAbort"><dc:Bounds x="760" y="560" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Evt_Timer30_di" bpmnElement="Evt_Timer30"><dc:Bounds x="542" y="722" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Timeout_di" bpmnElement="Task_Timeout"><dc:Bounds x="620" y="700" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Escalate_di" bpmnElement="Task_Escalate"><dc:Bounds x="760" y="700" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="XOR_Merge_W_di" bpmnElement="XOR_Merge_W" isMarkerVisible="true"><dc:Bounds x="1165" y="575" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Finish_di" bpmnElement="Task_Finish"><dc:Bounds x="1240" y="560" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_W_di" bpmnElement="End_W"><dc:Bounds x="1372" y="582" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Fco_1_di" bpmnElement="Fco_1"><di:waypoint x="258" y="180" /><di:waypoint x="300" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fco_2_di" bpmnElement="Fco_2"><di:waypoint x="400" y="180" /><di:waypoint x="445" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fco_to_start_di" bpmnElement="Fco_to_start"><di:waypoint x="470" y="155" /><di:waypoint x="470" y="120" /><di:waypoint x="542" y="120" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fco_to_cancel_di" bpmnElement="Fco_to_cancel"><di:waypoint x="470" y="205" /><di:waypoint x="470" y="240" /><di:waypoint x="542" y="240" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fco_s1_di" bpmnElement="Fco_s1"><di:waypoint x="578" y="120" /><di:waypoint x="650" y="120" /><di:waypoint x="650" y="155" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fco_c1_di" bpmnElement="Fco_c1"><di:waypoint x="578" y="240" /><di:waypoint x="650" y="240" /><di:waypoint x="650" y="205" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fco_end_di" bpmnElement="Fco_end"><di:waypoint x="675" y="180" /><di:waypoint x="720" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fco_final_di" bpmnElement="Fco_final"><di:waypoint x="820" y="180" /><di:waypoint x="862" y="180" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_1_di" bpmnElement="Fw_1"><di:waypoint x="258" y="600" /><di:waypoint x="300" y="600" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_2_di" bpmnElement="Fw_2"><di:waypoint x="400" y="600" /><di:waypoint x="445" y="600" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_to_start_di" bpmnElement="Fw_to_start"><di:waypoint x="470" y="575" /><di:waypoint x="470" y="460" /><di:waypoint x="542" y="460" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_to_cancel_di" bpmnElement="Fw_to_cancel"><di:waypoint x="495" y="600" /><di:waypoint x="542" y="600" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_to_timer_di" bpmnElement="Fw_to_timer"><di:waypoint x="470" y="625" /><di:waypoint x="470" y="740" /><di:waypoint x="542" y="740" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_start_to_and_di" bpmnElement="Fw_start_to_and"><di:waypoint x="578" y="460" /><di:waypoint x="615" y="460" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_and_to_fetch_di" bpmnElement="Fw_and_to_fetch"><di:waypoint x="640" y="435" /><di:waypoint x="640" y="440" /><di:waypoint x="700" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_and_to_audit_di" bpmnElement="Fw_and_to_audit"><di:waypoint x="640" y="485" /><di:waypoint x="640" y="540" /><di:waypoint x="700" y="540" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_f1_di" bpmnElement="Fw_f1"><di:waypoint x="800" y="440" /><di:waypoint x="830" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_f2_di" bpmnElement="Fw_f2"><di:waypoint x="930" y="440" /><di:waypoint x="965" y="440" /><di:waypoint x="965" y="460" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_a1_di" bpmnElement="Fw_a1"><di:waypoint x="800" y="540" /><di:waypoint x="830" y="540" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_a2_di" bpmnElement="Fw_a2"><di:waypoint x="930" y="540" /><di:waypoint x="990" y="540" /><di:waypoint x="990" y="485" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_and_done_di" bpmnElement="Fw_and_done"><di:waypoint x="1015" y="460" /><di:waypoint x="1040" y="460" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_start_done_di" bpmnElement="Fw_start_done"><di:waypoint x="1140" y="460" /><di:waypoint x="1190" y="460" /><di:waypoint x="1190" y="575" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_cancel1_di" bpmnElement="Fw_cancel1"><di:waypoint x="578" y="600" /><di:waypoint x="620" y="600" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_cancel2_di" bpmnElement="Fw_cancel2"><di:waypoint x="720" y="600" /><di:waypoint x="760" y="600" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_cancel_done_di" bpmnElement="Fw_cancel_done"><di:waypoint x="860" y="600" /><di:waypoint x="1165" y="600" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_t1_di" bpmnElement="Fw_t1"><di:waypoint x="578" y="740" /><di:waypoint x="620" y="740" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_t2_di" bpmnElement="Fw_t2"><di:waypoint x="720" y="740" /><di:waypoint x="760" y="740" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_timer_done_di" bpmnElement="Fw_timer_done"><di:waypoint x="860" y="740" /><di:waypoint x="1190" y="740" /><di:waypoint x="1190" y="625" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_end_di" bpmnElement="Fw_end"><di:waypoint x="1215" y="600" /><di:waypoint x="1240" y="600" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Fw_final_di" bpmnElement="Fw_final"><di:waypoint x="1340" y="600" /><di:waypoint x="1372" y="600" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MF_Start_di" bpmnElement="MF_Start"><di:waypoint x="560" y="138" /><di:waypoint x="560" y="442" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MF_Cancel_di" bpmnElement="MF_Cancel"><di:waypoint x="560" y="258" /><di:waypoint x="560" y="582" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

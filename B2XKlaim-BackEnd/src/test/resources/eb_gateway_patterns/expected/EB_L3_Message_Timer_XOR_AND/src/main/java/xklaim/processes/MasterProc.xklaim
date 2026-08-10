@@ -1,0 +1,18 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.WaitCompletion
+import xklaim.tasks.Dispatch
+
+proc MasterProc(Locality slave_loc) {
+
+
+  eval(new Dispatch('Fm_2'/* TODO: Pass other necessary args */))@self
+  in('Fm_2')@self
+
+  out('Msg_Job')@slave_loc
+
+  eval(new WaitCompletion('Fm_4'/* TODO: Pass other necessary args */))@self
+  in('Fm_4')@self
+
+}

@@ -1,0 +1,14 @@
+package xklaim
+
+import xklaim.processes.ConsumerProc
+import xklaim.processes.ProducerProc
+
+net Collab_EB4 physical "localhost:9999" {
+
+	node Consumer {
+		eval(new ConsumerProc())@self
+	}
+	node Producer {
+		eval(new ProducerProc(Consumer))@self
+	}
+}

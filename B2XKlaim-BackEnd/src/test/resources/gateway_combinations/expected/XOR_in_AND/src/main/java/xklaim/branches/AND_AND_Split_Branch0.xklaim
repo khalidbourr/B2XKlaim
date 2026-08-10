@@ -1,0 +1,11 @@
+package xklaim.branches
+
+import klava.Locality
+
+proc AND_AND_Split_Branch0() {
+
+  eval(new FetchRemote('Flow_C1_to_C2'/* TODO: Pass other necessary args */))@self
+  in('Flow_C1_to_C2')@self
+
+  eval(new CacheResult('Flow_C2_to_amerge'/* TODO: Pass other necessary args */))@self
+}

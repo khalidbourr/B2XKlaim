@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc MergeResults(String edge){
+
+ /* Placeholder implementation for Script Task 'MergeResults' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

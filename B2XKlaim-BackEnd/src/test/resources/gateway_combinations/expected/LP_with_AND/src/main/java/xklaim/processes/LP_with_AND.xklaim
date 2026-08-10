@@ -1,0 +1,34 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.DequeueJob
+import xklaim.tasks.DrainComplete
+import xklaim.tasks.PrepareQueue
+import xklaim.tasks.AckJob
+import xklaim.branches.AND_AND_Split_Branch0
+import xklaim.branches.AND_AND_Split_Branch1
+
+proc LP_with_AND() {
+
+
+  eval(new PrepareQueue('Flow_pre_to_lmerge'/* TODO: Pass other necessary args */))@self
+  in('Flow_pre_to_lmerge')@self
+
+  while(queueSize > 0){
+    eval(new DequeueJob('Flow_L1_to_asplit'/* TODO: Pass other necessary args */))@self
+    in('Flow_L1_to_asplit')@self
+
+    eval(new AND_AND_Split_Branch0())@self
+    eval(new AND_AND_Split_Branch1())@self
+    in('Flow_A2_to_amerge')@self
+    in('Flow_B2_to_amerge')@self
+
+    eval(new AckJob('Flow_L2_to_lsplit'/* TODO: Pass other necessary args */))@self
+    in('Flow_L2_to_lsplit')@self
+
+  }
+
+
+  eval(new DrainComplete('Flow_post_to_end'/* TODO: Pass other necessary args */))@self
+  in('Flow_post_to_end')@self
+}

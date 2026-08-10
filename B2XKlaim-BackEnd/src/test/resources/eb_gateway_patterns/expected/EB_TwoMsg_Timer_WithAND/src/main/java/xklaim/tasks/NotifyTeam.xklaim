@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc NotifyTeam(String edge){
+
+ /* Placeholder implementation for Script Task 'NotifyTeam' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

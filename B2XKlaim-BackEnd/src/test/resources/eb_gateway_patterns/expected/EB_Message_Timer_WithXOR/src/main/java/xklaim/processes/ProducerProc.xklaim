@@ -1,0 +1,18 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.Confirm
+import xklaim.tasks.BuildPayload
+
+proc ProducerProc(Locality consumer_loc) {
+
+
+  eval(new BuildPayload('Fp_2'/* TODO: Pass other necessary args */))@self
+  in('Fp_2')@self
+
+  out('Msg_Data')@consumer_loc
+
+  eval(new Confirm('Fp_4'/* TODO: Pass other necessary args */))@self
+  in('Fp_4')@self
+
+}

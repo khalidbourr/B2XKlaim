@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc ParseJSON(String edge){
+
+ /* Placeholder implementation for Script Task 'ParseJSON' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}

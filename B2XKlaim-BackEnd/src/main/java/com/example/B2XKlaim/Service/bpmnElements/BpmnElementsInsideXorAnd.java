@@ -38,18 +38,31 @@ import java.util.Map;
 public class BpmnElementsInsideXorAnd {
 
 
+    @Builder.Default
     private List<MIC> micList = new ArrayList<>();
+    @Builder.Default
     private List<SIC> sicList = new ArrayList<>();
+    @Builder.Default
     private List<MIT> mitList = new ArrayList<>();
+    @Builder.Default
     private List<SIT> sitList = new ArrayList<>();
+    @Builder.Default
     private List<XOR> xorList = new ArrayList<>();
+    @Builder.Default
     private List<AND> andList = new ArrayList<>();
+    @Builder.Default
     private List<LP> lpList = new ArrayList<>();
+    @Builder.Default
     private List<CLA> claList = new ArrayList<>();
+    @Builder.Default
     private List<ESP> espList = new ArrayList<>();
+    @Builder.Default
     private List<ST> stList = new ArrayList<>();
+    @Builder.Default
     private List<SQ> sqList = new ArrayList<>();
+    @Builder.Default
     private List<DO> dataList = new ArrayList<>();
+    @Builder.Default
     private Map<String, BpmnElement> elementsById = new HashMap<>();
 
     public BpmnElementsInsideXorAnd() {

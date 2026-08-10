@@ -1,0 +1,25 @@
+package xklaim.processes
+
+import klava.Locality
+import xklaim.tasks.Archive
+import xklaim.tasks.Analyze
+
+proc DispatcherProc(Locality handler_loc) {
+
+
+  eval(new Analyze('Fd_2'/* TODO: Pass other necessary args */))@self
+  in('Fd_2')@self
+
+  if (priority == "high"){
+    out('Msg_TaskA')@handler_loc
+
+  } else {
+    out('Msg_TaskB')@handler_loc
+
+  }
+
+
+  eval(new Archive('Fd_final'/* TODO: Pass other necessary args */))@self
+  in('Fd_final')@self
+
+}

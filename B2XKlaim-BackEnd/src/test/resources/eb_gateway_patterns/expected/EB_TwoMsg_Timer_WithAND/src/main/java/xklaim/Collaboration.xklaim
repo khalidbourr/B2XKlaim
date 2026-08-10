@@ -1,0 +1,14 @@
+package xklaim
+
+import xklaim.processes.CoordinatorProc
+import xklaim.processes.WorkerProc
+
+net Collab_EB5 physical "localhost:9999" {
+
+	node Coordinator {
+		eval(new CoordinatorProc(Worker))@self
+	}
+	node Worker {
+		eval(new WorkerProc())@self
+	}
+}

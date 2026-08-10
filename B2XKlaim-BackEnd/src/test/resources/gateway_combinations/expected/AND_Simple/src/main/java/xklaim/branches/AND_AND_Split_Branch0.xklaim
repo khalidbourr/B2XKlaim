@@ -1,0 +1,11 @@
+package xklaim.branches
+
+import klava.Locality
+
+proc AND_AND_Split_Branch0() {
+
+  eval(new ReadSensorLeft('Flow_A1_to_A2'/* TODO: Pass other necessary args */))@self
+  in('Flow_A1_to_A2')@self
+
+  eval(new CalibrateLeft('Flow_A2_to_amerge'/* TODO: Pass other necessary args */))@self
+}

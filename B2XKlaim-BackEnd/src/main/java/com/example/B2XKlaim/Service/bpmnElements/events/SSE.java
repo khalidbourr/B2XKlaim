@@ -2,10 +2,7 @@ package com.example.B2XKlaim.Service.bpmnElements.events;
 import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
 import com.example.B2XKlaim.Service.codeGenerator.Visitable;
 import com.example.B2XKlaim.Service.codeGenerator.Visitor;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
@@ -14,6 +11,7 @@ import java.io.UnsupportedEncodingException;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = false)
 public class SSE extends BpmnElement implements Visitable {
     private String name;
     private String id;

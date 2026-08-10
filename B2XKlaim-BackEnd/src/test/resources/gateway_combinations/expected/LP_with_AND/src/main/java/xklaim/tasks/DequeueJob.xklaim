@@ -1,0 +1,11 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc DequeueJob(String edge){
+
+ /* Placeholder implementation for Script Task 'DequeueJob' */ 
+ /* Add logic representing the script task */ 
+
+ out(edge)@self
+}
