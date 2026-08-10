@@ -544,6 +544,36 @@ public class BPMNTranslatorTest {
     }
 
     @Test
+    public void test_XOR_gateway_translation_converts_dotted_condition() throws Exception {
+        DO target = DO.builder()
+                .id("DataObjectReference_target")
+                .name("target")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("reached").type("Boolean").build()))
+                .build();
+        ST taskTrue = ST.builder().name("TrueTask").id("taskTrue").outgoingEdge("flowTrue").build();
+        SQ flowTrue = SQ.builder().id("flowTrue").source("taskTrue").target("merge").build();
+        ST taskFalse = ST.builder().name("FalseTask").id("taskFalse").outgoingEdge("flowFalse").build();
+        SQ flowFalse = SQ.builder().id("flowFalse").source("taskFalse").target("merge").build();
+
+        Map<String, List<String>> conditionMap = new LinkedHashMap<>();
+        conditionMap.put("target.reached == false", Arrays.asList("taskTrue"));
+        conditionMap.put("", Arrays.asList("taskFalse"));
+
+        XOR xor = XOR.builder().id("xor1").outgoingEdge("flowOut").conditionElementMap(conditionMap).build();
+
+        BpmnElements elements = buildElements(target, xor, taskTrue, flowTrue, taskFalse, flowFalse);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(xor);
+
+        assertTrue(result.contains("if(target_reached == false)"),
+                "Dotted data reference in XOR condition must be rewritten to d_x");
+    }
+
+    @Test
     public void test_LP_loop_translation() throws Exception {
         ST taskInLoop = ST.builder().name("LoopTask").id("loopTask").outgoingEdge("loopFlow").build();
         SQ loopFlow = SQ.builder().id("loopFlow").source("loopTask").target("loopTask").build();
@@ -564,6 +594,35 @@ public class BPMNTranslatorTest {
         assertTrue(result.contains("while(count < 5)"));
         assertTrue(result.contains("eval(new LoopTask("));
         assertTrue(result.contains("out('flowOut')@self"));
+    }
+
+    @Test
+    public void test_LP_loop_translation_converts_dotted_condition() throws Exception {
+        DO target = DO.builder()
+                .id("DataObjectReference_target")
+                .name("target")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("reached").type("Boolean").build()))
+                .build();
+        ST taskInLoop = ST.builder().name("LoopTask").id("loopTask").outgoingEdge("loopFlow").build();
+        SQ loopFlow = SQ.builder().id("loopFlow").source("loopTask").target("loopTask").build();
+
+        LP lp = LP.builder()
+                .id("lp1")
+                .condition("target.reached == false")
+                .outgoingEdge("flowOut")
+                .flowElementMap(Arrays.asList("loopTask"))
+                .build();
+
+        BpmnElements elements = buildElements(target, lp, taskInLoop, loopFlow);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(lp);
+
+        assertTrue(result.contains("while(target_reached == false)"),
+                "Dotted data reference in loop condition must be rewritten to d_x");
     }
 
     // ── Process Traversal (Integration) ──
