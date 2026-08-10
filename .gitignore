@@ -1,0 +1,26 @@
+# IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Java / Maven
+**/target/
+*.class
+*.jar
+
+# Documents / exports
+*.pdf
+*.b2x
+*.bpmn
+*.tar.gz
+
+# OS
+.DS_Store
