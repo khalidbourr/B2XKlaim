@@ -8,8 +8,8 @@
   <bpmn:process id="Process_1" name="Robot1Behavior" isExecutable="false">
     <bpmn:endEvent id="Event_1px66ux" name="SendPose">
       <bpmn:extensionElements>
-        <b2x:field name="pose.x" type="Double" />
-        <b2x:field name="pose.y" type="Double" />
+        <b2x:field name="x" type="Double" />
+        <b2x:field name="y" type="Double" />
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_2</bpmn:incoming>
       <bpmn:dataInputAssociation id="DataInputAssociation_1">
@@ -53,8 +53,8 @@
   <bpmn:process id="Process_2" name="Robot2Behavior" isExecutable="false">
     <bpmn:startEvent id="Event_15ue4r5" name="receive">
       <bpmn:extensionElements>
-        <b2x:field name="pose_x" type="Double" />
-        <b2x:field name="pose_y" type="Double" />
+        <b2x:field name="x" type="Double" />
+        <b2x:field name="y" type="Double" />
       </bpmn:extensionElements>
       <bpmn:outgoing>Flow_3</bpmn:outgoing>
       <bpmn:dataOutputAssociation id="DataOutputAssociation_1">

@@ -257,7 +257,7 @@ public class BPMNTranslatorTest {
 
         String proc = translator.generateScriptTaskProc(st);
 
-        assertTrue(proc.contains("read('sensor', var Double sensor_reading, var Long sensor_ts)@self"),
+        assertTrue(proc.contains("read('sensor', var Double reading, var Long ts)@self"),
                 "Input read missing");
         assertFalse(proc.contains("dummy_"), "No output dummies expected when no outputs");
         assertTrue(proc.contains("out(edge)@self"));
@@ -279,15 +279,15 @@ public class BPMNTranslatorTest {
 
         String proc = translator.generateScriptTaskProc(st);
 
-        assertTrue(proc.contains("var Integer scan_count = null"), "Output local init missing");
-        assertTrue(proc.contains("var String scan_label = null"), "Output local init missing");
+        assertTrue(proc.contains("var Integer count = null"), "Output local init missing");
+        assertTrue(proc.contains("var String label = null"), "Output local init missing");
         assertTrue(proc.contains("in('scan', var Integer dummy_count, var String dummy_label)@self"),
                 "Dummy consumption missing");
-        assertTrue(proc.contains("out('scan', scan_count, scan_label)@self"),
+        assertTrue(proc.contains("out('scan', count, label)@self"),
                 "Updated output emission missing");
 
         // Ordering: null-init must precede sigma placeholder, which must precede in/out update.
-        int initIdx = proc.indexOf("var Integer scan_count = null");
+        int initIdx = proc.indexOf("var Integer count = null");
         int sigmaIdx = proc.indexOf("Script body");
         int inIdx = proc.indexOf("in('scan'");
         assertTrue(initIdx < sigmaIdx && sigmaIdx < inIdx,
@@ -314,7 +314,7 @@ public class BPMNTranslatorTest {
         String proc = translator.generateScriptTaskProc(st);
 
         int readIdx = proc.indexOf("read('sensor'");
-        int initIdx = proc.indexOf("var Boolean result_ok = null");
+        int initIdx = proc.indexOf("var Boolean ok = null");
         int sigmaIdx = proc.indexOf("Script body");
         int inIdx = proc.indexOf("in('result'");
         int outIdx = proc.indexOf("out('result'");
@@ -543,8 +543,8 @@ public class BPMNTranslatorTest {
         assertTrue(result.contains("out('flowOut')@self"));
     }
 
-    @Test
-    public void test_XOR_gateway_translation_converts_dotted_condition() throws Exception {
+@Test
+    public void test_XOR_gateway_translation_passes_condition_verbatim() throws Exception {
         DO target = DO.builder()
                 .id("DataObjectReference_target")
                 .name("target")
@@ -558,7 +558,7 @@ public class BPMNTranslatorTest {
         SQ flowFalse = SQ.builder().id("flowFalse").source("taskFalse").target("merge").build();
 
         Map<String, List<String>> conditionMap = new LinkedHashMap<>();
-        conditionMap.put("target.reached == false", Arrays.asList("taskTrue"));
+        conditionMap.put("reached == false", Arrays.asList("taskTrue"));
         conditionMap.put("", Arrays.asList("taskFalse"));
 
         XOR xor = XOR.builder().id("xor1").outgoingEdge("flowOut").conditionElementMap(conditionMap).build();
@@ -569,8 +569,8 @@ public class BPMNTranslatorTest {
 
         String result = translator.visit(xor);
 
-        assertTrue(result.contains("if(target_reached == false)"),
-                "Dotted data reference in XOR condition must be rewritten to d_x");
+        assertTrue(result.contains("if(reached == false)"),
+                "XOR condition must be passed through verbatim");
     }
 
     @Test
@@ -596,8 +596,8 @@ public class BPMNTranslatorTest {
         assertTrue(result.contains("out('flowOut')@self"));
     }
 
-    @Test
-    public void test_LP_loop_translation_converts_dotted_condition() throws Exception {
+@Test
+    public void test_LP_loop_translation_passes_condition_verbatim() throws Exception {
         DO target = DO.builder()
                 .id("DataObjectReference_target")
                 .name("target")
@@ -610,7 +610,7 @@ public class BPMNTranslatorTest {
 
         LP lp = LP.builder()
                 .id("lp1")
-                .condition("target.reached == false")
+                .condition("reached == false")
                 .outgoingEdge("flowOut")
                 .flowElementMap(Arrays.asList("loopTask"))
                 .build();
@@ -621,8 +621,8 @@ public class BPMNTranslatorTest {
 
         String result = translator.visit(lp);
 
-        assertTrue(result.contains("while(target_reached == false)"),
-                "Dotted data reference in loop condition must be rewritten to d_x");
+        assertTrue(result.contains("while(reached == false)"),
+                "Loop condition must be passed through verbatim");
     }
 
     // ── Process Traversal (Integration) ──
@@ -803,7 +803,7 @@ public class BPMNTranslatorTest {
         assertEquals(expected, result);
     }
 
-    @Test
+@Test
     public void test_MIT_translation_with_source_data_object() throws Exception {
         DO source = DO.builder()
                 .id("DataObjectReference_pose")
@@ -819,16 +819,16 @@ public class BPMNTranslatorTest {
                 .messageFlow(flow)
                 .sourceDataRefs(List.of("DataObjectReference_pose"))
                 .payload(List.of(
-                        Field.builder().name("pose_x").build(),
-                        Field.builder().name("pose_y").build()))
+                        Field.builder().name("x").build(),
+                        Field.builder().name("y").build()))
                 .build();
         BPMNTranslator translator = translatorFor(source, mit);
 
         String result = translator.visit(mit);
 
         String expected =
-                "read('pose', var Double pose_x, var Double pose_y)@self\n" +
-                "out('ReportPose', pose_x, pose_y)@Server\n" +
+                "read('pose', var Double x, var Double y)@self\n" +
+                "out('ReportPose', x, y)@Server\n" +
                 "out('flow1')@self\n";
         assertEquals(expected, result);
     }
@@ -848,7 +848,7 @@ public class BPMNTranslatorTest {
     }
 
     @Test
-    public void test_MIT_translation_converts_dotted_payload_to_underscore() throws Exception {
+    public void test_MIT_translation_payload_names_used_verbatim() throws Exception {
         DO source = DO.builder()
                 .id("DataObjectReference_pose")
                 .name("pose")
@@ -863,16 +863,16 @@ public class BPMNTranslatorTest {
                 .messageFlow(flow)
                 .sourceDataRefs(List.of("DataObjectReference_pose"))
                 .payload(List.of(
-                        Field.builder().name("pose.x").build(),
-                        Field.builder().name("pose.y").build()))
+                        Field.builder().name("x").build(),
+                        Field.builder().name("y").build()))
                 .build();
         BPMNTranslator translator = translatorFor(source, mit);
 
         String result = translator.visit(mit);
 
         String expected =
-                "read('pose', var Double pose_x, var Double pose_y)@self\n" +
-                "out('ReportPose', pose_x, pose_y)@Server\n" +
+                "read('pose', var Double x, var Double y)@self\n" +
+                "out('ReportPose', x, y)@Server\n" +
                 "out('flow1')@self\n";
         assertEquals(expected, result);
     }

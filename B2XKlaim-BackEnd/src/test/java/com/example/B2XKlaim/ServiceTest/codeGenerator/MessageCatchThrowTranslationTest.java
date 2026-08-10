@@ -34,22 +34,22 @@ public class MessageCatchThrowTranslationTest {
 
         // Throw side: read the source data object, then out the selected fields
         assertTrue(code.contains(
-                "read('pose', var Double pose_x, var Double pose_y)@self"),
+                "read('pose', var Double x, var Double y)@self"),
                 "Throwing side must read the connected source data object");
         assertTrue(code.contains(
-                "out('Message_PoseUpdate', pose_x, pose_y)@robot2_loc"),
+                "out('Message_PoseUpdate', x, y)@robot2_loc"),
                 "Throwing side must send the selected payload fields to the receiver");
 
         // Catch side: receive into the panel-declared names, drop existing tuple,
         // write received values into the connected target data object
         assertTrue(code.contains(
-                "in('Message_PoseUpdate', var Double pose_x, var Double pose_y)@self"),
+                "in('Message_PoseUpdate', var Double x, var Double y)@self"),
                 "Catch must bind the message payload using the panel names/types");
         assertTrue(code.contains(
-                "in('cmd', var Double dummy_pose_x, var Double dummy_pose_y)@self"),
+                "in('cmd', var Double dummy_x, var Double dummy_y)@self"),
                 "Catch must consume the target data object tuple into dummy vars");
         assertTrue(code.contains(
-                "out('cmd', pose_x, pose_y)@self"),
+                "out('cmd', x, y)@self"),
                 "Catch must write the received values into the target data object");
         assertTrue(code.contains("out('Flow_3')@self"),
                 "Catch must continue along its outgoing edge");

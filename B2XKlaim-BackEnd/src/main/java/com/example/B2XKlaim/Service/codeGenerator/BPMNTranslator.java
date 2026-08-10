@@ -64,13 +64,6 @@ import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Pattern;
-
  
  
  /**
@@ -490,39 +483,6 @@ public String visit(MIC mic) {
         return sb.toString();
     }
 
-     private static String varName(String dataName, String fieldName) {
-         return dataName + "_" + fieldName;
-     }
-
-/**
-     * Converts a model data-element variable reference 'd.x' into the
-     * corresponding X-Klaim variable 'd_x' (paper rule, Table 9).
-     */
-    private static String payloadVarName(String dottedName) {
-        return (dottedName == null) ? "" : dottedName.replace('.', '_');
-    }
-
-    /**
-     * Applies the paper's format(c) rule to a gateway/loop condition:
-     * replaces data-element variables of the form d.x with X-Klaim variables
-     * of the form d_x, but only when d is a data element present in the model.
-     */
-    private String formatCondition(String condition) {
-        if (condition == null || condition.isEmpty()) {
-            return condition;
-        }
-        Set<String> dataElementNames = new HashSet<>();
-        for (DO dataObj : bpmnElements.getElementsByType(DO.class)) {
-            if (dataObj.getName() != null) dataElementNames.add(dataObj.getName());
-        }
-        String result = condition;
-        for (String d : dataElementNames) {
-            result = result.replaceAll("(^|[^\\w])" + Pattern.quote(d) + "\\.([A-Za-z_][A-Za-z0-9_]*)",
-                    "$1" + d + "_$2");
-        }
-        return result;
-    }
-
      private static String typeOrObject(String type) {
          return (type == null || type.isEmpty()) ? "Object" : type;
      }
@@ -588,7 +548,7 @@ public String visit(MIC mic) {
      }
 
      private String formatMessageThrow(String messageId, List<String> sourceDataRefs,
-                                       List<Field> payload, String target, String outgoingEdge) {
+                                        List<Field> payload, String target, String outgoingEdge) {
          StringBuilder sb = new StringBuilder();
 
          if (sourceDataRefs != null) {
@@ -599,7 +559,7 @@ public String visit(MIC mic) {
                  if (source.getFields() != null) {
                      for (Field f : source.getFields()) {
                          sb.append(", var ").append(typeOrObject(f.getType()))
-                           .append(" ").append(varName(source.getName(), f.getName()));
+                           .append(" ").append(f.getName());
                      }
                  }
                  sb.append(")@self\n");
@@ -609,7 +569,7 @@ public String visit(MIC mic) {
          sb.append("out('").append(messageId).append("'");
          if (payload != null) {
              for (Field f : payload) {
-                 sb.append(", ").append(payloadVarName(f.getName()));
+                 sb.append(", ").append(f.getName());
              }
          }
          sb.append(")@").append(target).append("\n");
@@ -805,7 +765,7 @@ public String visit(MIC mic) {
         // Generate if block — use condition if present, otherwise default to "true"
         String condition = (trueBranch.getKey() != null && !trueBranch.getKey().trim().isEmpty())
                 ? trueBranch.getKey() : "true";
-        s.append(String.format("if(%s){\n", formatCondition(condition)));
+        s.append(String.format("if(%s){\n", condition));
 
         for (String elementId : trueBranch.getValue()) {
             BpmnElement element = bpmnElements.getElementById(elementId);
@@ -839,7 +799,7 @@ public String visit(MIC mic) {
      @Override
      public String visit(LP lp) throws FileNotFoundException, UnsupportedEncodingException {
          StringBuilder sb = new StringBuilder();
-         sb.append("while(").append(formatCondition(lp.getCondition())).append("){\n");
+         sb.append("while(").append(lp.getCondition()).append("){\n");
          for (String elementId : lp.getFlowElementMap()) {
              BpmnElement element = bpmnElements.getElementById(elementId);
              if (element == null) { log.warn("LP: element '{}' not found", elementId); continue; }
@@ -1009,7 +969,7 @@ public String visit(MIC mic) {
                  if (input.getFields() != null) {
                      for (Field f : input.getFields()) {
                          sb.append(", var ").append(typeOrObject(f.getType()))
-                           .append(" ").append(varName(input.getName(), f.getName()));
+                           .append(" ").append(f.getName());
                      }
                  }
                  sb.append(")@self\n");
@@ -1022,7 +982,7 @@ public String visit(MIC mic) {
                  if (output == null || output.getFields() == null) continue;
                  for (Field f : output.getFields()) {
                      sb.append("  var ").append(typeOrObject(f.getType()))
-                       .append(" ").append(varName(output.getName(), f.getName()))
+                       .append(" ").append(f.getName())
                        .append(" = null\n");
                  }
              }
@@ -1047,7 +1007,7 @@ public String visit(MIC mic) {
                  sb.append("  out('").append(doName).append("'");
                  if (fields != null) {
                      for (Field f : fields) {
-                         sb.append(", ").append(varName(doName, f.getName()));
+                         sb.append(", ").append(f.getName());
                      }
                  }
                  sb.append(")@self\n");
