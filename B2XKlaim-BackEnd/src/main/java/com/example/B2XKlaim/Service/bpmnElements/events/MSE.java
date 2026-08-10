@@ -1,12 +1,15 @@
 package com.example.B2XKlaim.Service.bpmnElements.events;
 
 import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
+import com.example.B2XKlaim.Service.bpmnElements.objects.Field;
 import com.example.B2XKlaim.Service.codeGenerator.Visitable;
 import com.example.B2XKlaim.Service.codeGenerator.Visitor;
 import lombok.*;
 
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -21,6 +24,8 @@ public class MSE extends BpmnElement implements Visitable {
     private String ProcessId;
     private String ProcessName;
     private String targetDataRef;
+    @Builder.Default
+    private List<Field> payload = new ArrayList<>();
 
 
     @Override

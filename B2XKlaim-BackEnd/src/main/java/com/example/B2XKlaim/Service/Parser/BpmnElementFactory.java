@@ -179,6 +179,7 @@ public class BpmnElementFactory {
                                     .messageId(messageId)
                                     .ProcessId(processId).ProcessName(processName)
                                     .targetDataRef(extractTargetDataRef(element))
+                                    .payload(extractPayloadFields(element))
                                     .build();
                             return mse;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {
@@ -247,6 +248,7 @@ public class BpmnElementFactory {
                                     .incomingEdge(incoming).outgoingEdge(outgoing)
                                     .messageId(messageId)
                                     .targetDataRef(extractTargetDataRef(element))
+                                    .payload(extractPayloadFields(element))
                                     .build();
                             return mic;
                         } else if ("bpmn:signalEventDefinition".equals(childTagName)) {

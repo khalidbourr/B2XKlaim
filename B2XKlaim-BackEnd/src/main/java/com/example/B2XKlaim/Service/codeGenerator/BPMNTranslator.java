@@ -419,11 +419,11 @@ import java.util.Map;
          return String.format("out('%s')@self\n", nse.getOutgoingEdge());
      }
  
-     @Override
-     public String visit(MSE mse) {
-         log.trace("Visiting MSE: {} (Msg: {})", mse.getId(), mse.getMessageId());
-         return formatMessageCatch(mse.getMessageId(), mse.getTargetDataRef(), mse.getOutgoingEdge());
-     }
+@Override
+    public String visit(MSE mse) {
+        log.trace("Visiting MSE: {} (Msg: {})", mse.getId(), mse.getMessageId());
+        return formatMessageCatch(mse.getMessageId(), mse.getTargetDataRef(), mse.getOutgoingEdge(), mse.getPayload());
+    }
  
      @Override
      public String visit(SSE sse) {
@@ -443,45 +443,49 @@ import java.util.Map;
      }
  
      @Override
-     public String visit(MIC mic) {
-         log.trace("Visiting MIC: {} (Msg: {})", mic.getId(), mic.getMessageId());
-         return formatMessageCatch(mic.getMessageId(), mic.getTargetDataRef(), mic.getOutgoingEdge());
-     }
+public String visit(MIC mic) {
+        log.trace("Visiting MIC: {} (Msg: {})", mic.getId(), mic.getMessageId());
+        return formatMessageCatch(mic.getMessageId(), mic.getTargetDataRef(), mic.getOutgoingEdge(), mic.getPayload());
+    }
 
 
-     private String formatMessageCatch(String messageId, String targetDataRef, String outgoingEdge) {
-         DO target = (targetDataRef == null) ? null
-                 : (DO) bpmnElements.getElementById(targetDataRef);
-         if (target == null || target.getFields() == null || target.getFields().isEmpty()) {
-             return String.format("in('%s')@self\nout('%s')@self\n", messageId, outgoingEdge);
-         }
-         String dataName = target.getName();
-         List<Field> fields = target.getFields();
+    private String formatMessageCatch(String messageId, String targetDataRef, String outgoingEdge, List<Field> payload) {
+        String dataName = "data";
+        if (targetDataRef != null) {
+            DO target = (DO) bpmnElements.getElementById(targetDataRef);
+            if (target != null && target.getName() != null) {
+                dataName = target.getName();
+            }
+        }
 
-         StringBuilder sb = new StringBuilder();
-         sb.append("in('").append(messageId).append("'");
-         for (Field f : fields) {
-             sb.append(", var ").append(typeOrObject(f.getType()))
-               .append(" ").append(varName(dataName, f.getName()));
-         }
-         sb.append(")@self\n");
+        if (payload == null || payload.isEmpty()) {
+            return String.format("in('%s')@self\nout('%s')@self\n", messageId, outgoingEdge);
+        }
 
-         sb.append("in('").append(dataName).append("'");
-         for (Field f : fields) {
-             sb.append(", var ").append(typeOrObject(f.getType()))
-               .append(" ").append("dummy_").append(f.getName());
-         }
-         sb.append(")@self\n");
+        StringBuilder sb = new StringBuilder();
+        sb.append("in('").append(messageId).append("'");
+        for (Field f : payload) {
+            sb.append(", var ").append(typeOrObject(f.getType()))
+              .append(" ").append(f.getName());
+        }
+        sb.append(")@self\n");
 
-         sb.append("out('").append(dataName).append("'");
-         for (Field f : fields) {
-             sb.append(", ").append(varName(dataName, f.getName()));
-         }
-         sb.append(")@self\n");
+        sb.append("in('").append(dataName).append("'");
+        for (Field f : payload) {
+            sb.append(", var ").append(typeOrObject(f.getType()))
+              .append(" dummy_").append(f.getName());
+        }
+        sb.append(")@self\n");
 
-         sb.append("out('").append(outgoingEdge).append("')@self\n");
-         return sb.toString();
-     }
+        sb.append("out('").append(dataName).append("'");
+        for (Field f : payload) {
+            sb.append(", ").append(f.getName());
+        }
+        sb.append(")@self\n");
+
+        sb.append("out('").append(outgoingEdge).append("')@self\n");
+        return sb.toString();
+    }
 
      private static String varName(String dataName, String fieldName) {
          return dataName + "_" + fieldName;

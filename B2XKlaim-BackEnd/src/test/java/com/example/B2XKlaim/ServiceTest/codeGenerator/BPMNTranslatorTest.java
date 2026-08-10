@@ -388,6 +388,9 @@ public class BPMNTranslatorTest {
                 .messageId("alarm_msg")
                 .outgoingEdge("espFlow1")
                 .targetDataRef("alarmDoRef")
+                .payload(List.of(
+                        Field.builder().name("level").type("Integer").build(),
+                        Field.builder().name("source").type("String").build()))
                 .build();
         SQ espFlow = SQ.builder().id("espFlow1").source("espStart").target("espEnd").build();
         NEE internalEnd = NEE.builder().id("espEnd").build();
@@ -405,11 +408,11 @@ public class BPMNTranslatorTest {
         String result = translator.visit(esp);
 
         assertTrue(result.contains("proc AlarmHandler()"), "ESP proc header missing");
-        assertTrue(result.contains("in('alarm_msg', var Integer alarm_level, var String alarm_source)@self"),
+        assertTrue(result.contains("in('alarm_msg', var Integer level, var String source)@self"),
                 "Catch with payload binding missing");
         assertTrue(result.contains("in('alarm', var Integer dummy_level, var String dummy_source)@self"),
                 "Dummy DO consumption missing");
-        assertTrue(result.contains("out('alarm', alarm_level, alarm_source)@self"),
+        assertTrue(result.contains("out('alarm', level, source)@self"),
                 "DO refresh missing");
         assertTrue(result.contains("out('espFlow1')@self"), "Outgoing edge emission missing");
         assertTrue(result.contains("eval(new AlarmHandler())@self"),
@@ -698,15 +701,18 @@ public class BPMNTranslatorTest {
         MIC mic = MIC.builder()
                 .id("mic1").messageId("PoseUpdate").outgoingEdge("flow1")
                 .targetDataRef("DataObjectReference_pose")
+                .payload(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
                 .build();
         BPMNTranslator translator = translatorFor(target, mic);
 
         String result = translator.visit(mic);
 
         String expected =
-                "in('PoseUpdate', var Double pose_x, var Double pose_y)@self\n" +
+                "in('PoseUpdate', var Double x, var Double y)@self\n" +
                 "in('pose', var Double dummy_x, var Double dummy_y)@self\n" +
-                "out('pose', pose_x, pose_y)@self\n" +
+                "out('pose', x, y)@self\n" +
                 "out('flow1')@self\n";
         assertEquals(expected, result);
     }
@@ -723,15 +729,17 @@ public class BPMNTranslatorTest {
         MSE mse = MSE.builder()
                 .id("mse1").messageId("Start").outgoingEdge("flow1")
                 .targetDataRef("DataObjectReference_cmd")
+                .payload(List.of(
+                        Field.builder().name("action").type("String").build()))
                 .build();
         BPMNTranslator translator = translatorFor(target, mse);
 
         String result = translator.visit(mse);
 
         String expected =
-                "in('Start', var String command_action)@self\n" +
+                "in('Start', var String action)@self\n" +
                 "in('command', var String dummy_action)@self\n" +
-                "out('command', command_action)@self\n" +
+                "out('command', action)@self\n" +
                 "out('flow1')@self\n";
         assertEquals(expected, result);
     }
