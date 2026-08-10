@@ -1,5 +1,6 @@
 import BaseRenderer from 'diagram-js/lib/draw/BaseRenderer';
 import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { isLabel } from 'diagram-js/lib/util/ModelUtil';
 import { append as svgAppend, create as svgCreate } from 'tiny-svg';
 import inherits from 'inherits-browser';
 
@@ -40,6 +41,7 @@ CustomRenderer.$inject = ['eventBus', 'modeling', 'bpmnFactory', 'pathMap'];
 inherits(CustomRenderer, BaseRenderer);
 
 CustomRenderer.prototype.canRender = function(element) {
+  if (isLabel(element)) return false;
   if (!is(element, 'bpmn:DataObjectReference')) return false;
   return hasDataInputExtension(element.businessObject) || element.__dataInput;
 };
