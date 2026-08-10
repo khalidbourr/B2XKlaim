@@ -1034,17 +1034,19 @@ public String visit(MIC mic) {
          sb.append("out(\"").append(dataName).append("\"");
          if (fields != null) {
              for (Field f : fields) {
-                 sb.append(", ").append(initialOrDefault(f));
+                 sb.append(", ").append(initialOrDefault(f, data.isDataInput()));
              }
          }
          sb.append(")@self\n");
          return sb.toString();
      }
 
-     private static String initialOrDefault(Field f) {
-         String initial = f.getInitialValue();
-         if (initial != null && !initial.isEmpty()) {
-             return formatLiteral(initial, f.getType());
+     private static String initialOrDefault(Field f, boolean dataInput) {
+         if (dataInput) {
+             String initial = f.getInitialValue();
+             if (initial != null && !initial.isEmpty() && !initial.trim().equalsIgnoreCase(f.getType())) {
+                 return formatLiteral(initial, f.getType());
+             }
          }
          return defaultForType(f.getType());
      }

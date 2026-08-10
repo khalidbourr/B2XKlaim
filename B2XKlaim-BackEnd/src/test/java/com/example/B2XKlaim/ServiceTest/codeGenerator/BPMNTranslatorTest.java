@@ -735,6 +735,7 @@ public class BPMNTranslatorTest {
                 .id("DataObjectReference_1")
                 .name("target")
                 .processId("proc1")
+                .dataInput(true)
                 .fields(List.of(
                         Field.builder().name("x").type("Double").initialValue("30.0").build(),
                         Field.builder().name("y").type("Double").initialValue("12.0").build(),
@@ -745,6 +746,25 @@ public class BPMNTranslatorTest {
         String result = translator.visit(data);
 
         assertEquals("out(\"target\", 30.0, 12.0, \"home\")@self\n", result);
+    }
+
+    @Test
+    public void test_DO_translation_data_object_uses_type_defaults() throws Exception {
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("target")
+                .processId("proc1")
+                .dataInput(false)
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").initialValue("Double").build(),
+                        Field.builder().name("y").type("Double").initialValue("12.0").build(),
+                        Field.builder().name("label").type("String").initialValue("home").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(data);
+
+        String result = translator.visit(data);
+
+        assertEquals("out(\"target\", 0.0, 0.0, \"\")@self\n", result);
     }
 
     @Test

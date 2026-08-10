@@ -23,6 +23,8 @@ public class DO extends BpmnElement {
 
     private String dataObjectRef;
 
+    private boolean dataInput;
+
     @Builder.Default
     private List<Field> fields = new ArrayList<>();
 

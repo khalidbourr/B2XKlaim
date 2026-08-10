@@ -481,12 +481,15 @@ public class BpmnElementFactory {
                             .build());
                 }
 
+                boolean isDataInput = element.getElementsByTagName("b2x:dataInput").getLength() > 0;
+
                 return DO.builder()
                         .id(doRefId)
                         .name(doName)
                         .processId(doProcessId)
                         .processName(doProcessName)
                         .dataObjectRef(dataObjectRef)
+                        .dataInput(isDataInput)
                         .fields(doFields)
                         .build();
 
