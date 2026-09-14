@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc PollService(String edge){
-
- /* Placeholder implementation for Script Task 'PollService' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc PollService(String edge) {
+  /* Script body for 'PollService': assign output variables here */
+  out(edge)@self
 }

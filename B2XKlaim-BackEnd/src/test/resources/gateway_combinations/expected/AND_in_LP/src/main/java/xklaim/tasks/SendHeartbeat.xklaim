@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc SendHeartbeat(String edge){
-
- /* Placeholder implementation for Script Task 'SendHeartbeat' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc SendHeartbeat(String edge) {
+  /* Script body for 'SendHeartbeat': assign output variables here */
+  out(edge)@self
 }

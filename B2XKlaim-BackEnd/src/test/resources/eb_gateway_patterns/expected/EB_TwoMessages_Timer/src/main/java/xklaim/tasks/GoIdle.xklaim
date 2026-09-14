@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc GoIdle(String edge){
-
- /* Placeholder implementation for Script Task 'GoIdle' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc GoIdle(String edge) {
+  /* Script body for 'GoIdle': assign output variables here */
+  out(edge)@self
 }

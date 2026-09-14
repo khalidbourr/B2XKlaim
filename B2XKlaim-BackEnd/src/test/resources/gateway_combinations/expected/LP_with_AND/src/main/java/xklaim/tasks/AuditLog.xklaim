@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc AuditLog(String edge){
-
- /* Placeholder implementation for Script Task 'AuditLog' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc AuditLog(String edge) {
+  /* Script body for 'AuditLog': assign output variables here */
+  out(edge)@self
 }

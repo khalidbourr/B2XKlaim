@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -22,6 +24,11 @@ public class ST extends BpmnElement implements Visitable {
     private String id;
     private String incoming;
     private String outgoingEdge;
+
+    @Builder.Default
+    private List<String> dataInputRefs = new ArrayList<>();
+    @Builder.Default
+    private List<String> dataOutputRefs = new ArrayList<>();
 
     @Override
     public String accept(Visitor v) throws FileNotFoundException, UnsupportedEncodingException {

@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc PrepareRetry(String edge){
-
- /* Placeholder implementation for Script Task 'PrepareRetry' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc PrepareRetry(String edge) {
+  /* Script body for 'PrepareRetry': assign output variables here */
+  out(edge)@self
 }

@@ -1,5 +1,7 @@
 import ReplaceMenuProvider from 'bpmn-js/lib/features/popup-menu/ReplaceMenuProvider';
 
+import { is } from 'bpmn-js/lib/util/ModelUtil';
+
 // Supported action names based on what the backend can translate
 const SUPPORTED_ACTIONS = new Set([
   // Start events
@@ -57,6 +59,9 @@ export default function CustomReplaceMenuProvider(
   ReplaceMenuProvider.call(this,
     bpmnFactory, popupMenu, modeling, moddle,
     bpmnReplace, rules, translate, moddleCopy);
+
+  this._bpmnFactory = bpmnFactory;
+  this._modeling = modeling;
 }
 
 CustomReplaceMenuProvider.$inject = [
@@ -85,6 +90,39 @@ CustomReplaceMenuProvider.prototype.getPopupMenuEntries = function(target) {
   for (const [key, entry] of Object.entries(entries)) {
     if (SUPPORTED_ACTIONS.has(key)) {
       filtered[key] = entry;
+    }
+  }
+
+  if (is(target, 'bpmn:DataObjectReference')) {
+    var bo = target.businessObject;
+    var ext = bo.get('extensionElements');
+    var isDataInput = ext && ext.get('values') && ext.get('values').some(function(v) { return v.$type === 'b2x:DataInput'; });
+
+    if (isDataInput) {
+      filtered['replace-with-data-object'] = {
+        label: 'Data object',
+        className: 'bpmn-icon-data-object',
+        action: function() {
+          var values = ext.get('values').filter(function(v) { return v.$type !== 'b2x:DataInput'; });
+          var props = { id: target.id.replace(/^DataInputReference_/, 'DataObjectReference_') };
+          props.extensionElements = values.length ? this._bpmnFactory.create('bpmn:ExtensionElements', { values: values }) : undefined;
+          this._modeling.updateProperties(target, props);
+        }.bind(this)
+      };
+    } else {
+      filtered['replace-with-data-input'] = {
+        label: 'Data input',
+        className: 'bpmn-icon-data-input',
+        action: function() {
+          var values = ext ? ext.get('values') : [];
+          var dataInput = this._bpmnFactory.create('b2x:DataInput');
+          var newExt = this._bpmnFactory.create('bpmn:ExtensionElements', { values: values.concat([dataInput]) });
+          this._modeling.updateProperties(target, {
+            id: target.id.replace(/^DataObjectReference_/, 'DataInputReference_'),
+            extensionElements: newExt
+          });
+        }.bind(this)
+      };
     }
   }
 

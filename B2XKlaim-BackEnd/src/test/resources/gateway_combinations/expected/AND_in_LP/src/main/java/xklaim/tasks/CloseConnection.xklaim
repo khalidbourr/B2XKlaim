@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc CloseConnection(String edge){
-
- /* Placeholder implementation for Script Task 'CloseConnection' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc CloseConnection(String edge) {
+  /* Script body for 'CloseConnection': assign output variables here */
+  out(edge)@self
 }

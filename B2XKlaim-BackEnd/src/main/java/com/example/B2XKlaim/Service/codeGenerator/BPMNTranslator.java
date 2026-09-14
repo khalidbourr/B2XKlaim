@@ -56,16 +56,13 @@ import com.example.B2XKlaim.Service.bpmnElements.gateways.EB;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
 import com.example.B2XKlaim.Service.bpmnElements.objects.DO;
+import com.example.B2XKlaim.Service.bpmnElements.objects.Field;
 import java.util.Arrays;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.MIPL;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
 
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
  
  
@@ -336,17 +333,6 @@ import java.util.Map;
                     participant.getProcessName(),
                     procParamsString));
 
-            log.debug("Looking for Event Sub-Processes in process {}", participant.getProcessId());
-            List<ESP> eventSubProcesses = bpmnElements.getEventSubProcessesForProcess(participant.getProcessId());
-            if (eventSubProcesses != null && !eventSubProcesses.isEmpty()) {
-                log.debug("Found {} ESPs for process {}. Generating eval calls.", eventSubProcesses.size(), participant.getProcessId());
-                for (ESP esp : eventSubProcesses) {
-                    // Instead of including full ESP code, just add an eval call
-                    String espName = esp.getName() != null && !esp.getName().isEmpty() ? esp.getName() : esp.getId();
-                    collabCode.append(String.format("  eval(new %s())@self\n\n", espName));
-                }
-            }
-
             // Generate the main process body using the traversal helper method
             List<BpmnElement> startEvents = bpmnElements.findStartEventsForProcess(participant.getProcessId());
 
@@ -408,12 +394,16 @@ import java.util.Map;
               return "/* ERROR: Participant Name or Process Name missing for "+pl.getId()+" */\n";
          }
  
-         // Updated nodeTemplate always includes parentheses for eval
+         String dataObjectsBlock = translateDataObjectsForProcess(pl.getProcessId());
+         String espEvalsBlock = translateEspEvalsForProcess(pl.getProcessId());
+
          String nodeTemplate = "\tnode %s {\n" +
+                 "%s" +
+                 "%s" +
                  "\t\teval(new %s(%s))@self\n" +
                  "\t}\n";
-         // Format using the inner arguments string
-         String result = String.format(nodeTemplate, participantName, processName, argsString);
+         String result = String.format(nodeTemplate, participantName, dataObjectsBlock,
+                 espEvalsBlock, processName, argsString);
  
          log.info(">>> visit(PL) Returning: [\n{}]", result);
          return result;
@@ -425,12 +415,11 @@ import java.util.Map;
          return String.format("out('%s')@self\n", nse.getOutgoingEdge());
      }
  
-     @Override
-     public String visit(MSE mse) {
-         log.trace("Visiting MSE: {} (Msg: {})", mse.getId(), mse.getMessageId());
-         return String.format("in('%s' %s)@self\nout('%s')@self\n",
-                  mse.getMessageId(), "", mse.getOutgoingEdge());
-     }
+@Override
+    public String visit(MSE mse) {
+        log.trace("Visiting MSE: {} (Msg: {})", mse.getId(), mse.getMessageId());
+        return formatMessageCatch(mse.getMessageId(), mse.getTargetDataRef(), mse.getOutgoingEdge(), mse.getPayload());
+    }
  
      @Override
      public String visit(SSE sse) {
@@ -450,10 +439,52 @@ import java.util.Map;
      }
  
      @Override
-     public String visit(MIC mic) {
-         log.trace("Visiting MIC: {} (Msg: {})", mic.getId(), mic.getMessageId());
-         return String.format("in('%s' %s)@self\nout('%s')@self\n",
-                 mic.getMessageId(), "", mic.getOutgoingEdge());
+public String visit(MIC mic) {
+        log.trace("Visiting MIC: {} (Msg: {})", mic.getId(), mic.getMessageId());
+        return formatMessageCatch(mic.getMessageId(), mic.getTargetDataRef(), mic.getOutgoingEdge(), mic.getPayload());
+    }
+
+
+    private String formatMessageCatch(String messageId, String targetDataRef, String outgoingEdge, List<Field> payload) {
+        String dataName = "data";
+        if (targetDataRef != null) {
+            DO target = (DO) bpmnElements.getElementById(targetDataRef);
+            if (target != null && target.getName() != null) {
+                dataName = target.getName();
+            }
+        }
+
+        if (payload == null || payload.isEmpty()) {
+            return String.format("in('%s')@self\nout('%s')@self\n", messageId, outgoingEdge);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("in('").append(messageId).append("'");
+        for (Field f : payload) {
+            sb.append(", var ").append(typeOrObject(f.getType()))
+              .append(" ").append(f.getName());
+        }
+        sb.append(")@self\n");
+
+        sb.append("in('").append(dataName).append("'");
+        for (Field f : payload) {
+            sb.append(", var ").append(typeOrObject(f.getType()))
+              .append(" dummy_").append(f.getName());
+        }
+        sb.append(")@self\n");
+
+        sb.append("out('").append(dataName).append("'");
+        for (Field f : payload) {
+            sb.append(", ").append(f.getName());
+        }
+        sb.append(")@self\n");
+
+        sb.append("out('").append(outgoingEdge).append("')@self\n");
+        return sb.toString();
+    }
+
+     private static String typeOrObject(String type) {
+         return (type == null || type.isEmpty()) ? "Object" : type;
      }
  
      @Override
@@ -476,19 +507,9 @@ import java.util.Map;
      @Override
      public String visit(MIT mit) {
          log.trace("Visiting MIT: {} (Msg: {})", mit.getId(), mit.getMessageId());
-         MessageFLow flow = mit.getMessageFlow();
-         String receiverName = (flow != null) ? flow.getReceiverName() : null;
-         String targetLocation = "null";
- 
-         if (receiverName != null && currentParamMap.containsKey(receiverName)) {
-              targetLocation = currentParamMap.get(receiverName);
-         } else if (receiverName != null) {
-              log.warn("MIT {}: Sending to receiver '{}' but no Local param found. Using raw name.", mit.getId(), receiverName);
-              targetLocation = receiverName;
-         } else { log.warn("MIT {}: Cannot determine receiver. Target set to 'null'.", mit.getId()); targetLocation = "null"; }
- 
-         return String.format("out('%s')@%s\nout('%s')@self\n",
-                 mit.getMessageId(), targetLocation, mit.getOutgoingEdge());
+         String targetLocation = resolveReceiverLocation(mit.getMessageFlow(), mit.getId(), "MIT");
+         return formatMessageThrow(mit.getMessageId(), mit.getSourceDataRefs(),
+                 mit.getPayload(), targetLocation, mit.getOutgoingEdge());
      }
  
      @Override
@@ -507,18 +528,56 @@ import java.util.Map;
      @Override
      public String visit(MEE mee) {
           log.trace("Visiting MEE: {} (Msg: {})", mee.getId(), mee.getMessageId());
-          MessageFLow flow = mee.getMessageFlow();
-          String receiverName = (flow != null) ? flow.getReceiverName() : null;
-          String targetLocation = "null";
- 
-          if (receiverName != null && currentParamMap.containsKey(receiverName)) {
-              targetLocation = currentParamMap.get(receiverName);
-          } else if (receiverName != null) {
-              log.warn("MEE {}: Sending to receiver '{}' but no Local param found. Using raw name.", mee.getId(), receiverName);
-              targetLocation = receiverName;
-          } else { log.warn("MEE {}: Cannot determine receiver. Target set to 'null'.", mee.getId()); targetLocation = "null"; }
- 
-          return String.format("out('%s')@%s\n\n", mee.getMessageId(), targetLocation);
+          String targetLocation = resolveReceiverLocation(mee.getMessageFlow(), mee.getId(), "MEE");
+          return formatMessageThrow(mee.getMessageId(), mee.getSourceDataRefs(),
+                  mee.getPayload(), targetLocation, null) + "\n";
+     }
+
+     private String resolveReceiverLocation(MessageFLow flow, String eventId, String eventKind) {
+         String receiverName = (flow != null) ? flow.getReceiverName() : null;
+         if (receiverName == null) {
+             log.warn("{} {}: Cannot determine receiver. Target set to 'null'.", eventKind, eventId);
+             return "null";
+         }
+         if (currentParamMap.containsKey(receiverName)) {
+             return currentParamMap.get(receiverName);
+         }
+         log.warn("{} {}: Sending to receiver '{}' but no Local param found. Using raw name.",
+                 eventKind, eventId, receiverName);
+         return receiverName;
+     }
+
+     private String formatMessageThrow(String messageId, List<String> sourceDataRefs,
+                                        List<Field> payload, String target, String outgoingEdge) {
+         StringBuilder sb = new StringBuilder();
+
+         if (sourceDataRefs != null) {
+             for (String ref : sourceDataRefs) {
+                 DO source = (DO) bpmnElements.getElementById(ref);
+                 if (source == null) continue;
+                 sb.append("read('").append(source.getName()).append("'");
+                 if (source.getFields() != null) {
+                     for (Field f : source.getFields()) {
+                         sb.append(", var ").append(typeOrObject(f.getType()))
+                           .append(" ").append(f.getName());
+                     }
+                 }
+                 sb.append(")@self\n");
+             }
+         }
+
+         sb.append("out('").append(messageId).append("'");
+         if (payload != null) {
+             for (Field f : payload) {
+                 sb.append(", ").append(f.getName());
+             }
+         }
+         sb.append(")@").append(target).append("\n");
+
+         if (outgoingEdge != null && !outgoingEdge.isEmpty()) {
+             sb.append("out('").append(outgoingEdge).append("')@self\n");
+         }
+         return sb.toString();
      }
  
       @Override
@@ -579,12 +638,10 @@ import java.util.Map;
      @Override
      public String visit(ESP esp) throws FileNotFoundException, UnsupportedEncodingException {
          StringBuilder sb = new StringBuilder();
-         
-         // Create a proc with the ESP ID or name
+
          String espName = esp.getName() != null && !esp.getName().isEmpty() ? esp.getName() : esp.getId();
          sb.append(String.format("proc %s() {\n", espName));
-         
-         // Find the start event among internal elements
+
          BpmnElement startEvent = null;
          for (BpmnElement element : esp.getInternalElements()) {
              if (element instanceof com.example.B2XKlaim.Service.bpmnElements.events.NSE ||
@@ -595,22 +652,21 @@ import java.util.Map;
                  break;
              }
          }
-         
+
          if (startEvent != null) {
-             // Generate process body starting from the start event, following sequence flows
              String processBody = translateProcessBody(startEvent);
-             
-             // Add indentation to each line
              String[] lines = processBody.split("\\r?\\n");
              for (String line : lines) {
                  if (!line.trim().isEmpty()) {
                      sb.append("  ").append(line).append("\n");
                  }
              }
+             // Re-arm the ESP so it can handle the next trigger.
+             sb.append(String.format("  eval(new %s())@self\n", espName));
          } else {
              log.warn("No start event found for Event Sub-Process {}", espName);
          }
-         
+
          sb.append("}\n");
          return sb.toString();
      }
@@ -892,8 +948,78 @@ import java.util.Map;
                               processToEval,
                               outgoingEdge);
      }
- 
- 
+
+     /**
+      * Generates the data-aware proc definition for a script task per the paper:
+      * read inputs, null-init output locals, sigma(t) placeholder, in/out update
+      * for each output, then out(edge)@self.
+      */
+     public String generateScriptTaskProc(ST st) {
+         String name = st.getName();
+         if (name == null || name.isEmpty()) return "";
+
+         StringBuilder sb = new StringBuilder();
+         sb.append("proc ").append(name).append("(String edge) {\n");
+
+         if (st.getDataInputRefs() != null) {
+             for (String inputId : st.getDataInputRefs()) {
+                 DO input = (DO) bpmnElements.getElementById(inputId);
+                 if (input == null) continue;
+                 sb.append("  read('").append(input.getName()).append("'");
+                 if (input.getFields() != null) {
+                     for (Field f : input.getFields()) {
+                         sb.append(", var ").append(typeOrObject(f.getType()))
+                           .append(" ").append(f.getName());
+                     }
+                 }
+                 sb.append(")@self\n");
+             }
+         }
+
+         if (st.getDataOutputRefs() != null) {
+             for (String outputId : st.getDataOutputRefs()) {
+                 DO output = (DO) bpmnElements.getElementById(outputId);
+                 if (output == null || output.getFields() == null) continue;
+                 for (Field f : output.getFields()) {
+                     sb.append("  var ").append(typeOrObject(f.getType()))
+                       .append(" ").append(f.getName())
+                       .append(" = null\n");
+                 }
+             }
+         }
+
+         sb.append("  /* Script body for '").append(name).append("': assign output variables here */\n");
+
+         if (st.getDataOutputRefs() != null) {
+             for (String outputId : st.getDataOutputRefs()) {
+                 DO output = (DO) bpmnElements.getElementById(outputId);
+                 if (output == null) continue;
+                 String doName = output.getName();
+                 List<Field> fields = output.getFields();
+                 sb.append("  in('").append(doName).append("'");
+                 if (fields != null) {
+                     for (Field f : fields) {
+                         sb.append(", var ").append(typeOrObject(f.getType()))
+                           .append(" dummy_").append(f.getName());
+                     }
+                 }
+                 sb.append(")@self\n");
+                 sb.append("  out('").append(doName).append("'");
+                 if (fields != null) {
+                     for (Field f : fields) {
+                         sb.append(", ").append(f.getName());
+                     }
+                 }
+                 sb.append(")@self\n");
+             }
+         }
+
+         sb.append("  out(edge)@self\n");
+         sb.append("}\n");
+         return sb.toString();
+     }
+
+
      @Override
      public String visit(MIPL mipl) throws FileNotFoundException, UnsupportedEncodingException {
          log.warn("Visiting Multi-Instance Pool (MIPL) - Translation not implemented: {}", mipl.getId());
@@ -902,8 +1028,76 @@ import java.util.Map;
  
      @Override
      public String visit(DO data) throws FileNotFoundException, UnsupportedEncodingException {
-          log.warn("Visiting Data Object (DO) - Translation not implemented: {}", data.getId());
-         return String.format("// Data Object %s translation not implemented\n", data.getId());
+         String dataName = data.getName();
+         List<Field> fields = data.getFields();
+         StringBuilder sb = new StringBuilder();
+         sb.append("out(\"").append(dataName).append("\"");
+         if (fields != null) {
+             for (Field f : fields) {
+                 sb.append(", ").append(initialOrDefault(f, data.isDataInput()));
+             }
+         }
+         sb.append(")@self\n");
+         return sb.toString();
+     }
+
+     private static String initialOrDefault(Field f, boolean dataInput) {
+         if (dataInput) {
+             String initial = f.getInitialValue();
+             if (initial != null && !initial.isEmpty() && !initial.trim().equalsIgnoreCase(f.getType())) {
+                 return formatLiteral(initial, f.getType());
+             }
+         }
+         return defaultForType(f.getType());
+     }
+
+     private static String formatLiteral(String value, String type) {
+         if ("String".equals(type)) {
+             String trimmed = value.trim();
+             if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+                 return trimmed;
+             }
+             return "\"" + value + "\"";
+         }
+         return value;
+     }
+
+     private String translateDataObjectsForProcess(String processId) throws FileNotFoundException, UnsupportedEncodingException {
+         if (processId == null) return "";
+         List<DO> dataObjects = bpmnElements.getElementsByType(DO.class).stream()
+                 .filter(d -> processId.equals(d.getProcessId()))
+                 .sorted(Comparator.comparing(d -> d.getName() == null ? "" : d.getName()))
+                 .collect(Collectors.toList());
+         StringBuilder sb = new StringBuilder();
+         for (DO d : dataObjects) {
+             sb.append("\t\t").append(visit(d));
+         }
+         return sb.toString();
+     }
+
+     private String translateEspEvalsForProcess(String processId) {
+         if (processId == null) return "";
+         List<ESP> esps = bpmnElements.getEventSubProcessesForProcess(processId);
+         if (esps == null || esps.isEmpty()) return "";
+         StringBuilder sb = new StringBuilder();
+         for (ESP esp : esps) {
+             String espName = esp.getName() != null && !esp.getName().isEmpty() ? esp.getName() : esp.getId();
+             sb.append("\t\teval(new ").append(espName).append("())@self\n");
+         }
+         return sb.toString();
+     }
+
+     private static String defaultForType(String type) {
+         if (type == null) return "null";
+         switch (type.trim()) {
+             case "Integer": case "int":     return "0";
+             case "Long":    case "long":    return "0L";
+             case "Double":  case "double":  return "0.0";
+             case "Float":   case "float":   return "0.0f";
+             case "Boolean": case "boolean": return "false";
+             case "String":                  return "\"\"";
+             default:                        return "null";
+         }
      }
  
  } 

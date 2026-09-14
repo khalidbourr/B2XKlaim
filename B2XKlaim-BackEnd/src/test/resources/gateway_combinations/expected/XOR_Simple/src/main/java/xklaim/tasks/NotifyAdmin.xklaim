@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc NotifyAdmin(String edge){
-
- /* Placeholder implementation for Script Task 'NotifyAdmin' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc NotifyAdmin(String edge) {
+  /* Script body for 'NotifyAdmin': assign output variables here */
+  out(edge)@self
 }

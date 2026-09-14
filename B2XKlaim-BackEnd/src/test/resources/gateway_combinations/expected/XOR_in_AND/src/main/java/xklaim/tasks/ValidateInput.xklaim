@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc ValidateInput(String edge){
-
- /* Placeholder implementation for Script Task 'ValidateInput' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc ValidateInput(String edge) {
+  /* Script body for 'ValidateInput': assign output variables here */
+  out(edge)@self
 }

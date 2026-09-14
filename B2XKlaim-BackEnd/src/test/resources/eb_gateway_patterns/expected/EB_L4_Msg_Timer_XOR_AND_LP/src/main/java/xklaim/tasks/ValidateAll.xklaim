@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc ValidateAll(String edge){
-
- /* Placeholder implementation for Script Task 'ValidateAll' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc ValidateAll(String edge) {
+  /* Script body for 'ValidateAll': assign output variables here */
+  out(edge)@self
 }

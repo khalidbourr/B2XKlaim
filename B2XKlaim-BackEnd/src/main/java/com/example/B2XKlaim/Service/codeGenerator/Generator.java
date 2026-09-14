@@ -99,8 +99,7 @@ public class Generator {
      */
     public Map<String, List<String>> translateST() throws InvocationTargetException, IllegalAccessException {
         Map<String, List<String>> result = new HashMap<>();
-        
-        // Process script tasks from main diagram
+
         List<BpmnElement> scriptTasks = getAllScriptTasks(processDiagram);
         Set<String> processedTaskNames = new HashSet<>();
 
@@ -110,47 +109,34 @@ public class Generator {
             String taskName = st.getName();
 
             if (taskName != null && !taskName.isEmpty() && !processedTaskNames.contains(taskName)) {
-                // Basic placeholder proc definition
-                String codeString = "proc " + taskName + "(String edge){\n\n" +
-                        " /* Placeholder implementation for Script Task '" + taskName + "' */ \n" +
-                        " /* Add logic representing the script task */ \n\n" +
-                        " out(edge)@self\n" +
-                        "}";
-                //result.computeIfAbsent(taskName, k -> new ArrayList<>()).add(codeString);
-                result.put(taskName, Collections.singletonList(codeString));
+                result.put(taskName, Collections.singletonList(visitor.generateScriptTaskProc(st)));
                 processedTaskNames.add(taskName);
             } else if (taskName == null || taskName.isEmpty()) {
-                 log.warn("Script Task with ID {} has no name. Cannot generate placeholder proc.", st.getId());
+                log.warn("Script Task with ID {} has no name. Cannot generate placeholder proc.", st.getId());
             }
         }
-        
-        // Process script tasks from other processes (call activities)
+
         if (allProcesses != null) {
             for (Map.Entry<String, BpmnElements> entry : allProcesses.entrySet()) {
                 if (!entry.getKey().equals("main")) {
                     BpmnElements process = entry.getValue();
+                    BPMNTranslator processVisitor = new BPMNTranslator(process);
                     List<BpmnElement> processScriptTasks = getAllScriptTasks(process);
-                    
+
                     for (BpmnElement scriptTask : processScriptTasks) {
                         if (!(scriptTask instanceof ST)) continue;
                         ST st = (ST) scriptTask;
                         String taskName = st.getName();
-                        
+
                         if (taskName != null && !taskName.isEmpty() && !processedTaskNames.contains(taskName)) {
-                            String codeString = "proc " + taskName + "(String edge){\n\n" +
-                                    " /* Placeholder implementation for Script Task '" + taskName + "' */ \n" +
-                                    " /* From process: " + entry.getKey() + " */ \n" +
-                                    " /* Add logic representing the script task */ \n\n" +
-                                    " out(edge)@self\n" +
-                                    "}";
-                            result.put(taskName, Collections.singletonList(codeString));
+                            result.put(taskName, Collections.singletonList(processVisitor.generateScriptTaskProc(st)));
                             processedTaskNames.add(taskName);
                         }
                     }
                 }
             }
         }
-        
+
         return result;
     }
 

@@ -11,6 +11,8 @@ import com.example.B2XKlaim.Service.bpmnElements.flows.SQ;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.AND;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.LP;
 import com.example.B2XKlaim.Service.bpmnElements.gateways.XOR;
+import com.example.B2XKlaim.Service.bpmnElements.objects.DO;
+import com.example.B2XKlaim.Service.bpmnElements.objects.Field;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.Collab;
 import com.example.B2XKlaim.Service.bpmnElements.objects.pool.PL;
 import com.example.B2XKlaim.Service.codeGenerator.BPMNTranslator;
@@ -227,6 +229,102 @@ public class BPMNTranslatorTest {
     }
 
     @Test
+    public void test_ST_proc_no_data() {
+        ST st = ST.builder().name("Scan").id("st1").outgoingEdge("flow1").build();
+        BPMNTranslator translator = translatorFor(st);
+
+        String proc = translator.generateScriptTaskProc(st);
+
+        assertTrue(proc.startsWith("proc Scan(String edge) {"), "Header missing");
+        assertTrue(proc.contains("out(edge)@self"), "Outgoing edge emission missing");
+        assertFalse(proc.contains("read("), "Should not emit reads without inputs");
+        assertFalse(proc.contains("= null"), "Should not declare locals without outputs");
+    }
+
+    @Test
+    public void test_ST_proc_with_inputs() {
+        DO sensor = DO.builder()
+                .id("sensorDoRef").name("sensor")
+                .fields(Arrays.asList(
+                        Field.builder().name("reading").type("Double").build(),
+                        Field.builder().name("ts").type("Long").build()))
+                .build();
+        ST st = ST.builder()
+                .name("Analyze").id("st1").outgoingEdge("flow1")
+                .dataInputRefs(new ArrayList<>(Arrays.asList("sensorDoRef")))
+                .build();
+        BPMNTranslator translator = translatorFor(st, sensor);
+
+        String proc = translator.generateScriptTaskProc(st);
+
+        assertTrue(proc.contains("read('sensor', var Double reading, var Long ts)@self"),
+                "Input read missing");
+        assertFalse(proc.contains("dummy_"), "No output dummies expected when no outputs");
+        assertTrue(proc.contains("out(edge)@self"));
+    }
+
+    @Test
+    public void test_ST_proc_with_outputs() {
+        DO scanResult = DO.builder()
+                .id("scanDoRef").name("scan")
+                .fields(Arrays.asList(
+                        Field.builder().name("count").type("Integer").build(),
+                        Field.builder().name("label").type("String").build()))
+                .build();
+        ST st = ST.builder()
+                .name("Detect").id("st1").outgoingEdge("flow1")
+                .dataOutputRefs(new ArrayList<>(Arrays.asList("scanDoRef")))
+                .build();
+        BPMNTranslator translator = translatorFor(st, scanResult);
+
+        String proc = translator.generateScriptTaskProc(st);
+
+        assertTrue(proc.contains("var Integer count = null"), "Output local init missing");
+        assertTrue(proc.contains("var String label = null"), "Output local init missing");
+        assertTrue(proc.contains("in('scan', var Integer dummy_count, var String dummy_label)@self"),
+                "Dummy consumption missing");
+        assertTrue(proc.contains("out('scan', count, label)@self"),
+                "Updated output emission missing");
+
+        // Ordering: null-init must precede sigma placeholder, which must precede in/out update.
+        int initIdx = proc.indexOf("var Integer count = null");
+        int sigmaIdx = proc.indexOf("Script body");
+        int inIdx = proc.indexOf("in('scan'");
+        assertTrue(initIdx < sigmaIdx && sigmaIdx < inIdx,
+                "Order must be: null-init → script body → in/out update");
+    }
+
+    @Test
+    public void test_ST_proc_with_inputs_and_outputs() {
+        DO sensor = DO.builder()
+                .id("sensorDoRef").name("sensor")
+                .fields(Arrays.asList(Field.builder().name("v").type("Double").build()))
+                .build();
+        DO result = DO.builder()
+                .id("resultDoRef").name("result")
+                .fields(Arrays.asList(Field.builder().name("ok").type("Boolean").build()))
+                .build();
+        ST st = ST.builder()
+                .name("Process").id("st1").outgoingEdge("flow1")
+                .dataInputRefs(new ArrayList<>(Arrays.asList("sensorDoRef")))
+                .dataOutputRefs(new ArrayList<>(Arrays.asList("resultDoRef")))
+                .build();
+        BPMNTranslator translator = translatorFor(st, sensor, result);
+
+        String proc = translator.generateScriptTaskProc(st);
+
+        int readIdx = proc.indexOf("read('sensor'");
+        int initIdx = proc.indexOf("var Boolean ok = null");
+        int sigmaIdx = proc.indexOf("Script body");
+        int inIdx = proc.indexOf("in('result'");
+        int outIdx = proc.indexOf("out('result'");
+        int edgeOutIdx = proc.indexOf("out(edge)@self");
+        assertTrue(readIdx >= 0 && initIdx > readIdx && sigmaIdx > initIdx
+                        && inIdx > sigmaIdx && outIdx > inIdx && edgeOutIdx > outIdx,
+                "Order must be: read inputs → null-init outputs → script body → in/out update → out(edge)");
+    }
+
+    @Test
     public void test_CLA_translation() throws Exception {
         CLA cla = CLA.builder().name("call1").id("cla1").calledProcess("SubProcess").outgoingEdge("flow1").build();
         BPMNTranslator translator = translatorFor(cla);
@@ -271,6 +369,90 @@ public class BPMNTranslatorTest {
 
         assertTrue(result.contains("proc ErrorHandler()"));
         assertTrue(result.contains("out('espFlow1')@self"));
+        assertTrue(result.contains("eval(new ErrorHandler())@self"),
+                "ESP body must end with recursive eval to re-arm itself");
+        assertFalse(result.contains("while"), "ESP must not use a while loop");
+    }
+
+    @Test
+    public void test_ESP_with_message_start_and_payload() throws Exception {
+        DO alarm = DO.builder()
+                .id("alarmDoRef").name("alarm")
+                .fields(Arrays.asList(
+                        Field.builder().name("level").type("Integer").build(),
+                        Field.builder().name("source").type("String").build()))
+                .build();
+
+        MSE trigger = MSE.builder()
+                .name("AlarmReceived").id("espStart")
+                .messageId("alarm_msg")
+                .outgoingEdge("espFlow1")
+                .targetDataRef("alarmDoRef")
+                .payload(List.of(
+                        Field.builder().name("level").type("Integer").build(),
+                        Field.builder().name("source").type("String").build()))
+                .build();
+        SQ espFlow = SQ.builder().id("espFlow1").source("espStart").target("espEnd").build();
+        NEE internalEnd = NEE.builder().id("espEnd").build();
+
+        ESP esp = ESP.builder()
+                .name("AlarmHandler")
+                .id("esp1")
+                .internalElements(new ArrayList<>(Arrays.asList(trigger, espFlow, internalEnd)))
+                .build();
+
+        BpmnElements elements = buildElements(esp, trigger, espFlow, internalEnd, alarm);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(esp);
+
+        assertTrue(result.contains("proc AlarmHandler()"), "ESP proc header missing");
+        assertTrue(result.contains("in('alarm_msg', var Integer level, var String source)@self"),
+                "Catch with payload binding missing");
+        assertTrue(result.contains("in('alarm', var Integer dummy_level, var String dummy_source)@self"),
+                "Dummy DO consumption missing");
+        assertTrue(result.contains("out('alarm', level, source)@self"),
+                "DO refresh missing");
+        assertTrue(result.contains("out('espFlow1')@self"), "Outgoing edge emission missing");
+        assertTrue(result.contains("eval(new AlarmHandler())@self"),
+                "ESP body must end with recursive eval to re-arm itself");
+    }
+
+    @Test
+    public void test_ESP_eval_lives_inside_node_block() throws Exception {
+        NSE espStart = NSE.builder().id("espStart").outgoingEdge("espFlow").build();
+        SQ espFlow = SQ.builder().id("espFlow").source("espStart").target("espEnd").build();
+        NEE espEnd = NEE.builder().id("espEnd").build();
+        ESP esp = ESP.builder()
+                .name("Recovery").id("esp1")
+                .processId("process1")
+                .internalElements(new ArrayList<>(Arrays.asList(espStart, espFlow, espEnd)))
+                .build();
+
+        PL pool = PL.builder()
+                .id("pool1").name("Robot1")
+                .ProcessId("process1").ProcessName("RobotMain")
+                .build();
+
+        BpmnElements elements = buildElements(pool, esp, espStart, espFlow, espEnd);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(pool);
+
+        assertTrue(result.contains("node Robot1"), "Node header missing");
+        assertTrue(result.contains("eval(new RobotMain())@self"), "Main proc eval missing");
+        assertTrue(result.contains("eval(new Recovery())@self"), "ESP eval missing from node block");
+
+        int nodeOpenIdx = result.indexOf("node Robot1");
+        int nodeCloseIdx = result.indexOf("\t}", nodeOpenIdx);
+        int espEvalIdx = result.indexOf("eval(new Recovery())@self");
+        int mainEvalIdx = result.indexOf("eval(new RobotMain())@self");
+        assertTrue(nodeOpenIdx < espEvalIdx && espEvalIdx < nodeCloseIdx,
+                "ESP eval must sit inside the node {} block");
+        assertTrue(espEvalIdx < mainEvalIdx,
+                "ESP eval must come before the main proc eval");
     }
 
     // ── Gateways ──
@@ -361,6 +543,36 @@ public class BPMNTranslatorTest {
         assertTrue(result.contains("out('flowOut')@self"));
     }
 
+@Test
+    public void test_XOR_gateway_translation_passes_condition_verbatim() throws Exception {
+        DO target = DO.builder()
+                .id("DataObjectReference_target")
+                .name("target")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("reached").type("Boolean").build()))
+                .build();
+        ST taskTrue = ST.builder().name("TrueTask").id("taskTrue").outgoingEdge("flowTrue").build();
+        SQ flowTrue = SQ.builder().id("flowTrue").source("taskTrue").target("merge").build();
+        ST taskFalse = ST.builder().name("FalseTask").id("taskFalse").outgoingEdge("flowFalse").build();
+        SQ flowFalse = SQ.builder().id("flowFalse").source("taskFalse").target("merge").build();
+
+        Map<String, List<String>> conditionMap = new LinkedHashMap<>();
+        conditionMap.put("reached == false", Arrays.asList("taskTrue"));
+        conditionMap.put("", Arrays.asList("taskFalse"));
+
+        XOR xor = XOR.builder().id("xor1").outgoingEdge("flowOut").conditionElementMap(conditionMap).build();
+
+        BpmnElements elements = buildElements(target, xor, taskTrue, flowTrue, taskFalse, flowFalse);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(xor);
+
+        assertTrue(result.contains("if(reached == false)"),
+                "XOR condition must be passed through verbatim");
+    }
+
     @Test
     public void test_LP_loop_translation() throws Exception {
         ST taskInLoop = ST.builder().name("LoopTask").id("loopTask").outgoingEdge("loopFlow").build();
@@ -382,6 +594,35 @@ public class BPMNTranslatorTest {
         assertTrue(result.contains("while(count < 5)"));
         assertTrue(result.contains("eval(new LoopTask("));
         assertTrue(result.contains("out('flowOut')@self"));
+    }
+
+@Test
+    public void test_LP_loop_translation_passes_condition_verbatim() throws Exception {
+        DO target = DO.builder()
+                .id("DataObjectReference_target")
+                .name("target")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("reached").type("Boolean").build()))
+                .build();
+        ST taskInLoop = ST.builder().name("LoopTask").id("loopTask").outgoingEdge("loopFlow").build();
+        SQ loopFlow = SQ.builder().id("loopFlow").source("loopTask").target("loopTask").build();
+
+        LP lp = LP.builder()
+                .id("lp1")
+                .condition("reached == false")
+                .outgoingEdge("flowOut")
+                .flowElementMap(Arrays.asList("loopTask"))
+                .build();
+
+        BpmnElements elements = buildElements(target, lp, taskInLoop, loopFlow);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(lp);
+
+        assertTrue(result.contains("while(reached == false)"),
+                "Loop condition must be passed through verbatim");
     }
 
     // ── Process Traversal (Integration) ──
@@ -448,5 +689,251 @@ public class BPMNTranslatorTest {
         // Verify message passing
         assertTrue(result.contains("out('msg1')@"), "Robot1 should send message");
         assertTrue(result.contains("in('msg1'"), "Robot2 should receive message");
+    }
+
+    // ── Data Objects ──
+
+    @Test
+    public void test_DO_translation_typed_defaults() throws Exception {
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("position")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(data);
+
+        String result = translator.visit(data);
+
+        assertEquals("out(\"position\", 0.0, 0.0)@self\n", result);
+    }
+
+    @Test
+    public void test_DO_translation_mixed_types() throws Exception {
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("state")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("counter").type("Integer").build(),
+                        Field.builder().name("active").type("Boolean").build(),
+                        Field.builder().name("label").type("String").build(),
+                        Field.builder().name("payload").type("CustomType").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(data);
+
+        String result = translator.visit(data);
+
+        assertEquals("out(\"state\", 0, false, \"\", null)@self\n", result);
+    }
+
+    @Test
+    public void test_DO_translation_data_input_initial_values() throws Exception {
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("target")
+                .processId("proc1")
+                .dataInput(true)
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").initialValue("30.0").build(),
+                        Field.builder().name("y").type("Double").initialValue("12.0").build(),
+                        Field.builder().name("label").type("String").initialValue("home").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(data);
+
+        String result = translator.visit(data);
+
+        assertEquals("out(\"target\", 30.0, 12.0, \"home\")@self\n", result);
+    }
+
+    @Test
+    public void test_DO_translation_data_object_uses_type_defaults() throws Exception {
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("target")
+                .processId("proc1")
+                .dataInput(false)
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").initialValue("Double").build(),
+                        Field.builder().name("y").type("Double").initialValue("12.0").build(),
+                        Field.builder().name("label").type("String").initialValue("home").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(data);
+
+        String result = translator.visit(data);
+
+        assertEquals("out(\"target\", 0.0, 0.0, \"\")@self\n", result);
+    }
+
+    @Test
+    public void test_MIC_translation_with_target_data_object() throws Exception {
+        DO target = DO.builder()
+                .id("DataObjectReference_pose")
+                .name("pose")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        MIC mic = MIC.builder()
+                .id("mic1").messageId("PoseUpdate").outgoingEdge("flow1")
+                .targetDataRef("DataObjectReference_pose")
+                .payload(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(target, mic);
+
+        String result = translator.visit(mic);
+
+        String expected =
+                "in('PoseUpdate', var Double x, var Double y)@self\n" +
+                "in('pose', var Double dummy_x, var Double dummy_y)@self\n" +
+                "out('pose', x, y)@self\n" +
+                "out('flow1')@self\n";
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void test_MSE_translation_with_target_data_object() throws Exception {
+        DO target = DO.builder()
+                .id("DataObjectReference_cmd")
+                .name("command")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("action").type("String").build()))
+                .build();
+        MSE mse = MSE.builder()
+                .id("mse1").messageId("Start").outgoingEdge("flow1")
+                .targetDataRef("DataObjectReference_cmd")
+                .payload(List.of(
+                        Field.builder().name("action").type("String").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(target, mse);
+
+        String result = translator.visit(mse);
+
+        String expected =
+                "in('Start', var String action)@self\n" +
+                "in('command', var String dummy_action)@self\n" +
+                "out('command', action)@self\n" +
+                "out('flow1')@self\n";
+        assertEquals(expected, result);
+    }
+
+@Test
+    public void test_MIT_translation_with_source_data_object() throws Exception {
+        DO source = DO.builder()
+                .id("DataObjectReference_pose")
+                .name("pose")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        MessageFLow flow = MessageFLow.builder().id("mf1").senderId("p1").receiverName("Server").build();
+        MIT mit = MIT.builder()
+                .id("mit1").messageId("ReportPose").outgoingEdge("flow1")
+                .messageFlow(flow)
+                .sourceDataRefs(List.of("DataObjectReference_pose"))
+                .payload(List.of(
+                        Field.builder().name("x").build(),
+                        Field.builder().name("y").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(source, mit);
+
+        String result = translator.visit(mit);
+
+        String expected =
+                "read('pose', var Double x, var Double y)@self\n" +
+                "out('ReportPose', x, y)@Server\n" +
+                "out('flow1')@self\n";
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void test_MIT_translation_no_payload_falls_back() throws Exception {
+        MessageFLow flow = MessageFLow.builder().id("mf1").senderId("p1").receiverName("Server").build();
+        MIT mit = MIT.builder()
+                .id("mit1").messageId("Ping").outgoingEdge("flow1")
+                .messageFlow(flow)
+                .build();
+        BPMNTranslator translator = translatorFor(mit);
+
+        String result = translator.visit(mit);
+
+        assertEquals("out('Ping')@Server\nout('flow1')@self\n", result);
+    }
+
+    @Test
+    public void test_MIT_translation_payload_names_used_verbatim() throws Exception {
+        DO source = DO.builder()
+                .id("DataObjectReference_pose")
+                .name("pose")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        MessageFLow flow = MessageFLow.builder().id("mf1").senderId("p1").receiverName("Server").build();
+        MIT mit = MIT.builder()
+                .id("mit1").messageId("ReportPose").outgoingEdge("flow1")
+                .messageFlow(flow)
+                .sourceDataRefs(List.of("DataObjectReference_pose"))
+                .payload(List.of(
+                        Field.builder().name("x").build(),
+                        Field.builder().name("y").build()))
+                .build();
+        BPMNTranslator translator = translatorFor(source, mit);
+
+        String result = translator.visit(mit);
+
+        String expected =
+                "read('pose', var Double x, var Double y)@self\n" +
+                "out('ReportPose', x, y)@Server\n" +
+                "out('flow1')@self\n";
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void test_MIC_translation_no_target_falls_back() throws Exception {
+        MIC mic = MIC.builder()
+                .id("mic1").messageId("Ping").outgoingEdge("flow1")
+                .build();
+        BPMNTranslator translator = translatorFor(mic);
+
+        String result = translator.visit(mic);
+
+        assertEquals("in('Ping')@self\nout('flow1')@self\n", result);
+    }
+
+    @Test
+    public void test_PL_translation_includes_data_objects() throws Exception {
+        PL pool = new PL("Robot", "pool1", "proc1", "RobotBehavior");
+        DO data = DO.builder()
+                .id("DataObjectReference_1")
+                .name("position")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("x").type("Double").build(),
+                        Field.builder().name("y").type("Double").build()))
+                .build();
+        Collab collab = new Collab("collab1", List.of(pool));
+        BpmnElements elements = buildElements(collab, pool, data);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(pool);
+
+        assertTrue(result.contains("out(\"position\", 0.0, 0.0)@self"),
+                "Pool node body should contain data object emission: " + result);
+        assertTrue(result.contains("eval(new RobotBehavior"),
+                "Pool node should still contain eval of process: " + result);
+        // Data object line should come before eval
+        int doIdx = result.indexOf("out(\"position\"");
+        int evalIdx = result.indexOf("eval(new RobotBehavior");
+        assertTrue(doIdx < evalIdx, "Data object emission should precede eval");
     }
 }

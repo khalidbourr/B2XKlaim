@@ -1,8 +1,6 @@
-// Only keep property groups relevant for B2XKlaim BPMN-to-XKlaim translation.
-// All Camunda Platform-specific groups (async continuations, mappings, listeners, etc.)
-// are removed since they have no translation equivalent.
 
-import { TextFieldEntry } from '@bpmn-io/properties-panel';
+
+import { TextFieldEntry, ListGroup } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 
 const ALLOWED_GROUPS = new Set([
@@ -21,57 +19,80 @@ const ALLOWED_GROUPS = new Set([
   'CamundaPlatform__Script',               // Script task content
 ]);
 
-// Element types that can have extension properties
-const EXTENSION_PROPS_TYPES = new Set([
-  'bpmn:DataObjectReference',
+const SIGNAL_EXT_TYPES = new Set([
   'bpmn:IntermediateThrowEvent',
   'bpmn:IntermediateCatchEvent',
   'bpmn:StartEvent',
   'bpmn:EndEvent',
 ]);
 
-function hasMessageOrSignalDef(element) {
+function hasSignalDef(element) {
   var bo = element.businessObject || element;
   var eventDefs = bo.eventDefinitions || [];
-  return eventDefs.some(function(def) {
-    return def.$type === 'bpmn:MessageEventDefinition' || def.$type === 'bpmn:SignalEventDefinition';
-  });
+  return eventDefs.some(function(def) { return def.$type === 'bpmn:SignalEventDefinition'; });
+}
+
+function hasMessageDef(element) {
+  var bo = element.businessObject || element;
+  var eventDefs = bo.eventDefinitions || [];
+  return eventDefs.some(function(def) { return def.$type === 'bpmn:MessageEventDefinition'; });
 }
 
 function shouldShowExtensionProperties(element) {
   var type = element.type || (element.businessObject && element.businessObject.$type);
-  if (type === 'bpmn:DataObjectReference') return true;
-  if (EXTENSION_PROPS_TYPES.has(type) && hasMessageOrSignalDef(element)) return true;
-  return false;
+  return SIGNAL_EXT_TYPES.has(type) && hasSignalDef(element);
 }
 
 function isDataObject(element) {
   var type = element.type || (element.businessObject && element.businessObject.$type);
-  return type === 'bpmn:DataObjectReference';
+  return type === 'bpmn:DataObjectReference' && !hasDataInputExtension(element);
+}
+
+function hasDataInputExtension(element) {
+  var bo = element.businessObject || element;
+  var ext = bo.get('extensionElements');
+  if (!ext || !ext.get('values')) return false;
+  return ext.get('values').some(function(v) { return v.$type === 'b2x:DataInput'; });
+}
+
+function isDataInput(element) {
+  var type = element.type || (element.businessObject && element.businessObject.$type);
+  return type === 'bpmn:DataObjectReference' && hasDataInputExtension(element);
+}
+
+function isMessageCatchEvent(element) {
+  var type = element.type || (element.businessObject && element.businessObject.$type);
+  return hasMessageDef(element)
+      && (type === 'bpmn:IntermediateCatchEvent' || type === 'bpmn:StartEvent');
 }
 
 function isMessageThrowEvent(element) {
-  var bo = element.businessObject || element;
-  var eventDefs = bo.eventDefinitions || [];
-  return eventDefs.some(function(def) {
-    return def.$type === 'bpmn:MessageEventDefinition';
-  });
+  var type = element.type || (element.businessObject && element.businessObject.$type);
+  return hasMessageDef(element)
+      && (type === 'bpmn:IntermediateThrowEvent' || type === 'bpmn:EndEvent');
 }
 
-// Custom entry components with B2XKlaim-specific labels
-function DataObjectNameEntry(props) {
-  const { idPrefix, element, property } = props;
+// ---- Data Object fields (b2x:Field) ----
+
+function getB2xFields(businessObject) {
+  var ext = businessObject.get('extensionElements');
+  if (!ext) return [];
+  return ext.get('values').filter(function(v) { return v.$type === 'b2x:Field'; });
+}
+
+function FieldNameEntry(props) {
+  const { idPrefix, element, field } = props;
   const commandStack = useService('commandStack');
   const debounce = useService('debounceInput');
   return TextFieldEntry({
-    element: property,
+    element: field,
     id: idPrefix + '-name',
-    label: 'Field Name',
-    getValue: function() { return property.name; },
+    label: 'Name',
+    getValue: function() { return field.get('name') || ''; },
     setValue: function(value) {
       commandStack.execute('element.updateModdleProperties', {
         element: element,
-        moddleElement: property,
+        moddleElement: field,
         properties: { name: value }
       });
     },
@@ -79,111 +100,231 @@ function DataObjectNameEntry(props) {
   });
 }
 
-function DataObjectValueEntry(props) {
-  const { idPrefix, element, property } = props;
+function FieldValueEntry(props) {
+  const { idPrefix, element, field } = props;
   const commandStack = useService('commandStack');
   const debounce = useService('debounceInput');
   return TextFieldEntry({
-    element: property,
+    element: field,
     id: idPrefix + '-value',
+    label: 'Value',
+    getValue: function() { return field.get('value') || ''; },
+    setValue: function(value) {
+      commandStack.execute('element.updateModdleProperties', {
+        element: element,
+        moddleElement: field,
+        properties: { value: value || undefined }
+      });
+    },
+    debounce: debounce
+  });
+}
+
+function FieldTypeEntry(props) {
+  const { idPrefix, element, field } = props;
+  const commandStack = useService('commandStack');
+  const debounce = useService('debounceInput');
+  return TextFieldEntry({
+    element: field,
+    id: idPrefix + '-type',
     label: 'Type',
-    getValue: function() { return property.value; },
+    getValue: function() { return field.get('type') || ''; },
     setValue: function(value) {
       commandStack.execute('element.updateModdleProperties', {
         element: element,
-        moddleElement: property,
-        properties: { value: value }
+        moddleElement: field,
+        properties: { type: value }
       });
     },
     debounce: debounce
   });
 }
 
-function MessageNameEntry(props) {
-  const { idPrefix, element, property } = props;
+function FieldTypeFromValueEntry(props) {
+  const { idPrefix, element, field } = props;
   const commandStack = useService('commandStack');
   const debounce = useService('debounceInput');
   return TextFieldEntry({
-    element: property,
-    id: idPrefix + '-name',
-    label: 'Payload Field',
-    getValue: function() { return property.name; },
+    element: field,
+    id: idPrefix + '-type',
+    label: 'Type',
+    getValue: function() { return field.get('value') || ''; },
     setValue: function(value) {
       commandStack.execute('element.updateModdleProperties', {
         element: element,
-        moddleElement: property,
-        properties: { name: value }
+        moddleElement: field,
+        properties: { value: value || undefined }
       });
     },
     debounce: debounce
   });
 }
 
-function MessageValueEntry(props) {
-  const { idPrefix, element, property } = props;
-  const commandStack = useService('commandStack');
-  const debounce = useService('debounceInput');
-  return TextFieldEntry({
-    element: property,
-    id: idPrefix + '-value',
-    label: 'Source Expression',
-    getValue: function() { return property.value; },
-    setValue: function(value) {
-      commandStack.execute('element.updateModdleProperties', {
-        element: element,
-        moddleElement: property,
-        properties: { value: value }
-      });
-    },
-    debounce: debounce
-  });
+function dataObjectFieldEntries({ idPrefix, element, field }) {
+  return [
+    { id: idPrefix + '-name',  component: FieldNameEntry,       idPrefix, element, field },
+    { id: idPrefix + '-type',  component: FieldTypeFromValueEntry, idPrefix, element, field }
+  ];
 }
 
-function relabelExtensionProperties(group, element) {
-  if (isDataObject(element)) {
-    group.label = 'Data Object Fields';
-    if (group.items) {
-      group.items.forEach(function(item) {
-        if (item.entries) {
-          item.entries.forEach(function(entry) {
-            if (entry.id && entry.id.endsWith('-name')) {
-              entry.component = DataObjectNameEntry;
-            } else if (entry.id && entry.id.endsWith('-value')) {
-              entry.component = DataObjectValueEntry;
-            }
-          });
-        }
-      });
-    }
-  } else if (isMessageThrowEvent(element)) {
-    group.label = 'Message Payload';
-    if (group.items) {
-      group.items.forEach(function(item) {
-        if (item.entries) {
-          item.entries.forEach(function(entry) {
-            if (entry.id && entry.id.endsWith('-name')) {
-              entry.component = MessageNameEntry;
-            } else if (entry.id && entry.id.endsWith('-value')) {
-              entry.component = MessageValueEntry;
-            }
-          });
-        }
-      });
-    }
+function dataInputFieldEntries({ idPrefix, element, field }) {
+  return [
+    { id: idPrefix + '-name',  component: FieldNameEntry,    idPrefix, element, field },
+    { id: idPrefix + '-value', component: FieldValueEntry,   idPrefix, element, field },
+    { id: idPrefix + '-type',  component: FieldTypeEntry,    idPrefix, element, field }
+  ];
+}
+
+function addB2xField(element, bpmnFactory, commandStack) {
+  const bo = element.businessObject;
+  const commands = [];
+
+  let ext = bo.get('extensionElements');
+  if (!ext) {
+    ext = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
+    ext.$parent = bo;
+    commands.push({
+      cmd: 'element.updateModdleProperties',
+      context: { element, moddleElement: bo, properties: { extensionElements: ext } }
+    });
   }
+
+  const field = bpmnFactory.create('b2x:Field', { name: '', type: '' });
+  field.$parent = ext;
+  commands.push({
+    cmd: 'element.updateModdleProperties',
+    context: {
+      element,
+      moddleElement: ext,
+      properties: { values: [...ext.get('values'), field] }
+    }
+  });
+
+  commandStack.execute('properties-panel.multi-command-executor', commands);
 }
 
-export default function CustomPropertiesProvider(propertiesPanel) {
-  // Use low priority (200) so this runs AFTER Camunda (500) and BPMN (1000) providers
-  // In diagram-js, higher priority = runs first, lower = runs later
+function removeB2xField(element, field, commandStack) {
+  const ext = element.businessObject.get('extensionElements');
+  if (!ext) return;
+  const values = ext.get('values').filter(function(v) { return v !== field; });
+  commandStack.execute('element.updateModdleProperties', {
+    element, moddleElement: ext, properties: { values }
+  });
+}
+
+function addFieldFactory({ element, bpmnFactory, commandStack }) {
+  return function(event) {
+    event.stopPropagation();
+    addB2xField(element, bpmnFactory, commandStack);
+  };
+}
+
+function removeFieldFactory({ element, field, commandStack }) {
+  return function(event) {
+    event.stopPropagation();
+    removeB2xField(element, field, commandStack);
+  };
+}
+
+function DataObjectFieldsGroup(element, injector, kind) {
+  const bpmnFactory = injector.get('bpmnFactory');
+  const commandStack = injector.get('commandStack');
+  const fields = getB2xFields(element.businessObject);
+  var entriesFn = kind === 'input' ? dataInputFieldEntries : dataObjectFieldEntries;
+
+  const items = fields.map(function(field, index) {
+    const id = element.id + '-b2xField-' + index;
+    return {
+      id,
+      label: field.get('name') || '<unnamed field>',
+      entries: entriesFn({ idPrefix: id, element, field }),
+      autoFocusEntry: id + '-name',
+      remove: removeFieldFactory({ element, field, commandStack })
+    };
+  });
+
+  return {
+    id: 'B2XKlaim__DataObjectFields',
+    label: 'Extension properties',
+    component: ListGroup,
+    items,
+    add: addFieldFactory({ element, bpmnFactory, commandStack })
+  };
+}
+
+
+function ThrowPayloadNameEntry(props) {
+  const { idPrefix, element, field } = props;
+  const commandStack = useService('commandStack');
+  const debounce = useService('debounceInput');
+  return TextFieldEntry({
+    element: field,
+    id: idPrefix + '-name',
+    label: 'Name',
+    getValue: function() { return field.get('name') || ''; },
+    setValue: function(value) {
+      commandStack.execute('element.updateModdleProperties', {
+        element, moddleElement: field, properties: { name: value }
+      });
+    },
+    debounce
+  });
+}
+
+function payloadEntries(kind, { idPrefix, element, field }) {
+  if (kind === 'catch') {
+    return [
+      { id: idPrefix + '-name', component: FieldNameEntry, idPrefix, element, field },
+      { id: idPrefix + '-type', component: FieldTypeEntry, idPrefix, element, field }
+    ];
+  }
+  return [
+    { id: idPrefix + '-name', component: ThrowPayloadNameEntry, idPrefix, element, field }
+  ];
+}
+
+function MessagePayloadGroup(element, injector, kind) {
+  const bpmnFactory = injector.get('bpmnFactory');
+  const commandStack = injector.get('commandStack');
+  const fields = getB2xFields(element.businessObject);
+
+  const items = fields.map(function(field, index) {
+    const id = element.id + '-b2xPayload-' + index;
+    return {
+      id,
+      label: field.get('name') || '<unnamed>',
+      entries: payloadEntries(kind, { idPrefix: id, element, field }),
+      autoFocusEntry: id + '-name',
+      remove: removeFieldFactory({ element, field, commandStack })
+    };
+  });
+
+  return {
+    id: 'B2XKlaim__MessagePayload',
+    label: 'Extension properties',
+    component: ListGroup,
+    items,
+    add: addFieldFactory({ element, bpmnFactory, commandStack })
+  };
+}
+
+// ---- Provider ----
+
+export default function CustomPropertiesProvider(propertiesPanel, injector) {
+  this._injector = injector;
   propertiesPanel.registerProvider(200, this);
 }
 
-CustomPropertiesProvider.$inject = ['propertiesPanel'];
+CustomPropertiesProvider.$inject = ['propertiesPanel', 'injector'];
 
 CustomPropertiesProvider.prototype.getGroups = function(element) {
+  const injector = this._injector;
   return function(groups) {
-    return groups
+    const msgKind = isMessageCatchEvent(element) ? 'catch'
+        : isMessageThrowEvent(element) ? 'throw'
+        : null;
+
+    const filtered = groups
       .filter(function(group) {
         if (group.id === 'CamundaPlatform__ExtensionProperties') {
           return shouldShowExtensionProperties(element);
@@ -191,18 +332,22 @@ CustomPropertiesProvider.prototype.getGroups = function(element) {
         return ALLOWED_GROUPS.has(group.id);
       })
       .map(function(group) {
-        // Strip Camunda-specific entries from Called element group,
-        // keep only the calledElement text field
         if (group.id === 'CamundaPlatform__CallActivity' && group.entries) {
           group.entries = group.entries.filter(function(entry) {
             return entry.id === 'calledElement';
           });
         }
-        // Relabel extension properties with B2XKlaim-specific names
-        if (group.id === 'CamundaPlatform__ExtensionProperties') {
-          relabelExtensionProperties(group, element);
-        }
         return group;
       });
+
+    if (isDataObject(element)) {
+      filtered.push(DataObjectFieldsGroup(element, injector, 'object'));
+    } else if (isDataInput(element)) {
+      filtered.push(DataObjectFieldsGroup(element, injector, 'input'));
+    } else if (msgKind) {
+      filtered.push(MessagePayloadGroup(element, injector, msgKind));
+    }
+
+    return filtered;
   };
 };

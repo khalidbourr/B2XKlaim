@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc Publish(String edge){
-
- /* Placeholder implementation for Script Task 'Publish' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc Publish(String edge) {
+  /* Script body for 'Publish': assign output variables here */
+  out(edge)@self
 }

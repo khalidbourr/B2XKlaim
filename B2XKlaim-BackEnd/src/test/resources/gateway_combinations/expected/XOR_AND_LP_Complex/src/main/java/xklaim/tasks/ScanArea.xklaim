@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc ScanArea(String edge){
-
- /* Placeholder implementation for Script Task 'ScanArea' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc ScanArea(String edge) {
+  /* Script body for 'ScanArea': assign output variables here */
+  out(edge)@self
 }

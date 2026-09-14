@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc Store(String edge){
-
- /* Placeholder implementation for Script Task 'Store' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc Store(String edge) {
+  /* Script body for 'Store': assign output variables here */
+  out(edge)@self
 }

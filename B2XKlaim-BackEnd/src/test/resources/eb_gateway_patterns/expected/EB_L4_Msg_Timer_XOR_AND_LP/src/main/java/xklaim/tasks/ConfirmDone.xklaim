@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc ConfirmDone(String edge){
-
- /* Placeholder implementation for Script Task 'ConfirmDone' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc ConfirmDone(String edge) {
+  /* Script body for 'ConfirmDone': assign output variables here */
+  out(edge)@self
 }

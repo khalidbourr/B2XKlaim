@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc WriteOutput(String edge){
-
- /* Placeholder implementation for Script Task 'WriteOutput' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc WriteOutput(String edge) {
+  /* Script body for 'WriteOutput': assign output variables here */
+  out(edge)@self
 }

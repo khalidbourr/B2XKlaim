@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc SendRequest(String edge){
-
- /* Placeholder implementation for Script Task 'SendRequest' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc SendRequest(String edge) {
+  /* Script body for 'SendRequest': assign output variables here */
+  out(edge)@self
 }

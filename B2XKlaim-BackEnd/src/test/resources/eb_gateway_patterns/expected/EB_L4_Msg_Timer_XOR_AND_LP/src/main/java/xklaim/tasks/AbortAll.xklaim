@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc AbortAll(String edge){
-
- /* Placeholder implementation for Script Task 'AbortAll' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc AbortAll(String edge) {
+  /* Script body for 'AbortAll': assign output variables here */
+  out(edge)@self
 }

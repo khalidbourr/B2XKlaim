@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc PrepareSignal(String edge){
-
- /* Placeholder implementation for Script Task 'PrepareSignal' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc PrepareSignal(String edge) {
+  /* Script body for 'PrepareSignal': assign output variables here */
+  out(edge)@self
 }

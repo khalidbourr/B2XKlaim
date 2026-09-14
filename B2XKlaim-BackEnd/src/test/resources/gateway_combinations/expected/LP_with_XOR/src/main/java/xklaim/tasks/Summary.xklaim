@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc Summary(String edge){
-
- /* Placeholder implementation for Script Task 'Summary' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc Summary(String edge) {
+  /* Script body for 'Summary': assign output variables here */
+  out(edge)@self
 }

@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc RecordMetrics(String edge){
-
- /* Placeholder implementation for Script Task 'RecordMetrics' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc RecordMetrics(String edge) {
+  /* Script body for 'RecordMetrics': assign output variables here */
+  out(edge)@self
 }

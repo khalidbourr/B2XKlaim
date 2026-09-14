@@ -1,0 +1,32 @@
+{
+  "name": "B2XKlaim",
+  "uri": "http://b2xklaim.org/schema/1.0/b2x",
+  "prefix": "b2x",
+  "xml": {
+    "tagAlias": "lowerCase"
+  },
+  "associations": [],
+  "types": [
+    {
+      "name": "Field",
+      "superClass": ["Element"],
+      "properties": [
+        { "name": "name",  "isAttr": true, "type": "String" },
+        { "name": "type",  "isAttr": true, "type": "String" },
+        { "name": "value", "isAttr": true, "type": "String" }
+      ]
+    },
+    {
+      "name": "DataInput",
+      "superClass": ["Element"],
+      "properties": []
+    },
+    {
+      "name": "EventId",
+      "superClass": ["Element"],
+      "properties": [
+        { "name": "value", "isAttr": true, "type": "String" }
+      ]
+    }
+  ]
+}

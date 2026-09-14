@@ -2,10 +2,7 @@ package xklaim.tasks
 
 import klava.Locality
 
-proc CopyRawFile(String edge){
-
- /* Placeholder implementation for Script Task 'CopyRawFile' */ 
- /* Add logic representing the script task */ 
-
- out(edge)@self
+proc CopyRawFile(String edge) {
+  /* Script body for 'CopyRawFile': assign output variables here */
+  out(edge)@self
 }
