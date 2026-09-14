@@ -2,6 +2,7 @@ name: Deploy
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -23,6 +24,8 @@ jobs:
 
       - name: Build frontend
         working-directory: B2XKlaim-FrontEnd
+        env:
+          VUE_APP_API_URL: https://kbourr.com/b2api
         run: |
           npm ci
           npm run build
@@ -56,3 +59,36 @@ jobs:
           git add -A
           git -c gc.auto=0 commit -m "Deploy $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:deploy
+
+  deploy-server:
+    name: Deploy to kbourr.com over SSH
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run deploy script on server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -euo pipefail
+            if [ -x "$HOME/deploy-b2xklaim.sh" ]; then
+              "$HOME/deploy-b2xklaim.sh"
+            elif [ -x "$HOME/kbourr.com/b2api/deploy-b2xklaim.sh" ]; then
+              "$HOME/kbourr.com/b2api/deploy-b2xklaim.sh"
+            else
+              echo "deploy-b2xklaim.sh not found; falling back to inline deploy"
+              REPO_URL="https://github.com/${{ github.repository }}.git"
+              TMP_DIR="/tmp/b2xklaim-deploy"
+              rm -rf "$TMP_DIR"
+              git clone --depth 1 -b deploy "$REPO_URL" "$TMP_DIR"
+              rm -rf "$HOME/kbourr.com/b2xklaim"
+              cp -r "$TMP_DIR/b2xklaim" "$HOME/kbourr.com/b2xklaim"
+              cp "$TMP_DIR"/b2api/B2XKlaim-*.jar "$HOME/kbourr.com/b2api/"
+              if [ -f "$HOME/kbourr.com/b2api/app-control.sh" ]; then
+                "$HOME/kbourr.com/b2api/app-control.sh" restart || echo "restart failed"
+              fi
+              rm -rf "$TMP_DIR"
+            fi

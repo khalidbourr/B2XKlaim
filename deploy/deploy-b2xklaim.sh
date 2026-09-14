@@ -9,6 +9,7 @@ FRONTEND_DEST="$WEB_ROOT/b2xklaim"
 BACKEND_DEST="$WEB_ROOT/b2api"
 TMP_DIR="/tmp/b2xklaim-deploy"
 
+rm -rf "$TMP_DIR"
 git clone --depth 1 -b "$DEPLOY_BRANCH" "$REPO_URL" "$TMP_DIR" || { echo "Failed to clone $REPO_URL branch $DEPLOY_BRANCH"; exit 1; }
 
 echo "Frontend: $FRONTEND_DEST"

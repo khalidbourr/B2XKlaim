@@ -925,7 +925,8 @@ export default {
           }
         }
 
-        const response = await fetch("http://localhost:8081/generate-code", {
+        const apiBaseUrl = process.env.VUE_APP_API_URL || "http://localhost:8081";
+        const response = await fetch(`${apiBaseUrl}/generate-code`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
