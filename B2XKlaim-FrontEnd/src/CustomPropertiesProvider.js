@@ -60,11 +60,9 @@ function isDataInput(element) {
   return type === 'bpmn:DataObjectReference' && hasDataInputExtension(element);
 }
 
-function isMessageCatchEvent(element) {
-  var type = element.type || (element.businessObject && element.businessObject.$type);
-  return hasMessageDef(element)
-      && (type === 'bpmn:IntermediateCatchEvent' || type === 'bpmn:StartEvent');
-}
+// Message catch events carry no payload here: the structure of the received
+// message is defined by the data object linked to the event through a data
+// association, so no editable entries are offered on the event itself.
 
 function isMessageThrowEvent(element) {
   var type = element.type || (element.businessObject && element.businessObject.$type);
@@ -260,7 +258,7 @@ function ThrowPayloadNameEntry(props) {
   return TextFieldEntry({
     element: field,
     id: idPrefix + '-name',
-    label: 'Name',
+    label: 'Message Field',
     getValue: function() { return field.get('name') || ''; },
     setValue: function(value) {
       commandStack.execute('element.updateModdleProperties', {
@@ -271,19 +269,13 @@ function ThrowPayloadNameEntry(props) {
   });
 }
 
-function payloadEntries(kind, { idPrefix, element, field }) {
-  if (kind === 'catch') {
-    return [
-      { id: idPrefix + '-name', component: FieldNameEntry, idPrefix, element, field },
-      { id: idPrefix + '-type', component: FieldTypeEntry, idPrefix, element, field }
-    ];
-  }
+function payloadEntries({ idPrefix, element, field }) {
   return [
     { id: idPrefix + '-name', component: ThrowPayloadNameEntry, idPrefix, element, field }
   ];
 }
 
-function MessagePayloadGroup(element, injector, kind) {
+function MessagePayloadGroup(element, injector) {
   const bpmnFactory = injector.get('bpmnFactory');
   const commandStack = injector.get('commandStack');
   const fields = getB2xFields(element.businessObject);
@@ -293,7 +285,7 @@ function MessagePayloadGroup(element, injector, kind) {
     return {
       id,
       label: field.get('name') || '<unnamed>',
-      entries: payloadEntries(kind, { idPrefix: id, element, field }),
+      entries: payloadEntries({ idPrefix: id, element, field }),
       autoFocusEntry: id + '-name',
       remove: removeFieldFactory({ element, field, commandStack })
     };
@@ -320,9 +312,7 @@ CustomPropertiesProvider.$inject = ['propertiesPanel', 'injector'];
 CustomPropertiesProvider.prototype.getGroups = function(element) {
   const injector = this._injector;
   return function(groups) {
-    const msgKind = isMessageCatchEvent(element) ? 'catch'
-        : isMessageThrowEvent(element) ? 'throw'
-        : null;
+    const showThrowPayload = isMessageThrowEvent(element);
 
     const filtered = groups
       .filter(function(group) {
@@ -344,8 +334,8 @@ CustomPropertiesProvider.prototype.getGroups = function(element) {
       filtered.push(DataObjectFieldsGroup(element, injector, 'object'));
     } else if (isDataInput(element)) {
       filtered.push(DataObjectFieldsGroup(element, injector, 'input'));
-    } else if (msgKind) {
-      filtered.push(MessagePayloadGroup(element, injector, msgKind));
+    } else if (showThrowPayload) {
+      filtered.push(MessagePayloadGroup(element, injector));
     }
 
     return filtered;

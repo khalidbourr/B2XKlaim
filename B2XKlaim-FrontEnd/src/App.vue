@@ -276,7 +276,11 @@ export default {
       this.openCallActivityProcess(event.element);
     });
 
-    // Update properties panel header type for data input elements
+    // The properties panel header shows the concrete element type (e.g. "Start
+    // Event") on its first line. We only override that line for
+    // bpmn:DataObjectReference, where we need to distinguish plain data
+    // objects from data inputs; for every other element the panel's own type
+    // label is left untouched.
     function isDataInputEl(el) {
       if (!el || el.type !== 'bpmn:DataObjectReference') return false;
       var bo = el.businessObject;
@@ -290,10 +294,11 @@ export default {
         var el = _bpmnModeler.get('selection').get();
         var typeEl = document.querySelector('.bio-properties-panel-header-type');
         if (!typeEl) return;
-        if (!el || el.length !== 1) {
-          typeEl.textContent = 'Data Object Reference';
-          return;
-        }
+        // No selection (or multiple elements): the panel renders a placeholder
+        // instead of the header, so there is nothing to adjust.
+        if (!el || el.length !== 1) return;
+        // Only data object references need a custom type label.
+        if (el[0].type !== 'bpmn:DataObjectReference') return;
         typeEl.textContent = isDataInputEl(el[0]) ? 'Data Input Reference' : 'Data Object Reference';
       }, 0);
     });
