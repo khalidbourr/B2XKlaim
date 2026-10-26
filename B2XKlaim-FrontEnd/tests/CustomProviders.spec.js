@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock dependencies imported by CustomPropertiesProvider
 vi.mock('@bpmn-io/properties-panel', () => ({
   TextFieldEntry: vi.fn(),
+  ListGroup: vi.fn(),
 }));
 vi.mock('bpmn-js-properties-panel', () => ({
   useService: vi.fn(),
@@ -118,12 +119,12 @@ import CustomPropertiesProvider from '@/CustomPropertiesProvider.js';
 
 describe('CustomPropertiesProvider', () => {
   it('has correct $inject', () => {
-    expect(CustomPropertiesProvider.$inject).toEqual(['propertiesPanel']);
+    expect(CustomPropertiesProvider.$inject).toEqual(['propertiesPanel', 'injector']);
   });
 
   it('registers itself with propertiesPanel at priority 200', () => {
     const mockPanel = { registerProvider: vi.fn() };
-    const provider = new CustomPropertiesProvider(mockPanel);
+    const provider = new CustomPropertiesProvider(mockPanel, { get: vi.fn() });
     expect(mockPanel.registerProvider).toHaveBeenCalledWith(200, provider);
   });
 
@@ -131,7 +132,12 @@ describe('CustomPropertiesProvider', () => {
     let provider;
 
     beforeEach(() => {
-      provider = new CustomPropertiesProvider({ registerProvider: vi.fn() });
+      // The provider reads bpmnFactory/commandStack from its injector when it
+      // appends a custom group; a stub is enough for getGroups.
+      provider = new CustomPropertiesProvider(
+        { registerProvider: vi.fn() },
+        { get: vi.fn(() => ({})) }
+      );
     });
 
     it('keeps allowed standard BPMN groups', () => {
@@ -192,51 +198,67 @@ describe('CustomPropertiesProvider', () => {
       expect(result[0].id).toBe('general');
     });
 
-    it('shows ExtensionProperties for DataObjectReference with relabeled group', () => {
-      const element = { type: 'bpmn:DataObjectReference' };
+    it('adds the data object fields group for DataObjectReference', () => {
+      const element = {
+        type: 'bpmn:DataObjectReference',
+        businessObject: { $type: 'bpmn:DataObjectReference', get: vi.fn() }
+      };
       const filterFn = provider.getGroups(element);
 
       const groups = [
         { id: 'general' },
-        { id: 'CamundaPlatform__ExtensionProperties', label: 'Extension properties',
-          items: [
-            { id: 'el-extensionProperty-0', entries: [
-              { id: 'el-extensionProperty-0-name', component: function(){} },
-              { id: 'el-extensionProperty-0-value', component: function(){} },
-            ]}
-          ]},
+        { id: 'CamundaPlatform__ExtensionProperties', label: 'Extension properties' },
       ];
 
       const result = filterFn(groups);
       expect(result).toHaveLength(2);
-      const extGroup = result.find(g => g.id === 'CamundaPlatform__ExtensionProperties');
-      expect(extGroup.label).toBe('Data Object Fields');
+      const fieldsGroup = result.find(g => g.id === 'B2XKlaim__DataObjectFields');
+      expect(fieldsGroup).toBeDefined();
+      expect(fieldsGroup.label).toBe('Extension properties');
+      expect(fieldsGroup.items).toEqual([]);
+      // The camunda extension properties group is replaced, not kept
+      expect(result.find(g => g.id === 'CamundaPlatform__ExtensionProperties')).toBeUndefined();
     });
 
-    it('shows ExtensionProperties for message events with relabeled group', () => {
+    it('adds the message payload group for message throw events', () => {
       const element = {
         type: 'bpmn:IntermediateThrowEvent',
         businessObject: {
-          eventDefinitions: [{ $type: 'bpmn:MessageEventDefinition' }]
+          $type: 'bpmn:IntermediateThrowEvent',
+          eventDefinitions: [{ $type: 'bpmn:MessageEventDefinition' }],
+          get: vi.fn()
         }
       };
       const filterFn = provider.getGroups(element);
 
       const groups = [
         { id: 'general' },
-        { id: 'CamundaPlatform__ExtensionProperties', label: 'Extension properties',
-          items: [
-            { id: 'el-extensionProperty-0', entries: [
-              { id: 'el-extensionProperty-0-name', component: function(){} },
-              { id: 'el-extensionProperty-0-value', component: function(){} },
-            ]}
-          ]},
+        { id: 'CamundaPlatform__ExtensionProperties', label: 'Extension properties' },
       ];
 
       const result = filterFn(groups);
       expect(result).toHaveLength(2);
-      const extGroup = result.find(g => g.id === 'CamundaPlatform__ExtensionProperties');
-      expect(extGroup.label).toBe('Message Payload');
+      const payloadGroup = result.find(g => g.id === 'B2XKlaim__MessagePayload');
+      expect(payloadGroup).toBeDefined();
+      expect(payloadGroup.label).toBe('Extension properties');
+      expect(payloadGroup.items).toEqual([]);
+      expect(result.find(g => g.id === 'CamundaPlatform__ExtensionProperties')).toBeUndefined();
+    });
+
+    it('adds no payload group for message catch events', () => {
+      const element = {
+        type: 'bpmn:IntermediateCatchEvent',
+        businessObject: {
+          $type: 'bpmn:IntermediateCatchEvent',
+          eventDefinitions: [{ $type: 'bpmn:MessageEventDefinition' }],
+          get: vi.fn()
+        }
+      };
+      const filterFn = provider.getGroups(element);
+
+      const result = filterFn([{ id: 'general' }]);
+      expect(result).toHaveLength(1);
+      expect(result.find(g => g.id === 'B2XKlaim__MessagePayload')).toBeUndefined();
     });
 
     it('keeps default label for signal events', () => {
@@ -356,7 +378,7 @@ describe('CustomCreateMenuProvider', () => {
 
     const entries = provider.getPopupMenuEntries();
 
-    for (const [key, entry] of Object.entries(entries)) {
+    for (const [, entry] of Object.entries(entries)) {
       expect(entry.action).toBeDefined();
       expect(typeof entry.action.click).toBe('function');
       expect(typeof entry.action.dragstart).toBe('function');
