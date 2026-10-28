@@ -1,0 +1,8 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc Report(String edge) {
+  /* Script body for 'Report': assign output variables here */
+  out(edge)@self
+}

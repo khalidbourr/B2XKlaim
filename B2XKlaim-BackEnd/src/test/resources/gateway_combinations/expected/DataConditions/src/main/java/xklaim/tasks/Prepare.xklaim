@@ -1,0 +1,8 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc Prepare(String edge) {
+  /* Script body for 'Prepare': assign output variables here */
+  out(edge)@self
+}

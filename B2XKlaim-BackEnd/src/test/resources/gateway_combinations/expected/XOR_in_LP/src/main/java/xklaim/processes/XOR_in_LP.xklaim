@@ -16,15 +16,14 @@ proc XOR_in_LP() {
   in('Flow_pre_to_xsplit')@self
 
   if (cacheExpired == true){
-    while(responseCode != 200){
+    do {
       eval(new PollService('Flow_L1_to_L2'/* TODO: Pass other necessary args */))@self
       in('Flow_L1_to_L2')@self
 
       eval(new CheckResponse('Flow_L2_to_lsplit'/* TODO: Pass other necessary args */))@self
       in('Flow_L2_to_lsplit')@self
 
-    }
-
+    } while(responseCode != 200)
 
     eval(new HandleSuccess('Flow_A1_to_xmerge'/* TODO: Pass other necessary args */))@self
     in('Flow_A1_to_xmerge')@self

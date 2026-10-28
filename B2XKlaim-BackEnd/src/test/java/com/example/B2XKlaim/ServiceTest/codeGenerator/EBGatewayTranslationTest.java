@@ -58,8 +58,15 @@ public class EBGatewayTranslationTest {
                         String actualContent = findActualFile(actual, relativePath);
                         assertNotNull(actualContent,
                             diagram + ": missing generated file " + relativePath);
-                        assertEquals(expectedContent, actualContent,
-                            diagram + ": mismatch in " + relativePath);
+                        if (System.getProperty("updateGoldens") != null) {
+                            // Maintenance: mvn test -DupdateGoldens rewrites the expected files
+                            Path target = Path.of("src/test/resources/" + EXPECTED_DIR + diagram + "/" + relativePath);
+                            Files.createDirectories(target.getParent());
+                            Files.write(target, actualContent.getBytes(StandardCharsets.UTF_8));
+                        } else {
+                            assertEquals(expectedContent, actualContent,
+                                diagram + ": mismatch in " + relativePath);
+                        }
                     }
                 ));
             }

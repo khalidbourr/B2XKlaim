@@ -39,15 +39,14 @@ proc XOR_AND_LP_Complex() {
     eval(new PrepareRetry('Flow_F2_to_lp2merge'/* TODO: Pass other necessary args */))@self
     in('Flow_F2_to_lp2merge')@self
 
-    while(retryCount < maxRetries){
+    do {
       eval(new RetryConnection('Flow_Retry_to_Check'/* TODO: Pass other necessary args */))@self
       in('Flow_Retry_to_Check')@self
 
       eval(new VerifyStatus('Flow_Check_to_lp2split'/* TODO: Pass other necessary args */))@self
       in('Flow_Check_to_lp2split')@self
 
-    }
-
+    } while(retryCount < maxRetries)
 
     eval(new RecoverState('Flow_Recover_to_x1merge'/* TODO: Pass other necessary args */))@self
     in('Flow_Recover_to_x1merge')@self

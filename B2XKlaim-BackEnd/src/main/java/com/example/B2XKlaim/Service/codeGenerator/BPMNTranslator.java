@@ -25,10 +25,13 @@
  import java.util.HashMap;
  import java.util.HashSet;
  import java.util.Iterator;
+ import java.util.LinkedHashSet;
  import java.util.List;
  import java.util.Map;
  import java.util.Objects;
  import java.util.Set;
+ import java.util.regex.Matcher;
+ import java.util.regex.Pattern;
  import java.util.stream.Collectors;
 
  import com.example.B2XKlaim.Service.bpmnElements.BpmnElement;
@@ -190,6 +193,13 @@ import lombok.extern.slf4j.Slf4j;
      }
  
     /**
+     * Process whose data objects are visible at the node currently being translated.
+     * Gateway conditions read from them, so reads must never cross this scope (a
+     * tuple of another node's data object does not exist here and would block).
+     */
+    private String currentProcessId;
+
+    /**
      * Translates the body of a process starting from a given element,
      * traversing sequence flows recursively/iteratively. Delegates complex
      * control flow (gateways) to specific visit methods.
@@ -199,6 +209,23 @@ import lombok.extern.slf4j.Slf4j;
      */
     public String translateProcessBody(BpmnElement startElement)
     throws FileNotFoundException, UnsupportedEncodingException {
+        return translateProcessBody(startElement, startElement != null ? startElement.getProcessId() : null);
+    }
+
+    /**
+     * Same as {@link #translateProcessBody(BpmnElement)} with an explicit process
+     * scope for data reads. Used for event sub-processes: their start event carries
+     * the id of the sub-process, while their data objects belong to the enclosing
+     * process (the one that also emits them into the node).
+     *
+     * @param processId the process whose data objects live at this node (may be null)
+     * @return The generated XKlaim code string for the process body path.
+     */
+    public String translateProcessBody(BpmnElement startElement, String processId)
+    throws FileNotFoundException, UnsupportedEncodingException {
+
+        String previousProcessId = currentProcessId;
+        currentProcessId = processId;
 
         StringBuilder bodyCode = new StringBuilder();
         Set<BpmnElement> visitedElements = new HashSet<>();
@@ -281,6 +308,7 @@ import lombok.extern.slf4j.Slf4j;
         }
 
         log.debug("translateProcessBody result: [\n{}]", bodyCode.toString());
+        currentProcessId = previousProcessId;
         return bodyCode.toString();
         }
         
@@ -498,6 +526,162 @@ public String visit(MIC mic) {
      private static String typeOrObject(String type) {
          return (type == null || type.isEmpty()) ? "Object" : type;
      }
+
+     /** Words of an expression that are never data object fields. */
+     private static final Set<String> CONDITION_KEYWORDS =
+             Set.of("true", "false", "null", "and", "or", "not", "div", "mod", "instanceof");
+
+     /**
+      * The process a gateway reads its condition data from: the gateway's own if the
+      * parser attached one, otherwise the process currently being translated.
+      */
+     private String conditionScope(BpmnElement gateway) {
+         return gateway.getProcessId() != null ? gateway.getProcessId() : currentProcessId;
+     }
+
+     /**
+      * The data objects of the given process whose fields the condition mentions
+      * (the paper's data(c)), sorted by name. A field name is claimed by the first
+      * data object holding it; a later data object with that name is still read
+      * (the tuple arity must match) but its copy of the field stays unused and is
+      * warned about. Identifiers that match no field are warned about as well -
+      * they cannot compile.
+      */
+     private List<DO> conditionDataObjects(String condition, String processId) {
+         if (processId == null || condition == null || condition.trim().isEmpty()) {
+             return Collections.emptyList();
+         }
+         Set<String> identifiers = identifiersOf(condition);
+         if (identifiers.isEmpty()) return Collections.emptyList();
+
+         Set<String> claimed = new HashSet<>();
+         List<DO> result = new ArrayList<>();
+         List<DO> processObjects = bpmnElements.getElementsByType(DO.class).stream()
+                 .filter(d -> processId.equals(d.getProcessId()))
+                 .sorted(Comparator.comparing(d -> d.getName() == null ? "" : d.getName()))
+                 .collect(Collectors.toList());
+
+         for (DO data : processObjects) {
+             if (data.getFields() == null || data.getFields().isEmpty()) continue;
+             boolean referenced = false;
+             for (Field field : data.getFields()) {
+                 if (field.getName() == null || !identifiers.contains(field.getName())) continue;
+                 if (claimed.contains(field.getName())) {
+                     log.warn("Condition field '{}' exists in several data objects of process '{}'; using the first one.",
+                             field.getName(), processId);
+                 } else {
+                     referenced = true;
+                 }
+             }
+             if (referenced) {
+                 for (Field field : data.getFields()) {
+                     if (field.getName() != null) claimed.add(field.getName());
+                 }
+                 result.add(data);
+             }
+         }
+
+         for (String identifier : identifiers) {
+             if (!claimed.contains(identifier)) {
+                 log.warn("Condition '{}' of process '{}' references '{}' which is no field of its data objects - "
+                         + "the generated condition cannot compile.", condition, processId, identifier);
+             }
+         }
+         return result;
+     }
+
+     /** All word-like tokens of an expression (excluding literals and operators). */
+     private static Set<String> identifiersOf(String condition) {
+         Set<String> identifiers = new LinkedHashSet<>();
+         Matcher matcher = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*").matcher(condition);
+         while (matcher.find()) {
+             String identifier = matcher.group();
+             if (!CONDITION_KEYWORDS.contains(identifier)) identifiers.add(identifier);
+         }
+         return identifiers;
+     }
+
+     /** Makes an element/field name usable as part of a variable name. */
+     private static String sanitizeVariable(String raw) {
+         if (raw == null || raw.isEmpty()) return "c";
+         String sanitized = raw.replaceAll("[^A-Za-z0-9_]", "_");
+         if (!Character.isLetter(sanitized.charAt(0)) && sanitized.charAt(0) != '_') {
+             sanitized = "c_" + sanitized;
+         }
+         return sanitized;
+     }
+
+     /**
+      * Variable name for one field slot: &lt;prefix&gt;_&lt;field&gt;, falling back to
+      * &lt;prefix&gt;_&lt;dataObject&gt;_&lt;field&gt; when the name is already taken
+      * (the same field name in a second data object of the same condition).
+      */
+     private static String conditionVariableName(String prefix, DO data, Field field, Set<String> used) {
+         String variable = prefix + "_" + sanitizeVariable(field.getName());
+         if (!used.add(variable)) {
+             variable = prefix + "_" + sanitizeVariable(data.getName()) + "_" + sanitizeVariable(field.getName());
+             used.add(variable);
+         }
+         return variable;
+     }
+
+     /**
+      * read(...) actions bringing every field of the given data objects into scope
+      * (all fields, because the tuple arity must match the data object's tuple).
+      * renames maps each field name to the variable the condition must use; the
+      * first data object owning a field decides.
+      */
+     private String emitConditionReads(List<DO> dataObjects, String prefix, Map<String, String> renames) {
+         StringBuilder sb = new StringBuilder();
+         Set<String> used = new HashSet<>();
+         for (DO data : dataObjects) {
+             sb.append("read('").append(data.getName()).append("'");
+             for (Field field : data.getFields()) {
+                 String variable = conditionVariableName(prefix, data, field, used);
+                 if (field.getName() != null && !field.getName().isEmpty()) {
+                     renames.putIfAbsent(field.getName(), variable);
+                 }
+                 sb.append(", var ").append(typeOrObject(field.getType())).append(" ").append(variable);
+             }
+             sb.append(")@self\n");
+         }
+         return sb.toString();
+     }
+
+     /**
+      * var declarations for the condition variables of a loop, in the scope the
+      * while(...) check sees. Only the first data object of a field is declared -
+      * a duplicate slot is read (and refreshed) but never consulted.
+      */
+     private String declareConditionVariables(List<DO> dataObjects, String prefix, Map<String, String> renames) {
+         StringBuilder sb = new StringBuilder();
+         Set<String> used = new HashSet<>();
+         for (DO data : dataObjects) {
+             for (Field field : data.getFields()) {
+                 if (field.getName() == null || field.getName().isEmpty()) continue;
+                 String variable = conditionVariableName(prefix, data, field, used);
+                 if (renames.putIfAbsent(field.getName(), variable) == null) {
+                     sb.append("var ").append(typeOrObject(field.getType())).append(" ").append(variable).append("\n");
+                 }
+             }
+         }
+         return sb.toString();
+     }
+
+     /** Rewrites the raw condition so its data references use the read variables. */
+     private static String renameCondition(String condition, Map<String, String> renames) {
+         if (condition == null || renames.isEmpty()) return condition;
+         String result = condition;
+         // longest names first so a short name can never eat into a longer one
+         List<String> names = renames.keySet().stream().filter(Objects::nonNull)
+                 .sorted(Comparator.comparingInt(String::length).reversed())
+                 .collect(Collectors.toList());
+         for (String name : names) {
+             result = result.replaceAll("\\b" + Pattern.quote(name) + "\\b",
+                     Matcher.quoteReplacement(renames.get(name)));
+         }
+         return result;
+     }
  
      @Override
      public String visit(SIC sic) {
@@ -703,7 +887,7 @@ public String visit(MIC mic) {
          }
 
          if (startEvent != null) {
-             String processBody = translateProcessBody(startEvent);
+             String processBody = translateProcessBody(startEvent, esp.getProcessId());
              String[] lines = processBody.split("\\r?\\n");
              for (String line : lines) {
                  if (!line.trim().isEmpty()) {
@@ -814,7 +998,11 @@ public String visit(MIC mic) {
         // Generate if block — use condition if present, otherwise default to "true"
         String condition = (trueBranch.getKey() != null && !trueBranch.getKey().trim().isEmpty())
                 ? trueBranch.getKey() : "true";
-        s.append(String.format("if(%s){\n", condition));
+        // Bring the data objects the condition mentions into scope first (data(c))
+        Map<String, String> conditionVariables = new HashMap<>();
+        List<DO> conditionObjects = conditionDataObjects(condition, conditionScope(xor));
+        s.append(emitConditionReads(conditionObjects, sanitizeVariable(xor.getId()), conditionVariables));
+        s.append(String.format("if(%s){\n", renameCondition(condition, conditionVariables)));
 
         for (String elementId : trueBranch.getValue()) {
             BpmnElement element = bpmnElements.getElementById(elementId);
@@ -848,7 +1036,15 @@ public String visit(MIC mic) {
      @Override
      public String visit(LP lp) throws FileNotFoundException, UnsupportedEncodingException {
          StringBuilder sb = new StringBuilder();
-         sb.append("while(").append(lp.getCondition()).append("){\n");
+         String condition = lp.getCondition();
+         // The condition may only see data objects of this process: declare them,
+         // refresh them at the end of every pass (the paper's reads inside the body),
+         // then check - so the do-while always evaluates up-to-date values.
+         List<DO> conditionObjects = conditionDataObjects(condition, conditionScope(lp));
+         String prefix = sanitizeVariable(lp.getId());
+         Map<String, String> conditionVariables = new HashMap<>();
+         sb.append(declareConditionVariables(conditionObjects, prefix, conditionVariables));
+         sb.append("do {\n");
          for (String elementId : lp.getFlowElementMap()) {
              BpmnElement element = bpmnElements.getElementById(elementId);
              if (element == null) { log.warn("LP: element '{}' not found", elementId); continue; }
@@ -856,7 +1052,14 @@ public String visit(MIC mic) {
              BpmnElement sequence = bpmnElements.getElementById(element.getOutgoingEdge());
              if (sequence != null) { sb.append(sequence.accept(this)); }
          }
-         sb.append("}\n");
+         Map<String, String> refreshedVariables = new HashMap<>();
+         sb.append(emitConditionReads(conditionObjects, prefix + "_r", refreshedVariables));
+         conditionVariables.entrySet().stream()
+                 .filter(e -> e.getKey() != null && refreshedVariables.get(e.getKey()) != null)
+                 .sorted(Map.Entry.comparingByKey())
+                 .forEach(e -> sb.append(e.getValue()).append(" = ")
+                         .append(refreshedVariables.get(e.getKey())).append("\n"));
+         sb.append("} while(").append(renameCondition(condition, conditionVariables)).append(")\n");
          sb.append("out('").append(lp.getOutgoingEdge()).append("')@self\n");
          return sb.toString();
      }

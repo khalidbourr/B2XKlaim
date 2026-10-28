@@ -1,0 +1,8 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc CheckSensor(String edge) {
+  /* Script body for 'CheckSensor': assign output variables here */
+  out(edge)@self
+}

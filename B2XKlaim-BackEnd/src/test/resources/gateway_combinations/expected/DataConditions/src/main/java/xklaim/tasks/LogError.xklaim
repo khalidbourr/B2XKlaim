@@ -1,0 +1,8 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc LogError(String edge) {
+  /* Script body for 'LogError': assign output variables here */
+  out(edge)@self
+}

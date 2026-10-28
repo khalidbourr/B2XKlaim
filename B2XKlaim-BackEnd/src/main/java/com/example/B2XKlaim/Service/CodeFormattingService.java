@@ -147,8 +147,8 @@ public class CodeFormattingService {
                 continue;
             }
 
-            // Decrease indent level before processing closing braces and else statements
-            if (trimmedLine.equals("}") || trimmedLine.startsWith("} else")) {
+            // Decrease indent level before processing closing braces, else statements and loop checks
+            if (trimmedLine.equals("}") || trimmedLine.startsWith("} else") || trimmedLine.startsWith("} while")) {
                 if (currentIndentLevel > 0) {
                     currentIndentLevel--;
                 }

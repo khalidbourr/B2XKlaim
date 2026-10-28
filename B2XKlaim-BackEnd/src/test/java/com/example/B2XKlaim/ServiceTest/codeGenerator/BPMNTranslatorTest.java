@@ -574,6 +574,110 @@ public class BPMNTranslatorTest {
     }
 
     @Test
+    public void test_XOR_reads_condition_data_objects_when_in_scope() throws Exception {
+        DO counter = DO.builder()
+                .id("DataObjectReference_counter")
+                .name("counterData")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("counter").type("Integer").build()))
+                .build();
+        ST taskTrue = ST.builder().name("TrueTask").id("taskTrue").outgoingEdge("flowTrue").build();
+        SQ flowTrue = SQ.builder().id("flowTrue").source("taskTrue").target("merge").build();
+        ST taskFalse = ST.builder().name("FalseTask").id("taskFalse").outgoingEdge("flowFalse").build();
+        SQ flowFalse = SQ.builder().id("flowFalse").source("taskFalse").target("merge").build();
+
+        Map<String, List<String>> conditionMap = new LinkedHashMap<>();
+        conditionMap.put("counter < 5", Arrays.asList("taskTrue"));
+        conditionMap.put("", Arrays.asList("taskFalse"));
+
+        XOR xor = XOR.builder().id("Gateway_ab12").outgoingEdge("flowOut").conditionElementMap(conditionMap).build();
+        xor.setProcessId("proc1");
+
+        BpmnElements elements = buildElements(counter, xor, taskTrue, flowTrue, taskFalse, flowFalse);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(xor);
+
+        assertTrue(result.contains("read('counterData', var Integer Gateway_ab12_counter)@self"),
+                "condition data must be read before the if: " + result);
+        assertTrue(result.contains("if(Gateway_ab12_counter < 5)"),
+                "condition must use the read variable: " + result);
+    }
+
+    @Test
+    public void test_XOR_does_not_read_data_objects_of_another_process() throws Exception {
+        DO counter = DO.builder()
+                .id("DataObjectReference_counter")
+                .name("counterData")
+                .processId("proc2")
+                .fields(List.of(
+                        Field.builder().name("counter").type("Integer").build()))
+                .build();
+        ST taskTrue = ST.builder().name("TrueTask").id("taskTrue").outgoingEdge("flowTrue").build();
+        SQ flowTrue = SQ.builder().id("flowTrue").source("taskTrue").target("merge").build();
+        ST taskFalse = ST.builder().name("FalseTask").id("taskFalse").outgoingEdge("flowFalse").build();
+        SQ flowFalse = SQ.builder().id("flowFalse").source("taskFalse").target("merge").build();
+
+        Map<String, List<String>> conditionMap = new LinkedHashMap<>();
+        conditionMap.put("counter < 5", Arrays.asList("taskTrue"));
+        conditionMap.put("", Arrays.asList("taskFalse"));
+
+        XOR xor = XOR.builder().id("Gateway_ab12").outgoingEdge("flowOut").conditionElementMap(conditionMap).build();
+        xor.setProcessId("proc1");
+
+        BpmnElements elements = buildElements(counter, xor, taskTrue, flowTrue, taskFalse, flowFalse);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(xor);
+
+        assertFalse(result.contains("read("),
+                "another node's data object does not exist here and would block: " + result);
+        assertTrue(result.contains("if(counter < 5)"),
+                "condition stays untouched without matching data: " + result);
+    }
+
+    @Test
+    public void test_LP_reads_and_refreshes_condition_data_objects() throws Exception {
+        DO counter = DO.builder()
+                .id("DataObjectReference_counter")
+                .name("counterData")
+                .processId("proc1")
+                .fields(List.of(
+                        Field.builder().name("counter").type("Integer").build()))
+                .build();
+        ST taskInLoop = ST.builder().name("LoopTask").id("loopTask").outgoingEdge("loopFlow").build();
+        SQ loopFlow = SQ.builder().id("loopFlow").source("loopTask").target("loopTask").build();
+
+        LP lp = LP.builder()
+                .id("Gateway_lp1")
+                .condition("counter < 5")
+                .outgoingEdge("flowOut")
+                .flowElementMap(Arrays.asList("loopTask"))
+                .build();
+        lp.setProcessId("proc1");
+
+        BpmnElements elements = buildElements(counter, lp, taskInLoop, loopFlow);
+        elements.analyzeInteractions();
+        BPMNTranslator translator = new BPMNTranslator(elements);
+
+        String result = translator.visit(lp);
+
+        assertTrue(result.contains("var Integer Gateway_lp1_counter\n"),
+                "condition variable must be declared before the loop: " + result);
+        assertTrue(result.contains("do {\n"),
+                "loop must be a do-while (the check happens after the body): " + result);
+        assertTrue(result.contains("read('counterData', var Integer Gateway_lp1_r_counter)@self"),
+                "condition data must be refreshed at the end of every pass: " + result);
+        assertTrue(result.contains("Gateway_lp1_counter = Gateway_lp1_r_counter"),
+                "the refreshed value must reach the condition variable: " + result);
+        assertTrue(result.contains("} while(Gateway_lp1_counter < 5)"),
+                "condition must use the refreshed variable: " + result);
+    }
+
+    @Test
     public void test_LP_loop_translation() throws Exception {
         ST taskInLoop = ST.builder().name("LoopTask").id("loopTask").outgoingEdge("loopFlow").build();
         SQ loopFlow = SQ.builder().id("loopFlow").source("loopTask").target("loopTask").build();

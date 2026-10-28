@@ -1,0 +1,8 @@
+package xklaim.tasks
+
+import klava.Locality
+
+proc UpdateState(String edge) {
+  /* Script body for 'UpdateState': assign output variables here */
+  out(edge)@self
+}
