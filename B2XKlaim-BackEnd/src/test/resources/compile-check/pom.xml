@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <groupId>generated-compile-check</groupId>
+    <artifactId>generated-compile-check</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    
+    <properties>
+      <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+      <maven.compiler.source>21</maven.compiler.source>
+      <maven.compiler.target>21</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+      <dependency>
+        <groupId>io.github.lorenzobettini.klaim</groupId>
+        <artifactId>xklaim.runtime</artifactId>
+        <version>2.5.0</version>
+      </dependency>
+      <dependency>
+        <groupId>us.ihmc</groupId>
+        <artifactId>jros2</artifactId>
+        <version>1.1.6</version>
+      </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+              <groupId>org.eclipse.xtext</groupId>
+              <artifactId>xtext-maven-plugin</artifactId>
+              <version>2.40.0</version>
+              <dependencies>
+                <dependency><groupId>io.github.lorenzobettini.klaim</groupId><artifactId>xklaim</artifactId><version>2.5.0</version></dependency>
+                <dependency><groupId>io.github.lorenzobettini.klaim</groupId><artifactId>klava</artifactId><version>2.5.0</version></dependency>
+                <dependency><groupId>io.github.lorenzobettini.klaim</groupId><artifactId>imc</artifactId><version>2.5.0</version></dependency>
+                <dependency><groupId>io.github.lorenzobettini.klaim</groupId><artifactId>xklaim.runtime</artifactId><version>2.5.0</version></dependency>
+              </dependencies>
+              <executions>
+                <execution><id>xtext-generate</id><goals><goal>generate</goal></goals></execution>
+              </executions>
+              <configuration>
+                <languages><language><setup>xklaim.XklaimStandaloneSetup</setup></language></languages>
+              </configuration>
+            </plugin>
+
+            <plugin>
+              <groupId>org.codehaus.mojo</groupId>
+              <artifactId>build-helper-maven-plugin</artifactId>
+              <version>3.0.0</version>
+              <executions>
+                <execution>
+                  <id>add-src-gen-source</id>
+                  <goals>
+                    <goal>add-source</goal>
+                  </goals>
+                  <configuration>
+                    <sources>
+                      <!-- Where Xklaim generates Java files -->
+                      <source>src-gen/</source>
+                    </sources>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+            
+            <!-- Assembly plugin to create executable jar with dependencies -->
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>xklaim.Collaboration</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
