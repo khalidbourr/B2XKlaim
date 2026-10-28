@@ -167,6 +167,7 @@ import { CustomCreateMenuProvider, CustomAppendMenuProvider } from './CustomCrea
 import CustomPropertiesProvider from './CustomPropertiesProvider.js';
 import CustomRenderer from './CustomRenderer.js';
 import CallActivityDrilldownProvider from './CallActivityDrilldownProvider.js';
+import { setProjectProcesses } from './processRegistry.js';
 import b2xModdleDescriptor from './b2xModdle.json';
 
 // Store modeler outside Vue's reactivity system to prevent infinite recursion
@@ -222,6 +223,13 @@ export default {
     processesArray() {
       return Array.from(this.bpmnProcesses.entries());
     }
+  },
+
+  watch: {
+    // The properties panel cannot read Vue state, so the list of processes it
+    // offers as "Called element" is mirrored into processRegistry.js.
+    processesArray: { immediate: true, handler: 'syncProcessRegistry' },
+    activeProcess: 'syncProcessRegistry'
   },
 
   async mounted() {
@@ -343,6 +351,27 @@ export default {
     });
   },
   methods: {
+    // Key the backend uses for a process (see generateCode below): call
+    // activity sub-processes are keyed by their sanitized name, the others by
+    // their tab key. This is what a call activity must reference.
+    backendProcessKey(processId) {
+      const data = this.bpmnProcesses.get(processId);
+      if (processId.startsWith('callActivity_') && data && data.name) {
+        return data.name.replace(/[^a-zA-Z0-9_]/g, '_');
+      }
+      return processId;
+    },
+
+    // Mirror the project's processes into the panel's registry.
+    syncProcessRegistry() {
+      const processes = this.processesArray.map(([key, data]) => ({
+        key: this.backendProcessKey(key),
+        id: key,
+        name: data.name || key
+      }));
+      setProjectProcesses(processes, this.activeProcess);
+    },
+
     // Default empty diagram for new projects
     getDefaultDiagram() {
       return '<?xml version="1.0" encoding="UTF-8"?>\n' +
@@ -946,16 +975,11 @@ export default {
 
         this.showButtons = true;
 
-        // Collect all processes — use the sanitized name as key for Call Activity
-        // sub-processes so the backend can match them to calledElement references
+        // Collect all processes — keyed with backendProcessKey so the backend
+        // can match them to the calledElement references of call activities
         const allProcesses = {};
         for (let [processId, processData] of this.bpmnProcesses.entries()) {
-          if (processId.startsWith('callActivity_')) {
-            const key = processData.name.replace(/[^a-zA-Z0-9_]/g, '_');
-            allProcesses[key] = processData.xml;
-          } else {
-            allProcesses[processId] = processData.xml;
-          }
+          allProcesses[this.backendProcessKey(processId)] = processData.xml;
         }
 
         const apiBaseUrl = process.env.VUE_APP_API_URL || "http://localhost:8081";

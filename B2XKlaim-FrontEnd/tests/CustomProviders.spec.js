@@ -5,6 +5,7 @@ vi.mock('@bpmn-io/properties-panel', () => ({
   TextFieldEntry: vi.fn(),
   SelectEntry: vi.fn(),
   ListGroup: vi.fn(),
+  Group: vi.fn(),
 }));
 vi.mock('bpmn-js-properties-panel', () => ({
   useService: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('bpmn-js/lib/features/popup-menu/ReplaceMenuProvider', () => {
 });
 
 import CustomReplaceMenuProvider from '@/CustomReplaceMenuProvider.js';
+import { setProjectProcesses } from '@/processRegistry.js';
 
 describe('CustomReplaceMenuProvider', () => {
   let provider;
@@ -274,6 +276,40 @@ describe('CustomPropertiesProvider', () => {
       const entry = payloadGroup.items[0].entries[0];
       expect(entry.id).toBe('Event_send-b2xPayload-0-name');
       expect(typeof entry.component).toBe('function');
+    });
+
+    it('replaces the called element text field with a select of the project processes', () => {
+      setProjectProcesses(
+        [
+          { key: 'main', id: 'main', name: 'Main' },
+          { key: 'Pack_And_Move', id: 'callActivity_1', name: 'Pack and Move' },
+        ],
+        'main'
+      );
+
+      const element = {
+        type: 'bpmn:CallActivity',
+        id: 'Activity_1',
+        businessObject: {
+          $type: 'bpmn:CallActivity',
+          calledElement: 'Pack_And_Move',
+          get: vi.fn(),
+        },
+      };
+      const filterFn = provider.getGroups(element);
+
+      // the standard panel contributes the group with its own entries
+      const result = filterFn([
+        { id: 'general' },
+        { id: 'CamundaPlatform__CallActivity', label: 'Called element', entries: [{ id: 'calledElementType' }] },
+      ]);
+
+      const callGroups = result.filter(g => g.id === 'CamundaPlatform__CallActivity');
+      expect(callGroups).toHaveLength(1);
+      expect(callGroups[0].label).toBe('Called element');
+      expect(callGroups[0].entries).toHaveLength(1);
+      expect(callGroups[0].entries[0].id).toBe('calledElement');
+      expect(typeof callGroups[0].entries[0].component).toBe('function');
     });
 
     it('adds no payload group for message catch events', () => {

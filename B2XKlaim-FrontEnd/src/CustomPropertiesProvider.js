@@ -1,7 +1,9 @@
 
 
-import { TextFieldEntry, SelectEntry, ListGroup } from '@bpmn-io/properties-panel';
+import { TextFieldEntry, SelectEntry, ListGroup, Group } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
+
+import { getProjectProcesses, getActiveProcessKey } from './processRegistry.js';
 
 const ALLOWED_GROUPS = new Set([
   // Standard BPMN groups
@@ -353,6 +355,63 @@ function MessagePayloadGroup(element, injector) {
   };
 }
 
+// "Called element": the process a call activity starts. The translation emits
+// it verbatim (eval(new <calledElement>(...))), so the value must be a process
+// of the project: it is picked from the list instead of typed, because a typo
+// used to produce a call to a process that does not exist.
+function CalledElementSelect(props) {
+  const { idPrefix, element } = props;
+  const commandStack = useService('commandStack');
+  const bo = element.businessObject || element;
+
+  const activeKey = getActiveProcessKey();
+  const processes = getProjectProcesses().filter(function(process) {
+    // a process cannot call itself
+    return process.key !== activeKey && process.id !== activeKey;
+  });
+
+  const options = processes.map(function(process) {
+    return { label: process.name || process.key, value: process.key };
+  });
+
+  // A value stored before this entry became a list stays selectable and is
+  // flagged, instead of silently disappearing from the panel.
+  const current = bo.get('calledElement');
+  if (current && !options.some(function(option) { return option.value === current; })) {
+    options.unshift({ label: current + ' — not a process of this project', value: current });
+  }
+
+  return SelectEntry({
+    element: element,
+    id: idPrefix + '-calledElement',
+    label: 'Called element',
+    getOptions: function() { return options; },
+    getValue: function() { return bo.get('calledElement') || ''; },
+    setValue: function(value) {
+      commandStack.execute('element.updateModdleProperties', {
+        element: element,
+        moddleElement: bo,
+        properties: { calledElement: value || undefined }
+      });
+    },
+    disabled: options.length === 0,
+    description: options.length === 0
+      ? 'Add another process to the project first: a call activity starts one of them.'
+      : 'Process started by this activity; it must exist in the project.'
+  });
+}
+
+function CallActivityGroup(element) {
+  return {
+    id: 'CamundaPlatform__CallActivity',
+    label: 'Called element',
+    component: Group,
+    entries: [
+      { id: 'calledElement', component: CalledElementSelect, idPrefix: element.id, element: element }
+    ]
+  };
+}
+
 // ---- Provider ----
 
 export default function CustomPropertiesProvider(propertiesPanel, injector) {
@@ -375,10 +434,10 @@ CustomPropertiesProvider.prototype.getGroups = function(element) {
         return ALLOWED_GROUPS.has(group.id);
       })
       .map(function(group) {
-        if (group.id === 'CamundaPlatform__CallActivity' && group.entries) {
-          group.entries = group.entries.filter(function(entry) {
-            return entry.id === 'calledElement';
-          });
+        // Replace the standard "Called element" text field by a choice among
+        // the project's processes (same group id, our own single entry).
+        if (group.id === 'CamundaPlatform__CallActivity' && element.type === 'bpmn:CallActivity') {
+          return CallActivityGroup(element);
         }
         return group;
       });
