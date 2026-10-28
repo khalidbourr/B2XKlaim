@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock dependencies imported by CustomPropertiesProvider
 vi.mock('@bpmn-io/properties-panel', () => ({
   TextFieldEntry: vi.fn(),
+  SelectEntry: vi.fn(),
   ListGroup: vi.fn(),
 }));
 vi.mock('bpmn-js-properties-panel', () => ({
@@ -243,6 +244,36 @@ describe('CustomPropertiesProvider', () => {
       expect(payloadGroup.label).toBe('Extension properties');
       expect(payloadGroup.items).toEqual([]);
       expect(result.find(g => g.id === 'CamundaPlatform__ExtensionProperties')).toBeUndefined();
+    });
+
+    it('offers the payload entry as a select of the source data object fields', () => {
+      const payloadField = {
+        $type: 'b2x:Field',
+        get: (key) => (key === 'name' ? 'x' : key === 'type' ? 'Integer' : undefined),
+      };
+      const element = {
+        type: 'bpmn:EndEvent',
+        id: 'Event_send',
+        businessObject: {
+          $type: 'bpmn:EndEvent',
+          eventDefinitions: [{ $type: 'bpmn:MessageEventDefinition' }],
+          get: (key) => {
+            if (key !== 'extensionElements') return undefined;
+            return { get: (k) => (k === 'values' ? [payloadField] : []) };
+          },
+        },
+      };
+      const filterFn = provider.getGroups(element);
+
+      const result = filterFn([{ id: 'general' }]);
+      const payloadGroup = result.find(g => g.id === 'B2XKlaim__MessagePayload');
+      expect(payloadGroup).toBeDefined();
+      expect(payloadGroup.items).toHaveLength(1);
+      expect(payloadGroup.items[0].label).toBe('x');
+
+      const entry = payloadGroup.items[0].entries[0];
+      expect(entry.id).toBe('Event_send-b2xPayload-0-name');
+      expect(typeof entry.component).toBe('function');
     });
 
     it('adds no payload group for message catch events', () => {

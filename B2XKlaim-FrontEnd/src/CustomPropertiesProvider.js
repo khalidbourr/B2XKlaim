@@ -1,6 +1,6 @@
 
 
-import { TextFieldEntry, ListGroup } from '@bpmn-io/properties-panel';
+import { TextFieldEntry, SelectEntry, ListGroup } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 
 const ALLOWED_GROUPS = new Set([
@@ -260,27 +260,71 @@ function DataObjectFieldsGroup(element, injector, kind) {
 }
 
 
-function ThrowPayloadNameEntry(props) {
+// Fields of the data object(s) linked to a message throw event through their
+// data input associations. Per docs/translation.md the data object is the tuple
+// passed in communication actions, so its fields are the only names that can be
+// sent: this list is what the "Message Field" entry offers as a choice.
+function getSourceDataObjectFields(element) {
+  const bo = element.businessObject || element;
+  const assocs = bo.get('dataInputAssociations') || [];
+  const fields = [];
+  assocs.forEach(function(assoc) {
+    const sources = assoc.get('sourceRef') || [];
+    (Array.isArray(sources) ? sources : [sources]).forEach(function(source) {
+      if (source && typeof source === 'object') {
+        fields.push.apply(fields, getB2xFields(source));
+      }
+    });
+  });
+  return fields;
+}
+
+// "Message Field": choose one of the source data object's fields instead of
+// typing a name, so the selected name always exists in the tuple the throwing
+// side reads. "All fields of the data object" (empty name) sends the whole tuple.
+function ThrowPayloadFieldSelect(props) {
   const { idPrefix, element, field } = props;
   const commandStack = useService('commandStack');
-  const debounce = useService('debounceInput');
-  return TextFieldEntry({
+
+  const sourceFields = getSourceDataObjectFields(element);
+  const options = sourceFields.map(function(sourceField) {
+    const type = sourceField.get('type');
+    return {
+      label: (sourceField.get('name') || '<unnamed>') + (type ? ' (' + type + ')' : ''),
+      value: sourceField.get('name') || ''
+    };
+  });
+
+  // A name stored before this entry became a list stays selectable and is
+  // flagged, instead of silently disappearing from the panel.
+  const current = field.get('name');
+  if (current && !options.some(function(option) { return option.value === current; })) {
+    options.unshift({ label: current + ' — not a field of the data object', value: current });
+  }
+
+  return SelectEntry({
     element: field,
     id: idPrefix + '-name',
     label: 'Message Field',
+    getOptions: function() {
+      return [{ label: 'All fields of the data object', value: '' }].concat(options);
+    },
     getValue: function() { return field.get('name') || ''; },
     setValue: function(value) {
       commandStack.execute('element.updateModdleProperties', {
-        element, moddleElement: field, properties: { name: value }
+        element, moddleElement: field, properties: { name: value || undefined }
       });
     },
-    debounce
+    disabled: sourceFields.length === 0,
+    description: sourceFields.length === 0
+      ? 'Link a data object to this event: its fields are the message.'
+      : 'Field sent to the receiver. "All fields of the data object" sends the whole data object.'
   });
 }
 
 function payloadEntries({ idPrefix, element, field }) {
   return [
-    { id: idPrefix + '-name', component: ThrowPayloadNameEntry, idPrefix, element, field }
+    { id: idPrefix + '-name', component: ThrowPayloadFieldSelect, idPrefix, element, field }
   ];
 }
 
