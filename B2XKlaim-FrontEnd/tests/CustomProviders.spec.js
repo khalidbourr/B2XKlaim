@@ -223,6 +223,33 @@ describe('CustomPropertiesProvider', () => {
       expect(result.find(g => g.id === 'CamundaPlatform__ExtensionProperties')).toBeUndefined();
     });
 
+    it('offers a data object field type as a select of the supported types', () => {
+      const field = {
+        $type: 'b2x:Field',
+        get: (key) => (key === 'name' ? 'x' : key === 'type' ? 'Integer' : undefined),
+      };
+      const element = {
+        type: 'bpmn:DataObjectReference',
+        id: 'DataObject_1',
+        businessObject: {
+          $type: 'bpmn:DataObjectReference',
+          get: (key) => (key === 'extensionElements' ? { get: () => [field] } : undefined),
+        },
+      };
+      const filterFn = provider.getGroups(element);
+
+      const fieldsGroup = filterFn([{ id: 'general' }])
+        .find(g => g.id === 'B2XKlaim__DataObjectFields');
+      expect(fieldsGroup.items).toHaveLength(1);
+
+      const entryIds = fieldsGroup.items[0].entries.map(e => e.id);
+      expect(entryIds).toEqual(['DataObject_1-b2xField-0-name', 'DataObject_1-b2xField-0-type']);
+      // the type entry is the select, not a text field
+      const typeEntry = fieldsGroup.items[0].entries[1];
+      expect(typeof typeEntry.component).toBe('function');
+      expect(typeEntry.component.name).toBe('FieldTypeSelect');
+    });
+
     it('adds the message payload group for message throw events', () => {
       const element = {
         type: 'bpmn:IntermediateThrowEvent',

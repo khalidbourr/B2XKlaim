@@ -120,59 +120,65 @@ function FieldValueEntry(props) {
   });
 }
 
-function FieldTypeEntry(props) {
-  const { idPrefix, element, field } = props;
-  const commandStack = useService('commandStack');
-  const debounce = useService('debounceInput');
-  return TextFieldEntry({
-    element: field,
-    id: idPrefix + '-type',
-    label: 'Type',
-    getValue: function() { return field.get('type') || ''; },
-    setValue: function(value) {
-      commandStack.execute('element.updateModdleProperties', {
-        element: element,
-        moddleElement: field,
-        properties: { type: value }
-      });
-    },
-    debounce: debounce
-  });
-}
+/**
+ * Types the backend understands: each one has a default the generated code can
+ * start a value with (BPMNTranslator#defaultForType). Anything else — Object, a
+ * class name, a typo — becomes an untyped variable holding null, which the
+ * tuple never binds, so the list is closed on purpose.
+ */
+const SUPPORTED_FIELD_TYPES = ['Integer', 'Long', 'Double', 'Float', 'Boolean', 'String'];
 
 /**
- * "Type" of a data object field. Stored in `type`, the same attribute the
- * backend reads (`BpmnElementFactory.extractFields`).
+ * "Type" of a field, stored in `type` — the attribute the backend reads.
  *
- * Legacy fallback: until commit 03d3c0d this box wrote to `value`, so older
- * diagrams have the type in `value` and `type` empty. Reading `type` first and
- * falling back to `value` keeps those diagrams editable; the next edit writes
- * the proper `type` attribute.
+ * Legacy fallback: until commit b91f381 the type box wrote to `value`, so
+ * older diagrams keep the type in `value` and `type` empty. That value is read
+ * back here and cleared when a type is picked, so it is not mistaken for an
+ * initial value.
  */
-function DataObjectTypeEntry(props) {
+function FieldTypeSelect(props) {
   const { idPrefix, element, field } = props;
   const commandStack = useService('commandStack');
-  const debounce = useService('debounceInput');
-  return TextFieldEntry({
+
+  const current = field.get('type') || field.get('value') || '';
+
+  const options = SUPPORTED_FIELD_TYPES.map(function(type) {
+    return { label: type, value: type };
+  });
+  // a value stored before this entry became a list stays selectable and is
+  // flagged, instead of silently disappearing from the panel
+  if (current && SUPPORTED_FIELD_TYPES.indexOf(current) === -1) {
+    options.unshift({ label: current + ' — not supported', value: current });
+  }
+
+  return SelectEntry({
     element: field,
     id: idPrefix + '-type',
     label: 'Type',
-    getValue: function() { return field.get('type') || field.get('value') || ''; },
+    getOptions: function() {
+      return [{ label: 'Untyped', value: '' }].concat(options);
+    },
+    getValue: function() { return current; },
     setValue: function(value) {
+      const properties = { type: value || undefined };
+      // a legacy `value` holding a type name was the old type box, not an
+      // initial value: clear it, otherwise the backend reads it as one
+      if (SUPPORTED_FIELD_TYPES.indexOf(field.get('value')) !== -1) {
+        properties.value = undefined;
+      }
       commandStack.execute('element.updateModdleProperties', {
         element: element,
         moddleElement: field,
-        properties: { type: value }
+        properties: properties
       });
-    },
-    debounce: debounce
+    }
   });
 }
 
 function dataObjectFieldEntries({ idPrefix, element, field }) {
   return [
     { id: idPrefix + '-name',  component: FieldNameEntry,       idPrefix, element, field },
-    { id: idPrefix + '-type',  component: DataObjectTypeEntry,  idPrefix, element, field }
+    { id: idPrefix + '-type',  component: FieldTypeSelect,     idPrefix, element, field }
   ];
 }
 
@@ -180,7 +186,7 @@ function dataInputFieldEntries({ idPrefix, element, field }) {
   return [
     { id: idPrefix + '-name',  component: FieldNameEntry,    idPrefix, element, field },
     { id: idPrefix + '-value', component: FieldValueEntry,   idPrefix, element, field },
-    { id: idPrefix + '-type',  component: FieldTypeEntry,    idPrefix, element, field }
+    { id: idPrefix + '-type',  component: FieldTypeSelect,    idPrefix, element, field }
   ];
 }
 
