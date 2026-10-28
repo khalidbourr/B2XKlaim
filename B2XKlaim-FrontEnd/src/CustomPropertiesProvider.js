@@ -138,7 +138,16 @@ function FieldTypeEntry(props) {
   });
 }
 
-function FieldTypeFromValueEntry(props) {
+/**
+ * "Type" of a data object field. Stored in `type`, the same attribute the
+ * backend reads (`BpmnElementFactory.extractFields`).
+ *
+ * Legacy fallback: until commit 03d3c0d this box wrote to `value`, so older
+ * diagrams have the type in `value` and `type` empty. Reading `type` first and
+ * falling back to `value` keeps those diagrams editable; the next edit writes
+ * the proper `type` attribute.
+ */
+function DataObjectTypeEntry(props) {
   const { idPrefix, element, field } = props;
   const commandStack = useService('commandStack');
   const debounce = useService('debounceInput');
@@ -146,12 +155,12 @@ function FieldTypeFromValueEntry(props) {
     element: field,
     id: idPrefix + '-type',
     label: 'Type',
-    getValue: function() { return field.get('value') || ''; },
+    getValue: function() { return field.get('type') || field.get('value') || ''; },
     setValue: function(value) {
       commandStack.execute('element.updateModdleProperties', {
         element: element,
         moddleElement: field,
-        properties: { value: value || undefined }
+        properties: { type: value }
       });
     },
     debounce: debounce
@@ -161,7 +170,7 @@ function FieldTypeFromValueEntry(props) {
 function dataObjectFieldEntries({ idPrefix, element, field }) {
   return [
     { id: idPrefix + '-name',  component: FieldNameEntry,       idPrefix, element, field },
-    { id: idPrefix + '-type',  component: FieldTypeFromValueEntry, idPrefix, element, field }
+    { id: idPrefix + '-type',  component: DataObjectTypeEntry,  idPrefix, element, field }
   ];
 }
 
