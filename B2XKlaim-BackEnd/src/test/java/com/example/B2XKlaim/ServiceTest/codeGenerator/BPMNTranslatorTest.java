@@ -279,19 +279,19 @@ public class BPMNTranslatorTest {
 
         String proc = translator.generateScriptTaskProc(st);
 
-        assertTrue(proc.contains("var Integer count = null"), "Output local init missing");
-        assertTrue(proc.contains("var String label = null"), "Output local init missing");
+        assertTrue(proc.contains("var Integer count = 0"), "Output local init missing");
+        assertTrue(proc.contains("var String label = \"\""), "Output local init missing");
         assertTrue(proc.contains("in('scan', var Integer dummy_count, var String dummy_label)@self"),
                 "Dummy consumption missing");
         assertTrue(proc.contains("out('scan', count, label)@self"),
                 "Updated output emission missing");
 
-        // Ordering: null-init must precede sigma placeholder, which must precede in/out update.
-        int initIdx = proc.indexOf("var Integer count = null");
+        // Ordering: init must precede sigma placeholder, which must precede in/out update.
+        int initIdx = proc.indexOf("var Integer count = 0");
         int sigmaIdx = proc.indexOf("Script body");
         int inIdx = proc.indexOf("in('scan'");
         assertTrue(initIdx < sigmaIdx && sigmaIdx < inIdx,
-                "Order must be: null-init → script body → in/out update");
+                "Order must be: type-default init → script body → in/out update");
     }
 
     @Test
@@ -314,14 +314,14 @@ public class BPMNTranslatorTest {
         String proc = translator.generateScriptTaskProc(st);
 
         int readIdx = proc.indexOf("read('sensor'");
-        int initIdx = proc.indexOf("var Boolean ok = null");
+        int initIdx = proc.indexOf("var Boolean ok = false");
         int sigmaIdx = proc.indexOf("Script body");
         int inIdx = proc.indexOf("in('result'");
         int outIdx = proc.indexOf("out('result'");
         int edgeOutIdx = proc.indexOf("out(edge)@self");
         assertTrue(readIdx >= 0 && initIdx > readIdx && sigmaIdx > initIdx
                         && inIdx > sigmaIdx && outIdx > inIdx && edgeOutIdx > outIdx,
-                "Order must be: read inputs → null-init outputs → script body → in/out update → out(edge)");
+                "Order must be: read inputs → type-default-init outputs → script body → in/out update → out(edge)");
     }
 
     @Test

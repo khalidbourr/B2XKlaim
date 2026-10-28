@@ -1000,7 +1000,7 @@ public String visit(MIC mic) {
 
      /**
       * Generates the data-aware proc definition for a script task per the paper:
-      * read inputs, null-init output locals, sigma(t) placeholder, in/out update
+      * read inputs, type-default-init output locals, sigma(t) placeholder, in/out update
       * for each output, then out(edge)@self.
       */
      public String generateScriptTaskProc(ST st) {
@@ -1032,7 +1032,7 @@ public String visit(MIC mic) {
                  for (Field f : output.getFields()) {
                      sb.append("  var ").append(typeOrObject(f.getType()))
                        .append(" ").append(f.getName())
-                       .append(" = null\n");
+                       .append(" = ").append(defaultForType(f.getType())).append("\n");
                  }
              }
          }
