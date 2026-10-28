@@ -447,11 +447,23 @@ public String visit(MIC mic) {
 
     private String formatMessageCatch(String messageId, String targetDataRef, String outgoingEdge, List<Field> payload) {
         String dataName = "data";
+        DO target = null;
         if (targetDataRef != null) {
-            DO target = (DO) bpmnElements.getElementById(targetDataRef);
+            target = (DO) bpmnElements.getElementById(targetDataRef);
             if (target != null && target.getName() != null) {
                 dataName = target.getName();
             }
+        }
+
+        // The catch panel declares no payload: per docs/translation.md the data object is
+        // the tuple "matched in communication actions", so its fields provide both the
+        // message bindings (in(m, vars)) and the values written back into the data object.
+        if ((payload == null || payload.isEmpty())
+                && target != null
+                && target.getFields() != null
+                && !target.getFields().isEmpty()) {
+            log.debug("Catch {}: deriving payload from data object '{}'", messageId, dataName);
+            payload = target.getFields();
         }
 
         if (payload == null || payload.isEmpty()) {
@@ -550,6 +562,7 @@ public String visit(MIC mic) {
      private String formatMessageThrow(String messageId, List<String> sourceDataRefs,
                                         List<Field> payload, String target, String outgoingEdge) {
          StringBuilder sb = new StringBuilder();
+         List<Field> sourceFields = new ArrayList<>();
 
          if (sourceDataRefs != null) {
              for (String ref : sourceDataRefs) {
@@ -560,6 +573,7 @@ public String visit(MIC mic) {
                      for (Field f : source.getFields()) {
                          sb.append(", var ").append(typeOrObject(f.getType()))
                            .append(" ").append(f.getName());
+                         sourceFields.add(f);
                      }
                  }
                  sb.append(")@self\n");
@@ -567,10 +581,8 @@ public String visit(MIC mic) {
          }
 
          sb.append("out('").append(messageId).append("'");
-         if (payload != null) {
-             for (Field f : payload) {
-                 sb.append(", ").append(f.getName());
-             }
+         for (Field f : resolveThrowPayload(payload, sourceFields)) {
+             sb.append(", ").append(f.getName());
          }
          sb.append(")@").append(target).append("\n");
 
@@ -578,6 +590,43 @@ public String visit(MIC mic) {
              sb.append("out('").append(outgoingEdge).append("')@self\n");
          }
          return sb.toString();
+     }
+
+     /**
+      * Fields actually emitted by a message throw event.
+      *
+      * docs/translation.md: a data object is the tuple "passed ... in communication
+      * actions", so the source data object's fields are the message payload. The panel's
+      * "Message Field" entries select a subset of them; an entry that does not name a
+      * field of the source data object (or an empty list) falls back to the data object's
+      * own fields, so the emitted tuple always refers to variables bound by the read above.
+      * Deliberately no user-facing check: the model is translated as asked.
+      */
+     private List<Field> resolveThrowPayload(List<Field> payload, List<Field> sourceFields) {
+         if (sourceFields.isEmpty()) {
+             // No source data object: nothing to resolve against, keep the panel as-is.
+             return payload == null ? new ArrayList<>() : payload;
+         }
+         if (payload == null || payload.isEmpty()) {
+             return sourceFields;
+         }
+
+         Map<String, Field> byName = new HashMap<>();
+         for (Field sourceField : sourceFields) {
+             byName.put(sourceField.getName(), sourceField);
+         }
+
+         List<Field> selected = new ArrayList<>();
+         for (Field panelField : payload) {
+             Field sourceField = byName.get(panelField.getName());
+             if (sourceField != null) {
+                 selected.add(sourceField);
+             } else {
+                 log.warn("Throw payload field '{}' is not a field of the source data object; ignoring it.",
+                         panelField.getName());
+             }
+         }
+         return selected.isEmpty() ? sourceFields : selected;
      }
  
       @Override

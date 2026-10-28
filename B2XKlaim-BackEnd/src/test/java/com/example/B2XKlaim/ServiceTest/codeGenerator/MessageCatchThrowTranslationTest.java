@@ -54,4 +54,48 @@ public class MessageCatchThrowTranslationTest {
         assertTrue(code.contains("out('Flow_3')@self"),
                 "Catch must continue along its outgoing edge");
     }
+
+    /**
+     * The catch panel no longer declares payload fields (the structure lives in the
+     * linked data object), and a throw panel may name a field the source data object
+     * does not have. In both cases the data object is what gets passed/matched, per
+     * docs/translation.md.
+     */
+    @Test
+    public void test_derives_payload_from_linked_data_objects() throws Exception {
+        InputStream is = getClass().getClassLoader().getResourceAsStream("MessageCatchFromDataObject.bpmn");
+        assertNotNull(is, "Test resource MessageCatchFromDataObject.bpmn not found");
+        String xml = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+
+        BpmnParser parser = new BpmnParser();
+        BpmnElements parsedElements = parser.parse(xml);
+        parsedElements.analyzeInteractions();
+
+        BPMNTranslator translator = new BPMNTranslator(parsedElements);
+        Collab collab = parsedElements.getElementsByType(Collab.class).get(0);
+        String code = translator.visit(collab);
+
+        // Throw: panel says "destination", source data object 'pose' has x,y -> send those
+        assertTrue(code.contains(
+                "read('pose', var Double x, var Double y)@self"),
+                "Throwing side must read the connected source data object");
+        assertTrue(code.contains(
+                "out('Message_PoseUpdate', x, y)@robot2_loc"),
+                "Throwing side must fall back to the source data object's fields");
+        assertFalse(code.contains("destination"),
+                "A payload field absent from the source data object must not be emitted");
+
+        // Catch: no panel payload -> bindings and data object write come from 'cmd'
+        assertTrue(code.contains(
+                "in('Message_PoseUpdate', var Double x, var Double y)@self"),
+                "Catch must bind the message using the linked data object's fields");
+        assertTrue(code.contains(
+                "in('cmd', var Double dummy_x, var Double dummy_y)@self"),
+                "Catch must consume the target data object tuple into dummy vars");
+        assertTrue(code.contains(
+                "out('cmd', x, y)@self"),
+                "Catch must write the received values into the target data object");
+        assertTrue(code.contains("out('Flow_3')@self"),
+                "Catch must continue along its outgoing edge");
+    }
 }
