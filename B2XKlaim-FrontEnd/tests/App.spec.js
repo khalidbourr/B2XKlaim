@@ -230,6 +230,12 @@ describe('App.vue - Methods', () => {
       expect(pom).toContain('<version>2.0-SNAPSHOT</version>');
       expect(pom).toContain('xklaim.runtime');
       expect(pom).toContain('maven-assembly-plugin');
+      // without the Xtext compiler the jar has no project classes at all
+      expect(pom).toContain('xtext-maven-plugin');
+      expect(pom).toContain('xklaim.XklaimStandaloneSetup');
+      // the collaboration is the entry point that exists in every project
+      expect(pom).toContain('<mainClass>xklaim.Collaboration</mainClass>');
+      expect(pom).not.toContain('.Main</mainClass>');
     });
   });
 

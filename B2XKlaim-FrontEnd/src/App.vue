@@ -1366,6 +1366,31 @@ export default {
     
     <build>
         <plugins>
+            <!-- Compiles the .xklaim sources into Java (src-gen/). Without it the
+                 jar has no project classes and cannot start. -->
+            <plugin>
+              <groupId>org.eclipse.xtext</groupId>
+              <artifactId>xtext-maven-plugin</artifactId>
+              <version>2.40.0</version>
+              <dependencies>
+                <dependency><groupId>io.github.lorenzobettini.klaim</groupId><artifactId>xklaim</artifactId><version>2.5.0</version></dependency>
+                <dependency><groupId>io.github.lorenzobettini.klaim</groupId><artifactId>klava</artifactId><version>2.5.0</version></dependency>
+                <dependency><groupId>io.github.lorenzobettini.klaim</groupId><artifactId>imc</artifactId><version>2.5.0</version></dependency>
+                <dependency><groupId>io.github.lorenzobettini.klaim</groupId><artifactId>xklaim.runtime</artifactId><version>2.5.0</version></dependency>
+              </dependencies>
+              <executions>
+                <execution>
+                  <id>xtext-generate</id>
+                  <goals><goal>generate</goal></goals>
+                </execution>
+              </executions>
+              <configuration>
+                <languages>
+                  <language><setup>xklaim.XklaimStandaloneSetup</setup></language>
+                </languages>
+              </configuration>
+            </plugin>
+
             <plugin>
               <groupId>org.codehaus.mojo</groupId>
               <artifactId>build-helper-maven-plugin</artifactId>
@@ -1393,7 +1418,7 @@ export default {
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>${this.projectConfig.groupId}.Main</mainClass>
+                            <mainClass>xklaim.Collaboration</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
@@ -1412,6 +1437,31 @@ export default {
             </plugin>
         </plugins>
     </build>
+
+    <!-- In Eclipse the Xtext builder (.project) already compiles the .xklaim
+         sources, so m2e skips this plugin instead of failing on it. -->
+    <profiles>
+      <profile>
+        <id>eclipse-m2e</id>
+        <activation>
+          <property><name>m2e.version</name></property>
+        </activation>
+        <build>
+          <plugins>
+            <plugin>
+              <groupId>org.eclipse.xtext</groupId>
+              <artifactId>xtext-maven-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>xtext-generate</id>
+                  <phase>none</phase>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </build>
+      </profile>
+    </profiles>
 </project>`;
     },
 
