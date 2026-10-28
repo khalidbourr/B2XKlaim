@@ -296,9 +296,8 @@ function ThrowPayloadFieldSelect(props) {
 
   const sourceFields = getSourceDataObjectFields(element);
   const options = sourceFields.map(function(sourceField) {
-    const type = sourceField.get('type');
     return {
-      label: (sourceField.get('name') || '<unnamed>') + (type ? ' (' + type + ')' : ''),
+      label: sourceField.get('name') || '<unnamed>',
       value: sourceField.get('name') || ''
     };
   });
@@ -326,7 +325,7 @@ function ThrowPayloadFieldSelect(props) {
     disabled: sourceFields.length === 0,
     description: sourceFields.length === 0
       ? 'Link a data object to this event: its fields are the message.'
-      : 'Field sent to the receiver. "All fields of the data object" sends the whole data object.'
+      : undefined
   });
 }
 
