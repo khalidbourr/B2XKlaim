@@ -3,6 +3,7 @@ package xklaim.tasks
 import klava.Locality
 
 proc CheckSensor(String edge) {
+  read('state', var Integer retries, var Integer counter)@self
   /* Script body for 'CheckSensor': assign output variables here */
   out(edge)@self
 }

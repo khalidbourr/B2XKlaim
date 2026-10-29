@@ -23,6 +23,11 @@
     <bpmn:scriptTask id="Task_Pre" name="Prepare">
       <bpmn:incoming>Flow_s_to_pre</bpmn:incoming>
       <bpmn:outgoing>Flow_pre_to_xsplit</bpmn:outgoing>
+      <bpmn:property id="Property_Pre" name="__targetRef_placeholder" />
+      <bpmn:dataOutputAssociation id="DataOutputAssociation_Pre">
+        <bpmn:sourceRef>Property_Pre</bpmn:sourceRef>
+        <bpmn:targetRef>DataObjectReference_state</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
     </bpmn:scriptTask>
 
     <bpmn:exclusiveGateway id="XOR_Split" default="Flow_x_to_B1">
@@ -34,6 +39,11 @@
     <bpmn:scriptTask id="Task_A1" name="CheckSensor">
       <bpmn:incoming>Flow_x_to_A1</bpmn:incoming>
       <bpmn:outgoing>Flow_A1_to_A2</bpmn:outgoing>
+      <bpmn:property id="Property_A1" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_A1">
+        <bpmn:sourceRef>DataObjectReference_state</bpmn:sourceRef>
+        <bpmn:targetRef>Property_A1</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
     </bpmn:scriptTask>
     <bpmn:scriptTask id="Task_A2" name="ProcessData">
       <bpmn:incoming>Flow_A1_to_A2</bpmn:incoming>
@@ -66,6 +76,15 @@
     <bpmn:scriptTask id="Task_L2" name="UpdateState">
       <bpmn:incoming>Flow_L1_to_L2</bpmn:incoming>
       <bpmn:outgoing>Flow_L2_to_lsplit</bpmn:outgoing>
+      <bpmn:property id="Property_L2" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_L2">
+        <bpmn:sourceRef>DataObjectReference_state</bpmn:sourceRef>
+        <bpmn:targetRef>Property_L2</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="DataOutputAssociation_L2">
+        <bpmn:sourceRef>Property_L2</bpmn:sourceRef>
+        <bpmn:targetRef>DataObjectReference_state</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
     </bpmn:scriptTask>
 
     <!-- Loop decision (XOR split) -->

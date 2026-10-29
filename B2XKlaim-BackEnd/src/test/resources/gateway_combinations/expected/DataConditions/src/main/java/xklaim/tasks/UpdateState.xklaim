@@ -3,6 +3,9 @@ package xklaim.tasks
 import klava.Locality
 
 proc UpdateState(String edge) {
+  read('state', var Integer retries, var Integer counter)@self
   /* Script body for 'UpdateState': assign output variables here */
+  in('state', var Integer dummy_retries, var Integer dummy_counter)@self
+  out('state', retries, counter)@self
   out(edge)@self
 }

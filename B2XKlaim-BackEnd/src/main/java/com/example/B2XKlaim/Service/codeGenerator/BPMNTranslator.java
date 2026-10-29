@@ -1213,6 +1213,10 @@ public String visit(MIC mic) {
          StringBuilder sb = new StringBuilder();
          sb.append("proc ").append(name).append("(String edge) {\n");
 
+         // Fields already brought into scope by an input read must not be
+         // declared again by the output initialisers (read-modify-write tasks)
+         Set<String> declaredFields = new HashSet<>();
+
          if (st.getDataInputRefs() != null) {
              for (String inputId : st.getDataInputRefs()) {
                  DO input = (DO) bpmnElements.getElementById(inputId);
@@ -1222,6 +1226,7 @@ public String visit(MIC mic) {
                      for (Field f : input.getFields()) {
                          sb.append(", var ").append(typeOrObject(f.getType()))
                            .append(" ").append(f.getName());
+                         if (f.getName() != null) declaredFields.add(f.getName());
                      }
                  }
                  sb.append(")@self\n");
@@ -1233,6 +1238,7 @@ public String visit(MIC mic) {
                  DO output = (DO) bpmnElements.getElementById(outputId);
                  if (output == null || output.getFields() == null) continue;
                  for (Field f : output.getFields()) {
+                     if (f.getName() != null && !declaredFields.add(f.getName())) continue;
                      sb.append("  var ").append(typeOrObject(f.getType()))
                        .append(" ").append(f.getName())
                        .append(" = ").append(defaultForType(f.getType())).append("\n");

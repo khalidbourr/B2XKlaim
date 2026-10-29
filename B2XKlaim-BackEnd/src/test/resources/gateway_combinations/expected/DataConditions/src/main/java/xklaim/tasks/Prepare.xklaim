@@ -3,6 +3,10 @@ package xklaim.tasks
 import klava.Locality
 
 proc Prepare(String edge) {
+  var Integer retries = 0
+  var Integer counter = 0
   /* Script body for 'Prepare': assign output variables here */
+  in('state', var Integer dummy_retries, var Integer dummy_counter)@self
+  out('state', retries, counter)@self
   out(edge)@self
 }
