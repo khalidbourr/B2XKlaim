@@ -192,11 +192,6 @@ import lombok.extern.slf4j.Slf4j;
              }
      }
  
-    /**
-     * Process whose data objects are visible at the node currently being translated.
-     * Gateway conditions read from them, so reads must never cross this scope (a
-     * tuple of another node's data object does not exist here and would block).
-     */
     private String currentProcessId;
 
     /**
@@ -212,15 +207,7 @@ import lombok.extern.slf4j.Slf4j;
         return translateProcessBody(startElement, startElement != null ? startElement.getProcessId() : null);
     }
 
-    /**
-     * Same as {@link #translateProcessBody(BpmnElement)} with an explicit process
-     * scope for data reads. Used for event sub-processes: their start event carries
-     * the id of the sub-process, while their data objects belong to the enclosing
-     * process (the one that also emits them into the node).
-     *
-     * @param processId the process whose data objects live at this node (may be null)
-     * @return The generated XKlaim code string for the process body path.
-     */
+    /** Same, with an explicit process scope for the condition data reads. */
     public String translateProcessBody(BpmnElement startElement, String processId)
     throws FileNotFoundException, UnsupportedEncodingException {
 
@@ -527,26 +514,13 @@ public String visit(MIC mic) {
          return (type == null || type.isEmpty()) ? "Object" : type;
      }
 
-     /** Words of an expression that are never data object fields. */
      private static final Set<String> CONDITION_KEYWORDS =
              Set.of("true", "false", "null", "and", "or", "not", "div", "mod", "instanceof");
 
-     /**
-      * The process a gateway reads its condition data from: the gateway's own if the
-      * parser attached one, otherwise the process currently being translated.
-      */
      private String conditionScope(BpmnElement gateway) {
          return gateway.getProcessId() != null ? gateway.getProcessId() : currentProcessId;
      }
 
-     /**
-      * The data objects of the given process whose fields the condition mentions
-      * (the paper's data(c)), sorted by name. A field name is claimed by the first
-      * data object holding it; a later data object with that name is still read
-      * (the tuple arity must match) but its copy of the field stays unused and is
-      * warned about. Identifiers that match no field are warned about as well -
-      * they cannot compile.
-      */
      private List<DO> conditionDataObjects(String condition, String processId) {
          if (processId == null || condition == null || condition.trim().isEmpty()) {
              return Collections.emptyList();
@@ -590,7 +564,6 @@ public String visit(MIC mic) {
          return result;
      }
 
-     /** All word-like tokens of an expression (excluding literals and operators). */
      private static Set<String> identifiersOf(String condition) {
          Set<String> identifiers = new LinkedHashSet<>();
          Matcher matcher = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*").matcher(condition);
@@ -601,7 +574,6 @@ public String visit(MIC mic) {
          return identifiers;
      }
 
-     /** Makes an element/field name usable as part of a variable name. */
      private static String sanitizeVariable(String raw) {
          if (raw == null || raw.isEmpty()) return "c";
          String sanitized = raw.replaceAll("[^A-Za-z0-9_]", "_");
@@ -611,11 +583,6 @@ public String visit(MIC mic) {
          return sanitized;
      }
 
-     /**
-      * Variable name for one field slot: &lt;prefix&gt;_&lt;field&gt;, falling back to
-      * &lt;prefix&gt;_&lt;dataObject&gt;_&lt;field&gt; when the name is already taken
-      * (the same field name in a second data object of the same condition).
-      */
      private static String conditionVariableName(String prefix, DO data, Field field, Set<String> used) {
          String variable = prefix + "_" + sanitizeVariable(field.getName());
          if (!used.add(variable)) {
@@ -625,12 +592,6 @@ public String visit(MIC mic) {
          return variable;
      }
 
-     /**
-      * read(...) actions bringing every field of the given data objects into scope
-      * (all fields, because the tuple arity must match the data object's tuple).
-      * renames maps each field name to the variable the condition must use; the
-      * first data object owning a field decides.
-      */
      private String emitConditionReads(List<DO> dataObjects, String prefix, Map<String, String> renames) {
          StringBuilder sb = new StringBuilder();
          Set<String> used = new HashSet<>();
@@ -648,11 +609,6 @@ public String visit(MIC mic) {
          return sb.toString();
      }
 
-     /**
-      * var declarations for the condition variables of a loop, in the scope the
-      * while(...) check sees. Only the first data object of a field is declared -
-      * a duplicate slot is read (and refreshed) but never consulted.
-      */
      private String declareConditionVariables(List<DO> dataObjects, String prefix, Map<String, String> renames) {
          StringBuilder sb = new StringBuilder();
          Set<String> used = new HashSet<>();
@@ -668,7 +624,6 @@ public String visit(MIC mic) {
          return sb.toString();
      }
 
-     /** Rewrites the raw condition so its data references use the read variables. */
      private static String renameCondition(String condition, Map<String, String> renames) {
          if (condition == null || renames.isEmpty()) return condition;
          String result = condition;
@@ -998,7 +953,6 @@ public String visit(MIC mic) {
         // Generate if block — use condition if present, otherwise default to "true"
         String condition = (trueBranch.getKey() != null && !trueBranch.getKey().trim().isEmpty())
                 ? trueBranch.getKey() : "true";
-        // Bring the data objects the condition mentions into scope first (data(c))
         Map<String, String> conditionVariables = new HashMap<>();
         List<DO> conditionObjects = conditionDataObjects(condition, conditionScope(xor));
         s.append(emitConditionReads(conditionObjects, sanitizeVariable(xor.getId()), conditionVariables));
@@ -1037,9 +991,7 @@ public String visit(MIC mic) {
      public String visit(LP lp) throws FileNotFoundException, UnsupportedEncodingException {
          StringBuilder sb = new StringBuilder();
          String condition = lp.getCondition();
-         // The condition may only see data objects of this process: declare them,
-         // refresh them at the end of every pass (the paper's reads inside the body),
-         // then check - so the do-while always evaluates up-to-date values.
+         // declare the condition data, refresh it at the end of each pass, then check
          List<DO> conditionObjects = conditionDataObjects(condition, conditionScope(lp));
          String prefix = sanitizeVariable(lp.getId());
          Map<String, String> conditionVariables = new HashMap<>();
@@ -1213,8 +1165,7 @@ public String visit(MIC mic) {
          StringBuilder sb = new StringBuilder();
          sb.append("proc ").append(name).append("(String edge) {\n");
 
-         // Fields already brought into scope by an input read must not be
-         // declared again by the output initialisers (read-modify-write tasks)
+         // fields already declared by an input read are not declared again
          Set<String> declaredFields = new HashSet<>();
 
          if (st.getDataInputRefs() != null) {

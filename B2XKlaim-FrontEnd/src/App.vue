@@ -1366,8 +1366,6 @@ export default {
     
     <build>
         <plugins>
-            <!-- Compiles the .xklaim sources into Java (src-gen/). Without it the
-                 jar has no project classes and cannot start. -->
             <plugin>
               <groupId>org.eclipse.xtext</groupId>
               <artifactId>xtext-maven-plugin</artifactId>
@@ -1438,8 +1436,6 @@ export default {
         </plugins>
     </build>
 
-    <!-- In Eclipse the Xtext builder (.project) already compiles the .xklaim
-         sources, so m2e skips this plugin instead of failing on it. -->
     <profiles>
       <profile>
         <id>eclipse-m2e</id>

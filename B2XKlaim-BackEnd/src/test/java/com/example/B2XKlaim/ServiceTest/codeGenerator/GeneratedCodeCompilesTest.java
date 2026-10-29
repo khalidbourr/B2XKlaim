@@ -15,18 +15,9 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Compiles generated xklaim code with the real X-Klaim compiler - the very same
- * xtext-maven-plugin the downloaded project uses. Plain string assertions cannot
- * see semantic mistakes (undeclared condition variables, reads from the wrong
- * node, broken do-while scope, ...); this test can, and it keeps them from
- * coming back.
- *
- * It runs a nested `mvn package` in a temp directory, so it needs mvn on the
- * PATH and network access to fetch the Xtext plugin - it is skipped otherwise.
- *
- * Only diagrams whose conditions are backed by data objects are compiled:
- * XOR_Simple, LP_Simple and friends deliberately model conditions over
- * variables no data object provides, which cannot compile by design.
+ * Compiles a generated project with the real X-Klaim compiler (xtext-maven-plugin).
+ * Skipped when mvn is not on the PATH. Only diagrams whose conditions are backed
+ * by data objects are compiled - the others model conditions that cannot compile.
  */
 public class GeneratedCodeCompilesTest {
 
@@ -63,7 +54,6 @@ public class GeneratedCodeCompilesTest {
         assertEquals(0, process.exitValue(),
                 "generated project does not compile - kept at " + project + "\n" + output);
 
-        // xtext ran and javac produced the process class
         Path classes = project.resolve("target/classes");
         try (var walk = Files.walk(classes)) {
             assertTrue(walk.anyMatch(p -> p.getFileName().toString().equals("DataConditions.class")),

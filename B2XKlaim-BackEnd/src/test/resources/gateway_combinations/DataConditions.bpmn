@@ -9,11 +9,6 @@
                   targetNamespace="http://bpmn.io/schema/bpmn"
                   exporter="Camunda Modeler" exporterVersion="5.28.0">
 
-  <!-- DataConditions: Start → Prepare → XOR split (condition over data) →
-         BranchA (retries < 3): CheckSensor → ProcessData
-         BranchB (default):     LogError
-       → XOR merge → loop( ReadSensor → UpdateState, counter < 5 ) → Report → End
-       Both conditions reference the fields of the 'state' data object. -->
   <bpmn:process id="Process_DataConditions" name="DataConditions" isExecutable="false">
 
     <bpmn:startEvent id="Start_1" name="start">
@@ -61,7 +56,6 @@
       <bpmn:outgoing>Flow_xm_to_lmerge</bpmn:outgoing>
     </bpmn:exclusiveGateway>
 
-    <!-- Loop entry (XOR merge) -->
     <bpmn:exclusiveGateway id="LP_Merge">
       <bpmn:incoming>Flow_xm_to_lmerge</bpmn:incoming>
       <bpmn:incoming>Flow_loop_back</bpmn:incoming>
@@ -87,7 +81,6 @@
       </bpmn:dataOutputAssociation>
     </bpmn:scriptTask>
 
-    <!-- Loop decision (XOR split) -->
     <bpmn:exclusiveGateway id="LP_Split" default="Flow_loop_exit">
       <bpmn:incoming>Flow_L2_to_lsplit</bpmn:incoming>
       <bpmn:outgoing>Flow_loop_back</bpmn:outgoing>

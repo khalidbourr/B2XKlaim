@@ -1,19 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" 
+<project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
     <groupId>generated-compile-check</groupId>
     <artifactId>generated-compile-check</artifactId>
     <version>1.0-SNAPSHOT</version>
-    
     <properties>
       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
       <maven.compiler.source>21</maven.compiler.source>
       <maven.compiler.target>21</maven.compiler.target>
     </properties>
-
     <dependencies>
       <dependency>
         <groupId>io.github.lorenzobettini.klaim</groupId>
@@ -26,7 +23,6 @@
         <version>1.1.6</version>
       </dependency>
     </dependencies>
-    
     <build>
         <plugins>
             <plugin>
@@ -46,7 +42,6 @@
                 <languages><language><setup>xklaim.XklaimStandaloneSetup</setup></language></languages>
               </configuration>
             </plugin>
-
             <plugin>
               <groupId>org.codehaus.mojo</groupId>
               <artifactId>build-helper-maven-plugin</artifactId>
@@ -59,15 +54,12 @@
                   </goals>
                   <configuration>
                     <sources>
-                      <!-- Where Xklaim generates Java files -->
                       <source>src-gen/</source>
                     </sources>
                   </configuration>
                 </execution>
               </executions>
             </plugin>
-            
-            <!-- Assembly plugin to create executable jar with dependencies -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>3.3.0</version>

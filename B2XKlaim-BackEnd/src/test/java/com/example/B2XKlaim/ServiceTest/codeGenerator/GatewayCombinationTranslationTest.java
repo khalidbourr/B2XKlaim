@@ -46,7 +46,6 @@ public class GatewayCombinationTranslationTest {
             Map<String, String> expectedFiles = loadExpectedFiles(EXPECTED_DIR + diagram + "/");
             boolean updating = System.getProperty("updateGoldens") != null;
 
-            // In update mode also bootstrap diagrams that have no expected files yet
             Set<String> relativePaths = new TreeSet<>(expectedFiles.keySet());
             if (updating) relativePaths.addAll(discoverActualPaths(actual));
 
@@ -60,7 +59,6 @@ public class GatewayCombinationTranslationTest {
                         assertNotNull(actualContent,
                             diagram + ": missing generated file " + relativePath);
                         if (updating) {
-                            // Maintenance: mvn test -DupdateGoldens rewrites the expected files
                             Path target = Path.of("src/test/resources/" + EXPECTED_DIR + diagram + "/" + relativePath);
                             Files.createDirectories(target.getParent());
                             Files.write(target, actualContent.getBytes(StandardCharsets.UTF_8));
@@ -78,7 +76,6 @@ public class GatewayCombinationTranslationTest {
         return tests.stream();
     }
 
-    /** Every file path findActualFile can serve, so -DupdateGoldens can create new goldens. */
     @SuppressWarnings("unchecked")
     private List<String> discoverActualPaths(Map<String, Object> response) {
         List<String> paths = new ArrayList<>();
