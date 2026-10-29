@@ -234,6 +234,8 @@ describe('App.vue - Methods', () => {
       expect(pom).toContain('xklaim.XklaimStandaloneSetup');
       expect(pom).toContain('<mainClass>xklaim.Collaboration</mainClass>');
       expect(pom).not.toContain('.Main</mainClass>');
+      expect(pom).toContain('<artifactId>jros2</artifactId>');
+      expect(pom).toContain('robotlabfiles.ihmc.us/repository');
     });
   });
 

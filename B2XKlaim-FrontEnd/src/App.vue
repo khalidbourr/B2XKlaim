@@ -1363,7 +1363,14 @@ export default {
         <version>1.1.6</version>
       </dependency>
     </dependencies>
-    
+
+    <repositories>
+      <repository>
+        <id>ihmc</id>
+        <url>https://robotlabfiles.ihmc.us/repository/</url>
+      </repository>
+    </repositories>
+
     <build>
         <plugins>
             <plugin>
